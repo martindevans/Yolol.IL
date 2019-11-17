@@ -1,0 +1,10 @@
+*.lock
+*.user
+*.cache
+*.ncrunchsolution
+*.ncrunchproject
+
+.vs
+obj
+bin
+_ReSharper.Caches

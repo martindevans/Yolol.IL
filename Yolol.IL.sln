@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29418.71
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Yolol.IL", "Yolol.IL\Yolol.IL.csproj", "{19B459B4-7660-4E97-9CD2-23346880856C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Yolol.IL.Tests", "Yolol.IL.Tests\Yolol.IL.Tests.csproj", "{EA61067E-DBF0-4704-BBF0-BB64BE5BCF30}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{19B459B4-7660-4E97-9CD2-23346880856C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{19B459B4-7660-4E97-9CD2-23346880856C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{19B459B4-7660-4E97-9CD2-23346880856C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{19B459B4-7660-4E97-9CD2-23346880856C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EA61067E-DBF0-4704-BBF0-BB64BE5BCF30}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EA61067E-DBF0-4704-BBF0-BB64BE5BCF30}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EA61067E-DBF0-4704-BBF0-BB64BE5BCF30}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EA61067E-DBF0-4704-BBF0-BB64BE5BCF30}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {04E4B70F-0808-478D-B110-50AA0301FEE3}
+	EndGlobalSection
+EndGlobal
