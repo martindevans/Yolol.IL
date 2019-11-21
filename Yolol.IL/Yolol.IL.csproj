@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Sigil.NetStandard" Version="4.8.0" />
-    <PackageReference Include="Yolol" Version="2.1.0" />
+    <PackageReference Include="Yolol" Version="2.6.0" />
     <PackageReference Include="Yolol.Analysis" Version="2.0.0" />
   </ItemGroup>
 

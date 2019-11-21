@@ -1,25 +1,29 @@
 ﻿using Sigil;
 using System;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using Yolol.Analysis.TreeVisitor;
 using Yolol.Execution;
 using Yolol.Grammar.AST;
 using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
+using Yolol.Grammar.AST.Expressions.Unary;
 using Yolol.Grammar.AST.Statements;
 
 namespace Yolol.IL
 {
     public static class ILExtension
     {
-        public static Func<int, MachineState, int> Compile(this Line line)
+        public static Func<MachineState, int> Compile(this Line line, int lineNumber)
         {
-            var emitter = Emit<Func<int, MachineState, int>>.NewDynamicMethod();
+            var emitter = Emit<Func<MachineState, int>>.NewDynamicMethod();
             var converter = new ConvertLineVisitor(emitter);
 
             converter.Visit(line.Statements);
 
-            // temp return, need to properly get goto values somehow
-            emitter.LoadConstant(7);
+            // Return a dead value (here signified by int.MinValue) to indicate no gotos were encountered
+            emitter.MarkLabel(emitter.DefineLabel());
+            emitter.LoadConstant(int.MinValue);
             emitter.Return();
 
             return emitter.CreateDelegate();
@@ -29,38 +33,118 @@ namespace Yolol.IL
     public class ConvertLineVisitor
         : BaseTreeVisitor
     {
-        private readonly Emit<Func<int, MachineState, int>> _emitter;
+        private readonly Emit<Func<MachineState, int>> _emitter;
 
-        public ConvertLineVisitor(Emit<Func<int, MachineState, int>> emitter)
+        public ConvertLineVisitor(Emit<Func< MachineState, int>> emitter)
         {
             _emitter = emitter;
         }
 
-        private void SwitchOnTypePair(Local leftType, Local rightType, Label numNum, Label numStr, Label strNum, Label strStr)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int Goto(Value value, MachineState state)
         {
-            void Test(Execution.Type l, Execution.Type r, Label tgt)
+            if (value.Type == Execution.Type.Number)
+                return Math.Min(state.MaxLineNumber, Math.Max(1, (int)value.Number.Value));
+
+            throw new ExecutionException("Attempted to `goto` a `string`");
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void Write1(MachineState state, string variable, Value value)
+        {
+            state.GetVariable(variable).Value = value;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void Write2(Value value, MachineState state, string variable)
+        {
+            state.GetVariable(variable).Value = value;
+        }
+
+        protected override BaseStatement Visit(Assignment ass)
+        {
+            // Put `MachineState` onto the stack
+            var state = _emitter.LoadArgument(0);
+
+            // Put the name of the variable onto the stack
+            _emitter.LoadConstant(ass.Left.Name);
+
+            // Place the value to put into this variable on the stack
+            var l = Visit(ass.Right);
+
+            // Call variable assignment method
+            _emitter.Call(typeof(ConvertLineVisitor).GetMethod(nameof(Write1), BindingFlags.NonPublic | BindingFlags.Static));
+
+            return ass;
+        }
+
+        protected override BaseStatement Visit(If @if)
+        {
+            // Create labels for control flow like:
+            //
+            //     entry point
+            //     branch_to trueLabel or falseLabel
+            //     trueLabel:
+            //         true branch code
+            //         jmp exitLabel
+            //     falseLabel:
+            //         false branch code
+            //         jmp exitlabel
+            //     exitlabel:
+            //
+            var trueLabel = _emitter.DefineLabel();
+            var falseLabel = _emitter.DefineLabel();
+            var exitLabel = _emitter.DefineLabel();
+
+            // Visit conditional which places a value on the stack
+            Visit(@if.Condition);
+
+            // Convert it to a bool we can branch on
+            using (var conditional = _emitter.DeclareLocal(typeof(Value)))
             {
-                _emitter.LoadLocal(leftType);
-                _emitter.LoadConstant((int)l);
-                _emitter.CompareEqual();
-
-                _emitter.LoadLocal(rightType);
-                _emitter.LoadConstant((int)r);
-                _emitter.CompareEqual();
-
-                _emitter.And();
-                _emitter.BranchIfTrue(tgt);
+                _emitter.StoreLocal(conditional);
+                _emitter.LoadLocalAddress(conditional);
+                _emitter.Call(typeof(Value).GetMethod(nameof(Value.ToBool)));
             }
 
-            Test(Execution.Type.Number, Execution.Type.Number, numNum);
-            Test(Execution.Type.Number, Execution.Type.String, numStr);
-            Test(Execution.Type.String, Execution.Type.Number, strNum);
-            Test(Execution.Type.String, Execution.Type.String, strStr);
+            // jump to false branch if the condition is false. Fall through to true branch
+            _emitter.BranchIfFalse(falseLabel);
 
-            // Invalid type pair
-            _emitter.NewObject<InvalidOperationException>();
-            _emitter.Throw();
+            // Emit true branch
+            _emitter.MarkLabel(trueLabel);
+            Visit(@if.TrueBranch);
+            _emitter.Branch(exitLabel);
+
+            // Emit false branch
+            _emitter.MarkLabel(falseLabel);
+            Visit(@if.FalseBranch);
+            _emitter.Branch(exitLabel);
+
+            // Exit point for both branches
+            _emitter.MarkLabel(exitLabel);
+
+            return @if;
         }
+
+        protected override BaseStatement Visit(Goto @goto)
+        {
+            // Put destination on the stack
+            Visit(@goto.Destination);
+
+            // Put MachineState on the stack
+            _emitter.LoadArgument(0);
+
+            // Call into goto handler
+            _emitter.Call(typeof(ConvertLineVisitor).GetMethod(nameof(Goto), BindingFlags.NonPublic | BindingFlags.Static));
+
+            // Return this value as the new program counter
+            _emitter.Return();
+
+            return @goto;
+        }
+
+        protected override BaseStatement Visit(CompoundAssignment compAss) => throw new NotImplementedException();
+
 
         protected override BaseExpression Visit(ConstantNumber con)
         {
@@ -97,235 +181,139 @@ namespace Yolol.IL
             return str;
         }
 
-        protected override BaseStatement Visit(Assignment ass)
-        {           
+        protected override BaseExpression Visit(Grammar.AST.Expressions.Variable var)
+        {
             // Put `MachineState` onto the stack
-            var state = _emitter.LoadArgument(1);
+            var state = _emitter.LoadArgument(0);
 
-            // Put the name of the variable onto the stack
-            _emitter.LoadConstant(ass.Left.Name);
+            // Put name of variable we're looking for on the stack
+            _emitter.LoadConstant(var.Name.Name);
 
-            // Put the variable object to assign onto the stack (consume previous 2 items)
-            _emitter.Call(typeof(MachineState).GetMethod(nameof(MachineState.GetVariable)));
+            // Put `IVariable` instance on the stack
+            _emitter.Call(typeof(MachineState).GetMethod(nameof(MachineState.GetVariable), new[] { typeof(string) }));
 
-            // Place the value to put into this variable on the stack
-            var l = Visit(ass.Right);
+            // Put value on the stack
+            _emitter.CallVirtual(typeof(IVariable).GetProperty(nameof(IVariable.Value)).GetMethod);
 
-            // Set the value on the stack into the variable
-            _emitter.CallVirtual(typeof(IVariable).GetProperty(nameof(IVariable.Value)).SetMethod);
-
-            return ass;
+            return var;
         }
 
-        private void ConvertBinary<T>(T expr, Action<Local, Local> emitNumNum, Action<Local, Local> emitNumStr, Action<Local, Local> emitStrNum, Action<Local, Local> emitStrStr)
+
+        private T ConvertBinary<T>(T expr, string valOp)
             where T : BaseBinaryExpression
         {
-            using var lvalue = _emitter.DeclareLocal(typeof(Value));
-            using var rvalue = _emitter.DeclareLocal(typeof(Value));
-            using var ltype = _emitter.DeclareLocal(typeof(Execution.Type));
-            using var rtype = _emitter.DeclareLocal(typeof(Execution.Type));
-
-            _emitter.DefineLabel(out var numNumLabel);
-            _emitter.DefineLabel(out var numStrLabel);
-            _emitter.DefineLabel(out var strNumlabel);
-            _emitter.DefineLabel(out var strStrLabel);
-            _emitter.DefineLabel(out var exit);
-
-            // Place the left value into local
             Visit(expr.Left);
-            _emitter.StoreLocal(lvalue);
-
-            // Place the right value into local
             Visit(expr.Right);
-            _emitter.StoreLocal(rvalue);
 
-            // Put left type into ltype field
-            _emitter.LoadLocalAddress(lvalue);
-            _emitter.Call(typeof(Value).GetProperty(nameof(Value.Type)).GetMethod);
-            _emitter.StoreLocal(ltype);
+            _emitter.Call(typeof(Value).GetMethod(valOp, new[] { typeof(Value), typeof(Value) }));
 
-            // Put right type into rtype field
-            _emitter.LoadLocalAddress(rvalue);
-            _emitter.Call(typeof(Value).GetProperty(nameof(Value.Type)).GetMethod);
-            _emitter.StoreLocal(rtype);
-
-            // Construct tests for the four possible type combinations
-            SwitchOnTypePair(ltype, rtype, numNumLabel, numStrLabel, strNumlabel, strStrLabel);
-
-            // Emit the 4 cases, each one jumping to the exit once done
-            _emitter.MarkLabel(numNumLabel);
-            emitNumNum(lvalue, rvalue);
-            _emitter.Branch(exit);
-
-            _emitter.MarkLabel(numStrLabel);
-            emitNumStr(lvalue, rvalue);
-            _emitter.Branch(exit);
-
-            _emitter.MarkLabel(strNumlabel);
-            emitStrNum(lvalue, rvalue);
-            _emitter.Branch(exit);
-
-            _emitter.MarkLabel(strStrLabel);
-            emitStrStr(lvalue, rvalue);
-            _emitter.Branch(exit);
-
-            _emitter.MarkLabel(exit);
+            return expr;
         }
 
-        protected override BaseExpression Visit(Add add)
+        protected override BaseExpression Visit(Add add) => ConvertBinary(add, "op_Addition");
+
+        protected override BaseExpression Visit(Subtract sub) => ConvertBinary(sub, "op_Subtraction");
+
+        protected override BaseExpression Visit(Multiply mul) => ConvertBinary(mul, "op_Multiply");
+
+        protected override BaseExpression Visit(Divide div) => ConvertBinary(div, "op_Division");
+
+        protected override BaseExpression Visit(EqualTo eq) => ConvertBinary(eq, "op_Equality");
+
+        protected override BaseExpression Visit(NotEqualTo neq) => ConvertBinary(neq, "op_Inequality");
+
+        protected override BaseExpression Visit(GreaterThan eq) => ConvertBinary(eq, "op_GreaterThan");
+
+        protected override BaseExpression Visit(GreaterThanEqualTo eq) => ConvertBinary(eq, "op_GreaterThanOrEqual");
+
+        protected override BaseExpression Visit(LessThan eq) => ConvertBinary(eq, "op_LessThan");
+
+        protected override BaseExpression Visit(LessThanEqualTo eq) => ConvertBinary(eq, "op_LessThanOrEqual");
+
+        protected override BaseExpression Visit(Modulo mod) => ConvertBinary(mod, "op_Modulus");
+
+        protected override BaseExpression Visit(And and) => ConvertBinary(and, "op_BitwiseAnd");
+
+        protected override BaseExpression Visit(Or or) => ConvertBinary(or, "op_BitwiseOr");
+
+        protected override BaseExpression Visit(Exponent expr)
         {
-            void NumNum(Local l, Local r)
-            {
-                _emitter.LoadLocalAddress(l);
-                _emitter.Call(typeof(Value).GetProperty(nameof(Value.Number)).GetMethod);
-                _emitter.LoadLocalAddress(r);
-                _emitter.Call(typeof(Value).GetProperty(nameof(Value.Number)).GetMethod);
-                _emitter.Call(typeof(Number).GetMethod("op_Addition"));
-                _emitter.NewObject<Value, Number>();
-            }
+            Visit(expr.Left);
+            Visit(expr.Right);
 
-            void Other(Local l, Local r)
-            {
-                // `ToString` both sides ready to concat
-                _emitter.LoadLocalAddress(l);
-                _emitter.Call(typeof(Value).GetMethod(nameof(Value.ToString)));
-                _emitter.LoadLocalAddress(r);
-                _emitter.Call(typeof(Value).GetMethod(nameof(Value.ToString)));
+            _emitter.Call(typeof(Value).GetMethod(nameof(Value.Exponent), new[] { typeof(Value), typeof(Value) }));
 
-                // Concat strings on stack
-                _emitter.Call(typeof(string).GetMethod(nameof(string.Concat), new[] { typeof(string), typeof(string) }));
-
-                // Wrap in a `Value`
-                _emitter.NewObject<Value, string>();
-            }
-
-            ConvertBinary(add, NumNum, Other, Other, Other);
-
-            return add;
+            return expr;
         }
 
-        protected override BaseExpression Visit(Subtract sub)
+
+        private T ConvertUnary<T>(T expr, string valOp)
+            where T : BaseUnaryExpression
         {
-            void NumNum(Local l, Local r)
-            {
-                _emitter.LoadLocalAddress(l);
-                _emitter.Call(typeof(Value).GetProperty(nameof(Value.Number)).GetMethod);
-                _emitter.LoadLocalAddress(r);
-                _emitter.Call(typeof(Value).GetProperty(nameof(Value.Number)).GetMethod);
-                _emitter.Call(typeof(Number).GetMethod("op_Subtraction"));
-                _emitter.NewObject<Value, Number>();
-            }
+            Visit(expr.Parameter);
 
-            void Other(Local l, Local r)
-            {
-                using var lstr = _emitter.DeclareLocal<string>();
-                using var rstr = _emitter.DeclareLocal<string>();
-                using var found = _emitter.DeclareLocal<int>();
+            _emitter.Call(typeof(Value).GetMethod(valOp, new[] { typeof(Value) }));
 
-                var noMatch = _emitter.DefineLabel();
-                var exit = _emitter.DefineLabel();
-
-                // `ToString` both sides into locals
-                _emitter.LoadLocalAddress(l);
-                _emitter.Call(typeof(Value).GetMethod(nameof(Value.ToString)));
-                _emitter.StoreLocal(lstr);
-
-                _emitter.LoadLocalAddress(r);
-                _emitter.Call(typeof(Value).GetMethod(nameof(Value.ToString)));
-                _emitter.StoreLocal(rstr);
-
-                // Find right in left
-                _emitter.LoadLocal(lstr);
-                _emitter.LoadLocal(rstr);
-                _emitter.LoadConstant((int)StringComparison.Ordinal);
-                _emitter.Call(typeof(string).GetMethod(nameof(string.LastIndexOf), new[] { typeof(string), typeof(StringComparison) }));
-                _emitter.StoreLocal(found);
-
-                // Check if a match was found
-                _emitter.LoadLocal(found);
-                _emitter.LoadConstant(-1);
-                _emitter.BranchIfEqual(noMatch);
-
-                // Match was found
-                _emitter.LoadLocal(lstr);
-                _emitter.LoadLocal(found);
-                _emitter.LoadLocal(rstr);
-                _emitter.Call(typeof(string).GetProperty(nameof(string.Length)).GetMethod);
-                _emitter.Call(typeof(string).GetMethod(nameof(string.Remove), new[] { typeof(int), typeof(int) }));
-                _emitter.Branch(exit);
-
-                // No match was found, just return left side
-                _emitter.MarkLabel(noMatch);
-                _emitter.LoadLocal(lstr);
-
-                // Warp whatever is on the stack as a string value
-                _emitter.MarkLabel(exit);
-                _emitter.NewObject<Value, string>();
-            }
-
-            ConvertBinary(sub, NumNum, Other, Other, Other);
-
-            return sub;
+            return expr;
         }
 
-        protected override BaseExpression Visit(Multiply mul)
+        protected override BaseExpression Visit(Not not) => ConvertUnary(not, "op_LogicalNot");
+
+        protected override BaseExpression Visit(Negate neg) => ConvertUnary(neg, "op_UnaryNegation");
+
+        protected override BaseExpression Visit(Bracketed brk)
         {
-            void NumNum(Local l, Local r)
-            {
-                _emitter.LoadLocalAddress(l);
-                _emitter.Call(typeof(Value).GetProperty(nameof(Value.Number)).GetMethod);
-                _emitter.LoadLocalAddress(r);
-                _emitter.Call(typeof(Value).GetProperty(nameof(Value.Number)).GetMethod);
-                _emitter.Call(typeof(Number).GetMethod("op_Multiply"));
-                _emitter.NewObject<Value, Number>();
-            }
+            // Evaluate the inner value and leave it on the stack
+            Visit(brk.Parameter);
 
-            void Other(Local l, Local r)
-            {
-                var x = _emitter.DefineLabel();
-
-                _emitter.LoadConstant("Attempted to multiply mixed types");
-                _emitter.NewObject<ExecutionException, string>();
-                _emitter.Throw();
-
-                // Because this throws the following code is unreachable, Sigil warns about this as invalid code. Adding in this label mades the following code
-                // seem reachable to sigil and suppresses that warning.
-                _emitter.MarkLabel(x);
-            }
-
-            ConvertBinary(mul, NumNum, Other, Other, Other);
-
-            return mul;
+            return brk;
         }
 
-        protected override BaseExpression Visit(Divide div)
+        protected override BaseExpression Visit(Sqrt sqrt) => ConvertUnary(sqrt, "Sqrt");
+
+        private T Modify<T>(T expr, string op, bool preOp)
+            where T : BaseModifyInPlace
         {
-            void NumNum(Local l, Local r)
-            {
-                _emitter.LoadLocalAddress(l);
-                _emitter.Call(typeof(Value).GetProperty(nameof(Value.Number)).GetMethod);
-                _emitter.LoadLocalAddress(r);
-                _emitter.Call(typeof(Value).GetProperty(nameof(Value.Number)).GetMethod);
-                _emitter.Call(typeof(Number).GetMethod("op_Division"));
-                _emitter.NewObject<Value, Number>();
-            }
+            // Put the current value of the variable onto the stack
+            Visit(new Grammar.AST.Expressions.Variable(expr.Name));
 
-            void Other(Local l, Local r)
-            {
-                var x = _emitter.DefineLabel();
+            // If we need the old value save it now
+            if (!preOp)
+                _emitter.Duplicate();
 
-                _emitter.LoadConstant("Attempted to multiply divide types");
-                _emitter.NewObject<ExecutionException, string>();
-                _emitter.Throw();
+            // Run the inc/dec operation
+            _emitter.Call(typeof(Value).GetMethod(op, new[] { typeof(Value) }));
 
-                // Because this throws the following code is unreachable, Sigil warns about this as invalid code. Adding in this label mades the following code
-                // seem reachable to sigil and suppresses that warning.
-                _emitter.MarkLabel(x);
-            }
+            // If we need to return the new value, save it now by duplicating it
+            if (preOp)
+                _emitter.Duplicate();
 
-            ConvertBinary(div, NumNum, Other, Other, Other);
+            // Write value to variable
+            _emitter.LoadArgument(0);
+            _emitter.LoadConstant(expr.Name.Name);
+            _emitter.Call(typeof(ConvertLineVisitor).GetMethod(nameof(Write2), BindingFlags.NonPublic | BindingFlags.Static));
 
-            return div;
+            return expr;
         }
+
+        protected override BaseExpression Visit(PreIncrement inc) => Modify(inc, "op_Increment", true);
+
+        protected override BaseExpression Visit(PreDecrement inc) => Modify(inc, "op_Decrement", true);
+
+        protected override BaseExpression Visit(PostIncrement inc) => Modify(inc, "op_Increment", false);
+
+        protected override BaseExpression Visit(PostDecrement inc) => Modify(inc, "op_Decrement", false);
+
+        protected override BaseExpression Visit(ArcCos acos) => ConvertUnary(acos, "ArcCos");
+
+        protected override BaseExpression Visit(ArcSine acos) => ConvertUnary(acos, "ArcSin");
+
+        protected override BaseExpression Visit(ArcTan acos) => ConvertUnary(acos, "ArcTan");
+
+        protected override BaseExpression Visit(Cosine acos) => ConvertUnary(acos, "Cos");
+
+        protected override BaseExpression Visit(Sine acos) => ConvertUnary(acos, "Sin");
+
+        protected override BaseExpression Visit(Tangent acos) => ConvertUnary(acos, "Tan");
     }
 }
