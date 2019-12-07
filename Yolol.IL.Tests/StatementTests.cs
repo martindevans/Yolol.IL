@@ -8,11 +8,19 @@ namespace Yolol.IL.Tests
     public class StatementTests
     {
         [TestMethod]
+        public void Assignment()
+        {
+            var (st, _) = Test("a = 2");
+
+            Assert.AreEqual(2, st.GetVariable("a"));
+        }
+
+        [TestMethod]
         public void IfStatementTrue()
         {
             var (st, _) = Test("if 1 then a = 1 else a = 2 end");
 
-            Assert.AreEqual(1, st.GetVariable("a").Value);
+            Assert.AreEqual(1, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -20,7 +28,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("if 0 then a = 1 else a = 2 end");
 
-            Assert.AreEqual(2, st.GetVariable("a").Value);
+            Assert.AreEqual(2, st.GetVariable("a"));
         }
 
         [TestMethod]

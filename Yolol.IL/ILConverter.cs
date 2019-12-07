@@ -1,9 +1,11 @@
 ﻿using Sigil;
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Yolol.Analysis.TreeVisitor;
 using Yolol.Execution;
+using Yolol.Grammar;
 using Yolol.Grammar.AST;
 using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
@@ -14,18 +16,32 @@ namespace Yolol.IL
 {
     public static class ILExtension
     {
-        public static Func<MachineState, int> Compile(this Line line, int lineNumber)
+        /// <summary>
+        /// Compile a line of Yolol into a runnable C# function
+        /// </summary>
+        /// <param name="line">The line of code to convert</param>
+        /// <param name="lineNumber">The number of this line</param>
+        /// <param name="maxLines">The max number of lines in a valid program (20, in standard Yolol)</param>
+        /// <param name="internalVariableMap">A dictionary used for mapping variables to integers in all lines in this script</param>
+        /// <param name="externalVariableMap">A dictionary used for mapping externals to integers in all lines in this script</param>
+        /// <returns>A function which runs this line of code. Accepts two sections of memory, internal variables and external variables. Returns the line number to go to next</returns>
+        public static Func<Memory<Value>, Memory<Value>, int> Compile(this Line line, int lineNumber, int maxLines, Dictionary<string, int> internalVariableMap, Dictionary<string, int> externalVariableMap)
         {
-            var emitter = Emit<Func<MachineState, int>>.NewDynamicMethod();
-            var converter = new ConvertLineVisitor(emitter);
+            var emitter = Emit<Func<Memory<Value>, Memory<Value>, int>>.NewDynamicMethod();
+            var converter = new ConvertLineVisitor(emitter, maxLines, internalVariableMap, externalVariableMap);
 
+            // Convert the entire line into IL
             converter.Visit(line.Statements);
 
-            // Return a dead value (here signified by int.MinValue) to indicate no gotos were encountered
+            // If no other gotos were encountered, goto the next line
             emitter.MarkLabel(emitter.DefineLabel());
-            emitter.LoadConstant(int.MinValue);
+            if (lineNumber == maxLines)
+                emitter.LoadConstant(1);
+            else
+                emitter.LoadConstant(lineNumber + 1);
             emitter.Return();
 
+            // Finally convert the IL into a runnable C# method for this line
             return emitter.CreateDelegate();
         }
     }
@@ -33,26 +49,39 @@ namespace Yolol.IL
     public class ConvertLineVisitor
         : BaseTreeVisitor
     {
-        private readonly Emit<Func<MachineState, int>> _emitter;
+        private readonly Emit<Func<Memory<Value>, Memory<Value>, int>> _emitter;
 
-        public ConvertLineVisitor(Emit<Func< MachineState, int>> emitter)
+        private readonly int _maxLineNumber;
+        private readonly Dictionary<string, int> _internalVariableMap;
+        private readonly Dictionary<string, int> _externalVariableMap;
+
+        public ConvertLineVisitor(Emit<Func<Memory<Value>, Memory<Value>, int>> emitter, int maxLineNumber, Dictionary<string, int> internalVariableMap, Dictionary<string, int> externalVariableMap)
         {
             _emitter = emitter;
+            _maxLineNumber = maxLineNumber;
+            _internalVariableMap = internalVariableMap;
+            _externalVariableMap = externalVariableMap;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int Goto(Value value, MachineState state)
+        private static int Goto(Value value, int maxLineNumber)
         {
             if (value.Type == Execution.Type.Number)
-                return Math.Min(state.MaxLineNumber, Math.Max(1, (int)value.Number.Value));
+                return Math.Min(maxLineNumber, Math.Max(1, (int)value.Number.Value));
 
             throw new ExecutionException("Attempted to `goto` a `string`");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Write1(MachineState state, string variable, Value value)
+        private static void SetSpanIndex(Value v, Memory<Value> mem, int index)
         {
-            state.GetVariable(variable).Value = value;
+            mem.Span[index] = v;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Value GetSpanIndex(Memory<Value> mem, int index)
+        {
+            return mem.Span[index];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -61,19 +90,35 @@ namespace Yolol.IL
             state.GetVariable(variable).Value = value;
         }
 
+        private void EmitAssign(VariableName name)
+        {
+            // Load the correct memory span for whichever type of variable we're accessing
+            if (name.IsExternal)
+                _emitter.LoadArgument(1);
+            else
+                _emitter.LoadArgument(0);
+
+            // Lookup the index for the given name
+            var map = (name.IsExternal ? _externalVariableMap : _internalVariableMap);
+            if (!map.TryGetValue(name.Name, out var idx))
+            {
+                idx = map.Count;
+                map[name.Name] = idx;
+            }
+            _emitter.LoadConstant(idx);
+
+            // Value was already on stack before this
+            // Put the value into the span
+            _emitter.Call(typeof(ConvertLineVisitor).GetMethod(nameof(SetSpanIndex), BindingFlags.NonPublic | BindingFlags.Static));
+        }
+
         protected override BaseStatement Visit(Assignment ass)
         {
-            // Put `MachineState` onto the stack
-            var state = _emitter.LoadArgument(0);
-
-            // Put the name of the variable onto the stack
-            _emitter.LoadConstant(ass.Left.Name);
-
             // Place the value to put into this variable on the stack
-            var l = Visit(ass.Right);
+            Visit(ass.Right);
 
-            // Call variable assignment method
-            _emitter.Call(typeof(ConvertLineVisitor).GetMethod(nameof(Write1), BindingFlags.NonPublic | BindingFlags.Static));
+            // Emit code to assign the value on the stack to the variable
+            EmitAssign(ass.Left);
 
             return ass;
         }
@@ -131,8 +176,8 @@ namespace Yolol.IL
             // Put destination on the stack
             Visit(@goto.Destination);
 
-            // Put MachineState on the stack
-            _emitter.LoadArgument(0);
+            // Put the max line number on the stack
+            _emitter.LoadConstant(_maxLineNumber);
 
             // Call into goto handler
             _emitter.Call(typeof(ConvertLineVisitor).GetMethod(nameof(Goto), BindingFlags.NonPublic | BindingFlags.Static));
@@ -183,17 +228,23 @@ namespace Yolol.IL
 
         protected override BaseExpression Visit(Grammar.AST.Expressions.Variable var)
         {
-            // Put `MachineState` onto the stack
-            var state = _emitter.LoadArgument(0);
+            // Load the correct memory span for whichever type of variable we're accessing
+            if (var.Name.IsExternal)
+                _emitter.LoadArgument(1);
+            else
+                _emitter.LoadArgument(0);
 
-            // Put name of variable we're looking for on the stack
-            _emitter.LoadConstant(var.Name.Name);
+            // Lookup the index for the given name
+            var map = (var.Name.IsExternal ? _externalVariableMap : _internalVariableMap);
+            if (!map.TryGetValue(var.Name.Name, out var idx))
+            {
+                idx = map.Count;
+                map[var.Name.Name] = idx;
+            }
+            _emitter.LoadConstant(idx);
 
-            // Put `IVariable` instance on the stack
-            _emitter.Call(typeof(MachineState).GetMethod(nameof(MachineState.GetVariable), new[] { typeof(string) }));
-
-            // Put value on the stack
-            _emitter.CallVirtual(typeof(IVariable).GetProperty(nameof(IVariable.Value)).GetMethod);
+            // Get the value from the span
+            _emitter.Call(typeof(ConvertLineVisitor).GetMethod(nameof(GetSpanIndex), BindingFlags.NonPublic | BindingFlags.Static));
 
             return var;
         }
@@ -289,9 +340,7 @@ namespace Yolol.IL
                 _emitter.Duplicate();
 
             // Write value to variable
-            _emitter.LoadArgument(0);
-            _emitter.LoadConstant(expr.Name.Name);
-            _emitter.Call(typeof(ConvertLineVisitor).GetMethod(nameof(Write2), BindingFlags.NonPublic | BindingFlags.Static));
+            EmitAssign(expr.Name);
 
             return expr;
         }
