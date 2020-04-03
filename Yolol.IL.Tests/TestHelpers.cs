@@ -1,6 +1,7 @@
 ﻿using Sigil;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Yolol.Execution;
 using Yolol.Grammar;
 
@@ -8,6 +9,14 @@ namespace Yolol.IL.Tests
 {
     public static class TestHelpers
     {
+        public static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
+        {
+            var tokens = Tokenizer.TryTokenize(string.Join("\n", lines));
+            var parsed = Parser.TryParseProgram(tokens.Value);
+
+            return parsed.Value;
+        }
+
         public static (EasyMachineState, int) Test(string line, int lineNumber = 1)
         {
             var internals = new Dictionary<string, int>();
@@ -15,8 +24,8 @@ namespace Yolol.IL.Tests
 
             try
             {
-                var tokens = Grammar.Tokenizer.TryTokenize(line).Value;
-                var ast = Grammar.Parser.TryParseLine(tokens).Value;
+                var tokens = Tokenizer.TryTokenize(line).Value;
+                var ast = Parser.TryParseLine(tokens).Value;
                 var compiled = ast.Compile(lineNumber, 20, internals, externals);
 
                 var i = new Value[internals.Count];

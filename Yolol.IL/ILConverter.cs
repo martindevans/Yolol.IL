@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using JetBrains.Annotations;
 using Yolol.Analysis.TreeVisitor;
 using Yolol.Execution;
 using Yolol.Grammar;
@@ -84,13 +85,7 @@ namespace Yolol.IL
             return mem.Span[index];
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Write2(Value value, MachineState state, string variable)
-        {
-            state.GetVariable(variable).Value = value;
-        }
-
-        private void EmitAssign(VariableName name)
+        private void EmitAssign([NotNull] VariableName name)
         {
             // Load the correct memory span for whichever type of variable we're accessing
             if (name.IsExternal)
@@ -188,7 +183,7 @@ namespace Yolol.IL
             return @goto;
         }
 
-        protected override BaseStatement Visit(CompoundAssignment compAss) => throw new NotImplementedException();
+        protected override BaseStatement Visit(CompoundAssignment compAss) => Visit(new Assignment(compAss.Left, compAss.Right));
 
 
         protected override BaseExpression Visit(ConstantNumber con)
@@ -250,7 +245,7 @@ namespace Yolol.IL
         }
 
 
-        private T ConvertBinary<T>(T expr, string valOp)
+        private T ConvertBinary<T>([NotNull] T expr, [NotNull] string valOp)
             where T : BaseBinaryExpression
         {
             Visit(expr.Left);
@@ -298,7 +293,7 @@ namespace Yolol.IL
         }
 
 
-        private T ConvertUnary<T>(T expr, string valOp)
+        private T ConvertUnary<T>([NotNull] T expr, [NotNull] string valOp)
             where T : BaseUnaryExpression
         {
             Visit(expr.Parameter);
@@ -343,6 +338,16 @@ namespace Yolol.IL
             EmitAssign(expr.Name);
 
             return expr;
+        }
+
+        protected override BaseStatement Visit(ExpressionWrapper expr)
+        {
+            var r = base.Visit(expr);
+
+            // The wrapped expression left a value on the stack. Pop it off now.
+            _emitter.Pop();
+
+            return r;
         }
 
         protected override BaseExpression Visit(PreIncrement inc) => Modify(inc, "op_Increment", true);

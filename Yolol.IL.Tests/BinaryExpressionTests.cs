@@ -94,6 +94,31 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
+        public void ModNumbers()
+        {
+            var (st, _) = Test("a = 7 % 2");
+
+            Assert.AreEqual(1, st.GetVariable("a"));
+        }
+
+        [TestMethod]
+        public void ModNumbers2()
+        {
+            var (st, _) = Test("a = 1.7 % 1");
+
+            Assert.AreEqual((Value)0.7m, st.GetVariable("a"));
+        }
+
+        [TestMethod]
+        public void ModStrings()
+        {
+            Assert.ThrowsException<ExecutionException>(() =>
+            {
+                Test("a = \"3\" % \"2\"");
+            });
+        }
+
+        [TestMethod]
         public void SubNumbers()
         {
             var (st, _) = Test("a = 1 - 2");
