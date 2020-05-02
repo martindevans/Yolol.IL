@@ -44,10 +44,11 @@ namespace Benchmark
 
         private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
         {
-            var tokens = Tokenizer.TryTokenize(string.Join("\n", lines));
-            var parsed = Parser.TryParseProgram(tokens.Value);
+            var result = Parser.ParseProgram(string.Join("\n", lines));
+            if (!result.IsOk)
+                throw new ArgumentException($"Cannot parse program: {result.Err}");
 
-            return parsed.Value;
+            return result.Ok;
         }
 
         private class Network

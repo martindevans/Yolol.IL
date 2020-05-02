@@ -9,12 +9,13 @@ namespace Yolol.IL.Tests
 {
     public static class TestHelpers
     {
-        public static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
+        public static Grammar.AST.Program Parse([NotNull] params string[] lines)
         {
-            var tokens = Tokenizer.TryTokenize(string.Join("\n", lines));
-            var parsed = Parser.TryParseProgram(tokens.Value);
+            var result = Parser.ParseProgram(string.Join("\n", lines));
+            if (!result.IsOk)
+                throw new ArgumentException($"Cannot parse program: {result.Err}");
 
-            return parsed.Value;
+            return result.Ok;
         }
 
         public static (EasyMachineState, int) Test(string line, int lineNumber = 1)
@@ -24,9 +25,8 @@ namespace Yolol.IL.Tests
 
             try
             {
-                var tokens = Tokenizer.TryTokenize(line).Value;
-                var ast = Parser.TryParseLine(tokens).Value;
-                var compiled = ast.Compile(lineNumber, 20, internals, externals);
+                var ast = Parse(line);
+                var compiled = ast.Lines[0].Compile(lineNumber, 20, internals, externals);
 
                 var i = new Value[internals.Count];
                 var e = new Value[externals.Count];

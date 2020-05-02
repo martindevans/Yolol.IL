@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using JetBrains.Annotations;
 using Yolol.Analysis.TreeVisitor;
 using Yolol.Execution;
 using Yolol.Grammar;
@@ -85,7 +84,7 @@ namespace Yolol.IL
             return mem.Span[index];
         }
 
-        private void EmitAssign([NotNull] VariableName name)
+        private void EmitAssign(VariableName name)
         {
             // Load the correct memory span for whichever type of variable we're accessing
             if (name.IsExternal)
@@ -245,7 +244,7 @@ namespace Yolol.IL
         }
 
 
-        private T ConvertBinary<T>([NotNull] T expr, [NotNull] string valOp)
+        private T ConvertBinary<T>(T expr, string valOp)
             where T : BaseBinaryExpression
         {
             Visit(expr.Left);
@@ -293,7 +292,7 @@ namespace Yolol.IL
         }
 
 
-        private T ConvertUnary<T>([NotNull] T expr, [NotNull] string valOp)
+        private T ConvertUnary<T>(T expr, string valOp)
             where T : BaseUnaryExpression
         {
             Visit(expr.Parameter);

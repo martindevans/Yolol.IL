@@ -72,13 +72,11 @@ namespace Benchmark
 
         private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
         {
-            var ps = lines.Select(l => {
-                var tokens = Tokenizer.TryTokenize(l + "\n").Value;
-                var parsed = Parser.TryParseLine(tokens);
-                return parsed.Value;
-            }).ToArray();
+            var result = Parser.ParseProgram(string.Join("\n", lines));
+            if (!result.IsOk)
+                throw new ArgumentException($"Cannot parse program: {result.Err}");
 
-            return new Yolol.Grammar.AST.Program(ps);
+            return result.Ok;
         }
     }
 }
