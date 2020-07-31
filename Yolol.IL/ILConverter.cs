@@ -1,8 +1,10 @@
 ﻿using Sigil;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Yolol.Analysis.TreeVisitor;
 using Yolol.Execution;
 using Yolol.Grammar;
@@ -67,7 +69,7 @@ namespace Yolol.IL
         private static int Goto(Value value, int maxLineNumber)
         {
             if (value.Type == Execution.Type.Number)
-                return Math.Min(maxLineNumber, Math.Max(1, (int)value.Number.Value));
+                return Math.Min(maxLineNumber, Math.Max(1, (int)value.Number));
 
             throw new ExecutionException("Attempted to `goto` a `string`");
         }
@@ -187,23 +189,17 @@ namespace Yolol.IL
 
         protected override BaseExpression Visit(ConstantNumber con)
         {
-            // Split up decimal and load it onto the stack
-            var bits = decimal.GetBits(con.Value.Value);
-            bool sign = (bits[3] & 0x80000000) != 0;
-            int scale = (byte)((bits[3] >> 16) & 0x7f);
+            // Reflect out the raw int64 value
+            var rawValueProp = typeof(Number).GetProperty("Value", BindingFlags.NonPublic | BindingFlags.Instance, null, typeof(long), Array.Empty<System.Type>(), null);
+            var rawValue = (long)rawValueProp.GetValue(con.Value);
 
-            _emitter.LoadConstant(bits[0]);
-            _emitter.LoadConstant(bits[1]);
-            _emitter.LoadConstant(bits[2]);
-            _emitter.LoadConstant(sign ? 1 : 0);
-            _emitter.LoadConstant(scale);
+            // Put that raw value onto the stack
+            _emitter.LoadConstant(rawValue);
 
-            _emitter.NewObject<decimal, int, int, int, bool, byte>();
+            // Use it to construct a `Number` at runtime by calling the constructor
+            _emitter.NewObject<Number, long>();
 
-            // Wrap `decimal` in `Number`
-            _emitter.NewObject<Number, decimal>();
-
-            // Wrap `Number` in `Value`
+            // Wrap the number in a `Value`
             _emitter.NewObject<Value, Number>();
 
             return con;

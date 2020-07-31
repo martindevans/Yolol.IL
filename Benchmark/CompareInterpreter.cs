@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 using BenchmarkDotNet.Attributes;
 using Yolol.Execution;
 using Yolol.Grammar;
