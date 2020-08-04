@@ -1,18 +1,20 @@
 ﻿using Sigil;
 using System;
-using System.Buffers;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Yolol.Analysis.TreeVisitor;
 using Yolol.Execution;
+using Yolol.Execution.Extensions;
 using Yolol.Grammar;
 using Yolol.Grammar.AST;
 using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
 using Yolol.Grammar.AST.Expressions.Unary;
 using Yolol.Grammar.AST.Statements;
+
+using Yolol.Analysis.TreeVisitor.Reduction;
 
 namespace Yolol.IL
 {
@@ -29,13 +31,15 @@ namespace Yolol.IL
         /// <returns>A function which runs this line of code. Accepts two sections of memory, internal variables and external variables. Returns the line number to go to next</returns>
         public static Func<Memory<Value>, Memory<Value>, int> Compile(this Line line, int lineNumber, int maxLines, Dictionary<string, int> internalVariableMap, Dictionary<string, int> externalVariableMap)
         {
-            var emitter = Emit<Func<Memory<Value>, Memory<Value>, int>>.NewDynamicMethod();
-            var converter = new ConvertLineVisitor(emitter, maxLines, internalVariableMap, externalVariableMap);
+            var emitter = Emit<Func<Memory<Value>, Memory<Value>, int, int, int>>.NewDynamicMethod();
+            var gotoLabel = emitter.DefineLabel();
+            var converter = new ConvertLineVisitor(emitter, maxLines, internalVariableMap, externalVariableMap, gotoLabel);
 
             // Convert the entire line into IL
             converter.Visit(line.Statements);
 
-            // If no other gotos were encountered, goto the next line
+            // If there were no gotos eventually flow will fall through to here
+            // goto the next line
             emitter.MarkLabel(emitter.DefineLabel());
             if (lineNumber == maxLines)
                 emitter.LoadConstant(1);
@@ -43,26 +47,123 @@ namespace Yolol.IL
                 emitter.LoadConstant(lineNumber + 1);
             emitter.Return();
 
+            // Create a block to handle gotos. The destination will already be on the stack, so just return
+            emitter.MarkLabel(gotoLabel);
+            emitter.Return();
+
+            // Finally convert the IL into a runnable C# method for this line
+            var d = emitter.CreateDelegate();
+
+            // Pass in a dummy argument for third argument (it's not used)
+            return (a, b) => d(a, b, 0, 0);
+        }
+
+        /// <summary>
+        /// Compile an entire program into a runnable C# function
+        /// </summary>
+        /// <param name="program"></param>
+        /// <param name="internalMap"></param>
+        /// <param name="externalMap"></param>
+        /// <returns>A function which runs this program. Accepts two sections of memory, internal variables and external variables. Also accepts a line to start at and a count of the number of lines to run. Returns the line number to go to next</returns>
+        public static Func<Memory<Value>, Memory<Value>, int, int, int> Compile(this Program program, Dictionary<string, int> internalMap, Dictionary<string, int> externalMap)
+        {
+            // Create converter to emit IL code
+            var emitter = Emit<Func<Memory<Value>, Memory<Value>, int, int, int>>.NewDynamicMethod(strictBranchVerification: true);
+            var lineEnd = emitter.DefineLabel("line_ended");
+            var converter = new ConvertLineVisitor(emitter, program.Lines.Count, internalMap, externalMap, lineEnd);
+
+            // Set the count of `linesToExecute` to `arg3`
+            var linesToExecute = emitter.DeclareLocal(typeof(int), "linesToExecute");
+            emitter.LoadArgument(3);
+            emitter.StoreLocal(linesToExecute);
+
+            // Define a label for the start of each line
+            var lineLabels = program.Lines.Select((_, i) => emitter.DefineLabel($"line{i + 1}")).ToArray();
+
+            // Work out which line to start executing (`arg2+1`)
+            emitter.LoadArgument(2);
+            emitter.LoadConstant(1);
+            emitter.Add();
+
+            // Lines all jump here when they're done. The next line number to execute should be
+            // sitting on the stack.
+            emitter.MarkLabel(lineEnd);
+
+            // First, check if we have executed sufficient lines, if so return
+            var done = emitter.DefineLabel("done_enough_lines");
+            emitter.LoadConstant(0);
+            emitter.LoadLocal(linesToExecute);
+            emitter.BranchIfGreaterOrEqual(done);
+
+            // More lines need executing, first subtract one from the count to execute
+            emitter.LoadLocal(linesToExecute);
+            emitter.LoadConstant(-1);
+            emitter.Add();
+            emitter.StoreLocal(linesToExecute);
+
+            // Clamp index into the correct range and then jump to that index
+            emitter.Call(typeof(ILExtension).GetMethod(nameof(FixupGotoIndex), BindingFlags.NonPublic | BindingFlags.Static));
+            emitter.Switch(lineLabels.ToArray());
+
+            // If we're here, it's because execution tried to go to a line that doesn't exist
+            emitter.LoadConstant("Attempted to `goto` invalid line");
+            emitter.NewObject<InvalidOperationException, string>();
+            emitter.Throw();
+
+            // Finally, escape the function (next line to go to is on the stack, so that becomes the return value)
+            emitter.MarkLabel(done);
+            emitter.Return();
+
+            // Convert each line, putting a label at the start of the line
+            for (var i = 0; i < program.Lines.Count; i++)
+            {
+                // Define a label at the start of the line
+                emitter.MarkLabel(lineLabels[i]);
+
+                // Convert the entire line
+                converter.Visit(program.Lines[i]);
+
+                // If there were no `goto` statements in the line it will fall through to here
+                // push the next line number to go to and jump to the `goto` handler
+                var lineNumber = i + 1;
+                if (lineNumber == program.Lines.Count)
+                    emitter.LoadConstant(1);
+                else
+                    emitter.LoadConstant(lineNumber + 1);
+                emitter.Branch(lineEnd);
+            }
+
             // Finally convert the IL into a runnable C# method for this line
             return emitter.CreateDelegate();
+        }
+
+        private static int FixupGotoIndex(int oneBasedIndex)
+        {
+            if (oneBasedIndex <= 0)
+                return 0;
+            if (oneBasedIndex >= 20)
+                return 19;
+            return oneBasedIndex - 1;
         }
     }
 
     public class ConvertLineVisitor
         : BaseTreeVisitor
     {
-        private readonly Emit<Func<Memory<Value>, Memory<Value>, int>> _emitter;
+        private readonly Emit<Func<Memory<Value>, Memory<Value>, int, int, int>> _emitter;
 
         private readonly int _maxLineNumber;
         private readonly Dictionary<string, int> _internalVariableMap;
         private readonly Dictionary<string, int> _externalVariableMap;
+        private readonly Label _gotoLabel;
 
-        public ConvertLineVisitor(Emit<Func<Memory<Value>, Memory<Value>, int>> emitter, int maxLineNumber, Dictionary<string, int> internalVariableMap, Dictionary<string, int> externalVariableMap)
+        public ConvertLineVisitor(Emit<Func<Memory<Value>, Memory<Value>, int, int, int>> emitter, int maxLineNumber, Dictionary<string, int> internalVariableMap, Dictionary<string, int> externalVariableMap, Label gotoLabel)
         {
             _emitter = emitter;
             _maxLineNumber = maxLineNumber;
             _internalVariableMap = internalVariableMap;
             _externalVariableMap = externalVariableMap;
+            _gotoLabel = gotoLabel;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -172,14 +273,14 @@ namespace Yolol.IL
             // Put destination on the stack
             Visit(@goto.Destination);
 
-            // Put the max line number on the stack
+            // Put the max line number on the stack (as the second argument to the `Goto` method we're about to call)
             _emitter.LoadConstant(_maxLineNumber);
 
             // Call into goto handler
             _emitter.Call(typeof(ConvertLineVisitor).GetMethod(nameof(Goto), BindingFlags.NonPublic | BindingFlags.Static));
 
-            // Return this value as the new program counter
-            _emitter.Return();
+            // Jump to the `goto` label
+            _emitter.Branch(_gotoLabel);
 
             return @goto;
         }
@@ -243,10 +344,21 @@ namespace Yolol.IL
         private T ConvertBinary<T>(T expr, string valOp)
             where T : BaseBinaryExpression
         {
+            // Try to statically evaluate the expression
+            if (expr.IsConstant)
+            {
+                var v = expr.TryStaticEvaluate();
+                if (v.HasValue)
+                {
+                    Visit(v.Value.ToConstant());
+                    return expr;
+                }
+            }
+
+            // Failed to statically evaluate the expression, run it normally
             Visit(expr.Left);
             Visit(expr.Right);
-
-            _emitter.Call(typeof(Value).GetMethod(valOp, new[] { typeof(Value), typeof(Value) }));
+            _emitter.Call(typeof(Value).GetMethod(valOp, new[] {typeof(Value), typeof(Value)}));
 
             return expr;
         }
@@ -277,22 +389,23 @@ namespace Yolol.IL
 
         protected override BaseExpression Visit(Or or) => ConvertBinary(or, "op_BitwiseOr");
 
-        protected override BaseExpression Visit(Exponent expr)
-        {
-            Visit(expr.Left);
-            Visit(expr.Right);
-
-            _emitter.Call(typeof(Value).GetMethod(nameof(Value.Exponent), new[] { typeof(Value), typeof(Value) }));
-
-            return expr;
-        }
+        protected override BaseExpression Visit(Exponent exp) => ConvertBinary(exp, nameof(Value.Exponent));
 
 
         private T ConvertUnary<T>(T expr, string valOp)
             where T : BaseUnaryExpression
         {
-            Visit(expr.Parameter);
+            if (expr.IsConstant)
+            {
+                var v = expr.TryStaticEvaluate();
+                if (v.HasValue)
+                {
+                    Visit(v.Value.ToConstant());
+                    return expr;
+                }
+            }
 
+            Visit(expr.Parameter);
             _emitter.Call(typeof(Value).GetMethod(valOp, new[] { typeof(Value) }));
 
             return expr;
@@ -302,6 +415,9 @@ namespace Yolol.IL
 
         protected override BaseExpression Visit(Negate neg) => ConvertUnary(neg, "op_UnaryNegation");
 
+        protected override BaseExpression Visit(Sqrt sqrt) => ConvertUnary(sqrt, "Sqrt");
+
+
         protected override BaseExpression Visit(Bracketed brk)
         {
             // Evaluate the inner value and leave it on the stack
@@ -310,7 +426,6 @@ namespace Yolol.IL
             return brk;
         }
 
-        protected override BaseExpression Visit(Sqrt sqrt) => ConvertUnary(sqrt, "Sqrt");
 
         private T Modify<T>(T expr, string op, bool preOp)
             where T : BaseModifyInPlace

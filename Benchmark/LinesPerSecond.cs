@@ -13,7 +13,7 @@ namespace Benchmark
     {
         readonly string[] _program = new[] {
             "r = 715237",
-            "i = 0 A = 1664525    M = 2^32",
+            "i = 0 A = 1664524+cos(0)    M = 2^32",
             "s = 0 C = 1013904223 F = 2^16",
             "r=((r*A)+C)%M x=(r%F)/F r=((r*A)+C)%M y=(r%F)/F",
             "s++ i=i+((x*x+y*y)<1) :pi=4*(i/s) goto 4"
