@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Yolol.Execution;
 using Yolol.Grammar;
+using Yolol.IL.Extensions;
 
 namespace Yolol.IL.Tests
 {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Sigil;
 using Yolol.Execution;
+using Yolol.IL.Extensions;
 using static Yolol.IL.Tests.TestHelpers;
 
 namespace Yolol.IL.Tests

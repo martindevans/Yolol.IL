@@ -5,7 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Yolol.Execution;
 using Yolol.Grammar;
-using Yolol.IL;
+using Yolol.IL.Extensions;
 
 namespace Benchmark
 {
@@ -30,11 +30,23 @@ namespace Benchmark
         {
             var ast = Parse(_program);
 
+            var staticTypes = new Dictionary<VariableName, Yolol.Execution.Type> {
+                { new VariableName("r"), Yolol.Execution.Type.Number },
+                { new VariableName("i"), Yolol.Execution.Type.Number },
+                { new VariableName("A"), Yolol.Execution.Type.Number },
+                { new VariableName("M"), Yolol.Execution.Type.Number },
+                { new VariableName("s"), Yolol.Execution.Type.Number },
+                { new VariableName("C"), Yolol.Execution.Type.Number },
+                { new VariableName("F"), Yolol.Execution.Type.Number },
+                { new VariableName("x"), Yolol.Execution.Type.Number },
+                { new VariableName("y"), Yolol.Execution.Type.Number },
+            };
+
             _internalsMap = new Dictionary<string, int>();
             _externalsMap = new Dictionary<string, int>();
             _compiledLines = new Func<Memory<Value>, Memory<Value>, int>[ast.Lines.Count];
             for (var i = 0; i < ast.Lines.Count; i++)
-                _compiledLines[i] = ast.Lines[i].Compile(i + 1, 20, _internalsMap, _externalsMap);
+                _compiledLines[i] = ast.Lines[i].Compile(i + 1, 20, _internalsMap, _externalsMap, staticTypes);
 
             _internals = new Value[_internalsMap.Count];
             Array.Fill(_internals, new Value(0));

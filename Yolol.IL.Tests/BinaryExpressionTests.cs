@@ -136,9 +136,18 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
+        public void EqualityBoolBool()
+        {
+            var (st, _) = Test("a = 1 == 1 b = 1 == 0");
+
+            Assert.AreEqual(1, st.GetVariable("a"));
+            Assert.AreEqual(0, st.GetVariable("b"));
+        }
+
+        [TestMethod]
         public void EqualityNumNum()
         {
-            var (st, _) = Test("a = 1 == 1 b = 1 == 2");
+            var (st, _) = Test("a = 3 == 3 b = 2 == 3");
 
             Assert.AreEqual(1, st.GetVariable("a"));
             Assert.AreEqual(0, st.GetVariable("b"));

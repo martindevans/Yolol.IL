@@ -54,5 +54,49 @@ namespace Yolol.IL.Tests
 
             Assert.AreEqual(20, l);
         }
+
+        [TestMethod]
+        public void IncrementString()
+        {
+            var (st, _) = Test("a = \"1\" b = a++");
+
+            Assert.AreEqual("1 ", st.GetVariable("a"));
+            Assert.AreEqual("1", st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void PreIncrementString()
+        {
+            var (st, _) = Test("a = \"1\" b = ++a");
+
+            Assert.AreEqual("1 ", st.GetVariable("a"));
+            Assert.AreEqual("1 ", st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void IncrementNumber()
+        {
+            var (st, _) = Test("a = 1 b = a++");
+
+            Assert.AreEqual(2, st.GetVariable("a"));
+            Assert.AreEqual(1, st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void PreIncrementNumber()
+        {
+            var (st, _) = Test("a = 1 b = ++a");
+
+            Assert.AreEqual(2, st.GetVariable("a"));
+            Assert.AreEqual(2, st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void StandaloneIncrement()
+        {
+            var (st, _) = Test("a=1 ++a");
+
+            Assert.AreEqual(2, st.GetVariable("a"));
+        }
     }
 }

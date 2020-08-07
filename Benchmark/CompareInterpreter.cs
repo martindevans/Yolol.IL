@@ -5,6 +5,7 @@ using BenchmarkDotNet.Attributes;
 using Yolol.Execution;
 using Yolol.Grammar;
 using Yolol.IL;
+using Yolol.IL.Extensions;
 
 namespace Benchmark
 {
