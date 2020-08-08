@@ -7,8 +7,8 @@ namespace Yolol.IL.Compiler
     {
         YololNumber = 1,
         YololValue = 2,
+        YololString = 4,
 
-        String = 4,
         Bool = 8,
 
         NumericTypes = YololNumber | Bool,

@@ -98,7 +98,7 @@ namespace Yolol.IL.Compiler
             switch (source, target)
             {
                 #region identity conversions
-                case (StackType.String, StackType.String):
+                case (StackType.YololString, StackType.YololString):
                 case (StackType.YololNumber, StackType.YololNumber):
                 case (StackType.YololValue, StackType.YololValue):
                 case (StackType.Bool, StackType.Bool):
@@ -116,13 +116,13 @@ namespace Yolol.IL.Compiler
                 #endregion
 
                 #region string source
-                case (StackType.String, StackType.Bool):
+                case (StackType.YololString, StackType.Bool):
                     _emitter.Pop();
                     _emitter.LoadConstant(true);
                     break;
 
-                case (StackType.String, StackType.YololValue):
-                    _emitter.NewObject<Value, string>();
+                case (StackType.YololString, StackType.YololValue):
+                    _emitter.NewObject<Value, YString>();
                     break;
                 #endregion
 
@@ -135,6 +135,11 @@ namespace Yolol.IL.Compiler
                     _emitter.LoadConstant(0L);
                     _emitter.NewObject<Number, long>();
                     _emitter.Call(typeof(Number).GetMethod("op_Inequality", BindingFlags.Public | BindingFlags.Static));
+                    break;
+
+                case (StackType.YololNumber, StackType.YololString):
+                    CallRuntimeThis<Number>(nameof(Number.ToString));
+                    _emitter.NewObject<YString, string>();
                     break;
                 #endregion
 
@@ -165,7 +170,7 @@ namespace Yolol.IL.Compiler
             var local = type switch {
                 StackType.YololNumber => _emitter.DeclareLocal(typeof(Number)),
                 StackType.YololValue => _emitter.DeclareLocal(typeof(Value)),
-                StackType.String => _emitter.DeclareLocal(typeof(string)),
+                StackType.YololString => _emitter.DeclareLocal(typeof(YString)),
                 StackType.Bool => _emitter.DeclareLocal(typeof(bool)),
                 _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
             };
@@ -231,7 +236,7 @@ namespace Yolol.IL.Compiler
                 var result = peek switch {
                     StackType.YololNumber => Number(),
                     StackType.YololValue => Value(),
-                    StackType.String => String(),
+                    StackType.YololString => String(),
                     StackType.Bool => Bool(),
                     _ => throw new ArgumentOutOfRangeException($"Unknown StackType.{peek}")
                 };
@@ -279,88 +284,70 @@ namespace Yolol.IL.Compiler
                     };
                 }
 
-                // Coerce both sides to the same type
-                CoerceToPair(converter, expr);
-
-                // Invoke the emitters for the type on the stack
-                var peek = converter.Peek();
-                var result = peek switch {
-                    StackType.YololNumber => Number(),
-                    StackType.YololValue => Value(),
-                    StackType.String => String(),
-                    StackType.Bool => Bool(),
-                    _ => throw new ArgumentOutOfRangeException($"Unknown StackType.{peek}")
-                };
-
-                // Update the stack to reflect the values
-                converter.Pop(converter.Peek());
-                converter.Pop(converter.Peek());
-                converter.Push(result);
-            }
-
-            private static void CoerceToPair(ConvertLineVisitor converter, BaseExpression expr)
-            {
                 // Get the types of the left and right
                 var right = converter.Peek();
                 converter.Pop(right);
                 var left = converter.Peek();
                 converter.Push(right);
 
-                void CoerceLeft(StackType output)
+                // Coerce both sides to the same type
+                CoerceToPair(converter, ref left, ref right);
+
+                // Invoke the emitters for the type on the stack
+                var result = left switch {
+                    StackType.YololNumber => Number(),
+                    StackType.YololValue => Value(),
+                    StackType.YololString => String(),
+                    StackType.Bool => Bool(),
+                    _ => throw new ArgumentOutOfRangeException($"Unknown StackType.{left}")
+                };
+                
+
+                // Update the stack to reflect the values
+                converter.Pop(right);
+                converter.Pop(left);
+                converter.Push(result);
+            }
+
+            private static void CoerceToPair(ConvertLineVisitor converter, ref StackType left, ref StackType right)
+            {
+                void CoerceLeft(StackType output, ref StackType left)
                 {
                     converter.CoerceOneDown(output);
                     left = output;
                 }
 
-                void CoerceRight(StackType output)
+                void CoerceRight(StackType output, ref StackType right)
                 {
                     converter.Coerce(output);
                     right = output;
                 }
 
-                try
+                // They might already be the same
+                if (left == right)
+                    return;
+
+                // If either side is a value we can't statically determine anything useful, just cast the other side
+                if (left == StackType.YololValue || right == StackType.YololValue)
                 {
-                    // They might already be the same
-                    if (left == right)
-                        return;
-
-                    // If either side is a value we can't statically determine anything useful, just cast the other side
-                    if (left == StackType.YololValue || right == StackType.YololValue)
-                    {
-                        CoerceRight(StackType.YololValue);
-                        CoerceLeft(StackType.YololValue);
-                        return;
-                    }
-
-                    // If one side is a bool, try to convert it into a number
-                    if (left == StackType.Bool)
-                        CoerceLeft(StackType.YololNumber);
-                    if (right == StackType.Bool)
-                        CoerceRight(StackType.YololNumber);
-
-                    // Maybe that worked (num<=>num)
-                    if (left == right)
-                        return;
-
-                    // If one side is a string and the other isn't, try to coerce it
-                    if (left == StackType.String)
-                        CoerceRight(StackType.String);
-                    else if (right == StackType.String)
-                        CoerceLeft(StackType.String);
-
-                    // Maybe that worked (str<=>str)
-                    if (left == right)
-                        return;
-
-                    // Out of ideas, just use a pair of values
-                    CoerceRight(StackType.YololValue);
-                    CoerceLeft(StackType.YololValue);
+                    CoerceRight(StackType.YololValue, ref right);
+                    CoerceLeft(StackType.YololValue, ref left);
+                    return;
                 }
-                finally
-                {
-                    if (left == StackType.YololValue)
-                        Console.WriteLine("Pair: " + left + " <=> " + right + " `" + expr + "`");
-                }
+
+                // If one side is a bool, try to convert it into a number
+                if (left == StackType.Bool)
+                    CoerceLeft(StackType.YololNumber, ref left);
+                if (right == StackType.Bool)
+                    CoerceRight(StackType.YololNumber, ref right);
+
+                // Maybe that worked (num<=>num)
+                if (left == right)
+                    return;
+
+                // Out of ideas, just use a pair of values
+                CoerceRight(StackType.YololValue, ref right);
+                CoerceLeft(StackType.YololValue, ref left);
             }
         }
         #endregion
@@ -474,6 +461,7 @@ namespace Yolol.IL.Compiler
         protected override BaseStatement Visit(CompoundAssignment compAss) => Visit(new Assignment(compAss.Left, compAss.Right));
         #endregion
 
+        #region base expressions
         protected override BaseExpression Visit(ConstantNumber con)
         {
             // Reflect out the raw int64 value
@@ -500,8 +488,9 @@ namespace Yolol.IL.Compiler
         protected override BaseExpression Visit(ConstantString str)
         {
             // Put a string on the stack
-            _emitter.LoadConstant(str.Value);
-            Push(StackType.String);
+            _emitter.LoadConstant(str.Value.ToString());
+            _emitter.NewObject<YString, string>();
+            Push(StackType.YololString);
 
             return str;
         }
@@ -539,7 +528,7 @@ namespace Yolol.IL.Compiler
                 if (type == Execution.Type.String)
                 {
                     GetRuntimePropertyValue<Value>(nameof(Value.String));
-                    Push(StackType.String);
+                    Push(StackType.YololString);
                     return var;
                 }
             }
@@ -549,11 +538,10 @@ namespace Yolol.IL.Compiler
             return var;
         }
 
-
         private bool TryStaticEvaluate<T>(T expr)
             where T : BaseExpression
         {
-            #if !DEBUG
+#if !DEBUG
             if (expr.IsConstant)
             {
                 var v = expr.TryStaticEvaluate();
@@ -563,11 +551,13 @@ namespace Yolol.IL.Compiler
                     return true;
                 }
             }
-            #endif
+#endif
 
             return false;
         }
+        #endregion
 
+        #region binary expressions
         private T ConvertBinaryCoerce<T>(T expr, StackType input, StackType output, Action emit)
             where T : BaseBinaryExpression
         {
@@ -636,7 +626,7 @@ namespace Yolol.IL.Compiler
         protected override BaseExpression Visit(Multiply mul) => ConvertBinary(mul, new Emitters2 {
             Value = () => {
                 CallRuntime<Value>("op_Multiply");
-                return StackType.YololValue;
+                return StackType.YololNumber;
             },
             Number = () =>
             {
@@ -653,7 +643,7 @@ namespace Yolol.IL.Compiler
         protected override BaseExpression Visit(Divide div) => ConvertBinary(div, new Emitters2 {
             Value = () => {
                 CallRuntime<Value>("op_Division");
-                return StackType.YololValue;
+                return StackType.YololNumber;
             },
             Number = () =>
             {
@@ -665,7 +655,7 @@ namespace Yolol.IL.Compiler
         protected override BaseExpression Visit(EqualTo eq) => ConvertBinary(eq, new Emitters2 {
             Value = () => {
                 CallRuntime<Value>("op_Equality");
-                return StackType.YololValue;
+                return StackType.Bool;
             },
             Number = () =>
             {
@@ -674,32 +664,17 @@ namespace Yolol.IL.Compiler
             },
             Bool = () =>
             {
-                CallRuntime<bool>("op_Equality");
+                CallRuntime<Runtime>(nameof(Runtime.BoolEquals));
                 return StackType.Bool;
-            }
+            },
         });
 
-        protected override BaseExpression Visit(NotEqualTo neq) => ConvertBinary(neq, new Emitters2 {
-            Value = () => {
-                CallRuntime<Value>("op_Inequality");
-                return StackType.YololValue;
-            },
-            Number = () =>
-            {
-                CallRuntime<Number>("op_Inequality");
-                return StackType.Bool;
-            },
-            Bool = () =>
-            {
-                CallRuntime<bool>("op_Inequality");
-                return StackType.Bool;
-            }
-        });
+        protected override BaseExpression Visit(NotEqualTo neq) => Visit(new Not(new EqualTo(neq.Left, neq.Right)));
 
         protected override BaseExpression Visit(GreaterThan gt) => ConvertBinary(gt, new Emitters2 {
             Value = () => {
                 CallRuntime<Value>("op_GreaterThan");
-                return StackType.YololValue;
+                return StackType.Bool;
             },
             Number = () =>
             {
@@ -711,19 +686,19 @@ namespace Yolol.IL.Compiler
         protected override BaseExpression Visit(GreaterThanEqualTo gteq) => ConvertBinary(gteq, new Emitters2 {
             Value = () => {
                 CallRuntime<Value>("op_GreaterThanOrEqual");
-                return StackType.YololValue;
+                return StackType.Bool;
             },
             Number = () =>
             {
                 CallRuntime<Number>("op_GreaterThanOrEqual");
-                return StackType.YololNumber;
+                return StackType.Bool;
             },
         });
 
         protected override BaseExpression Visit(LessThan lt) => ConvertBinary(lt, new Emitters2 {
             Value = () => {
                 CallRuntime<Value>("op_LessThan");
-                return StackType.YololValue;
+                return StackType.Bool;
             },
             Number = () =>
             {
@@ -735,11 +710,11 @@ namespace Yolol.IL.Compiler
         protected override BaseExpression Visit(LessThanEqualTo lteq) => ConvertBinary(lteq, new Emitters2 {
             Value = () => {
                 CallRuntime<Value>("op_LessThanOrEqual");
-                return StackType.YololValue;
+                return StackType.Bool;
             },
             Number = () =>
             {
-                CallRuntime<Number>("op_Leop_LessThanOrEqualssThan");
+                CallRuntime<Number>("op_LessThanOrEqual");
                 return StackType.Bool;
             },
         });
@@ -747,7 +722,7 @@ namespace Yolol.IL.Compiler
         protected override BaseExpression Visit(Modulo mod) => ConvertBinary(mod, new Emitters2 {
             Value = () => {
                 CallRuntime<Value>("op_Modulus");
-                return StackType.YololValue;
+                return StackType.YololNumber;
             },
             Number = () =>
             {
@@ -767,25 +742,14 @@ namespace Yolol.IL.Compiler
         protected override BaseExpression Visit(Exponent exp) => ConvertBinary(exp, new Emitters2 {
             Value = () => {
                 CallRuntime<Value>(nameof(Value.Exponent));
-                return StackType.YololValue;
+                return StackType.YololNumber;
             },
             Number = () => {
-                // Stack has `Number,Number` but we need `Number*,Number`
-                using (var l = Stash(StackType.YololNumber))
-                {
-                    using (var local = _emitter.DeclareLocal(typeof(Number)))
-                    {
-                        _emitter.StoreLocal(local);
-                        _emitter.LoadLocalAddress(local);
-                        Unstash(l, StackType.YololNumber);
-
-                        CallRuntime<Number>("Exponent");
-                    }
-                }
-
+                CallRuntime<Runtime>(nameof(Runtime.Exponent));
                 return StackType.YololNumber;
             }
         });
+        #endregion
 
         #region unary expressions
         private T ConvertUnaryCoerce<T>(T expr, StackType input, StackType output, Action emit)
@@ -833,7 +797,7 @@ namespace Yolol.IL.Compiler
             },
             Value = () => {
                 CallRuntime<Value>("op_UnaryNegation");
-                return StackType.YololValue;
+                return StackType.YololNumber;
             }
         });
 
@@ -845,7 +809,7 @@ namespace Yolol.IL.Compiler
             },
             Value = () => {
                 CallRuntime<Value>(nameof(Value.Sqrt));
-                return StackType.YololValue;
+                return StackType.YololNumber;
             }
         });
         #endregion
@@ -862,7 +826,7 @@ namespace Yolol.IL.Compiler
                 },
                 Value = () => {
                     CallRuntime<Value>(name);
-                    return StackType.YololValue;
+                    return StackType.YololNumber;
                 }
             });
         }
@@ -921,6 +885,10 @@ namespace Yolol.IL.Compiler
                 CallRuntime<Number>("op_Addition");
                 return StackType.YololNumber;
             },
+            String = () => {
+                CallRuntime<YString>("op_Increment");
+                return StackType.YololString;
+            }
         });
 
         protected override BaseExpression Visit(PreDecrement inc) => Modify(inc, true, new Emitters1 {
@@ -934,6 +902,10 @@ namespace Yolol.IL.Compiler
                 CallRuntime<Number>("op_Addition");
                 return StackType.YololNumber;
             },
+            String = () => {
+                CallRuntime<YString>("op_Decrement");
+                return StackType.YololString;
+            }
         });
 
         protected override BaseExpression Visit(PostIncrement inc) => Modify(inc, false, new Emitters1 {
@@ -947,6 +919,10 @@ namespace Yolol.IL.Compiler
                 CallRuntime<Number>("op_Addition");
                 return StackType.YololNumber;
             },
+            String = () => {
+                CallRuntime<YString>("op_Increment");
+                return StackType.YololString;
+            }
         });
 
         protected override BaseExpression Visit(PostDecrement inc) => Modify(inc, false, new Emitters1 {
@@ -960,6 +936,10 @@ namespace Yolol.IL.Compiler
                 CallRuntime<Number>("op_Addition");
                 return StackType.YololNumber;
             },
+            String = () => {
+                CallRuntime<YString>("op_Decrement");
+                return StackType.YololString;
+            }
         });
         #endregion
 

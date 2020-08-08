@@ -44,5 +44,17 @@ namespace Yolol.IL.Compiler
         {
             return !value;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Number Exponent(Number l, Number r)
+        {
+            return l.Exponent(r);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool BoolEquals(bool l, bool r)
+        {
+            return l == r;
+        }
     }
 }

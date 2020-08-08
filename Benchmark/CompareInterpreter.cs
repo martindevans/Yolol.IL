@@ -4,7 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 using BenchmarkDotNet.Attributes;
 using Yolol.Execution;
 using Yolol.Grammar;
-using Yolol.IL;
 using Yolol.IL.Extensions;
 
 namespace Benchmark
@@ -126,7 +125,7 @@ namespace Benchmark
             var c = a * b;
 
             var d = c * c;
-            var e = (Value)(Number)Math.Sqrt((double)(c + c + d).Number);
+            var e = (Value)(Number)Math.Sqrt((double)(c + c + d));
 
             e++;
 

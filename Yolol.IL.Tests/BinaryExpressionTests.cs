@@ -145,6 +145,23 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
+        public void EqualityBoolNum()
+        {
+            var (st, _) = Test("a = 1 == (1*7)/7 b = 1 == (3-3)");
+
+            Assert.AreEqual(1, st.GetVariable("a"));
+            Assert.AreEqual(0, st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void EqualityBoolStr()
+        {
+            var (st, _) = Test("a = 1 == \"1\"");
+
+            Assert.AreEqual(0, st.GetVariable("a"));
+        }
+
+        [TestMethod]
         public void EqualityNumNum()
         {
             var (st, _) = Test("a = 3 == 3 b = 2 == 3");
@@ -165,7 +182,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void EqualityMixed()
         {
-            var (st, _) = Test("a = \"1\" == 1 b = \"1\" == 2");
+            var (st, _) = Test("a = \"1\" == 2 b = \"2\" == 2");
 
             Assert.AreEqual(0, st.GetVariable("a"));
             Assert.AreEqual(0, st.GetVariable("b"));

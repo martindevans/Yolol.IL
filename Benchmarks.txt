@@ -1,0 +1,42 @@
+## V1
+
+|    Method | ExternalA | ExternalB |       Mean |    Error |   StdDev |
+|---------- |---------- |---------- |-----------:|---------:|---------:|
+| Interpret |         0 |         0 | 4,032.6 ns | 32.48 ns | 30.38 ns |
+|   Compile |         0 |         0 |   568.6 ns |  3.24 ns |  2.71 ns |
+|   Rewrite |         0 |         0 |   348.4 ns |  0.39 ns |  0.34 ns |
+
+508,544.51 avg | 60,104.69 dev
+
+## V2 (Some static types)
+
+|         Method | ExternalA | ExternalB |       Mean |    Error |   StdDev |
+|--------------- |---------- |---------- |-----------:|---------:|---------:|
+|      Interpret |         0 |         0 | 3,921.1 ns | 20.98 ns | 18.60 ns |
+|   CompileLines |         0 |         0 |   458.7 ns |  3.06 ns |  2.71 ns |
+| CompileProgram |         0 |         0 |   550.5 ns |  4.65 ns |  3.88 ns |
+|        Rewrite |         0 |         0 |   255.6 ns |  0.56 ns |  0.50 ns |
+
+2,738,521.78 avg | 304,317.62 dev
+
+## V3 (All numeric static typing)
+
+|         Method | ExternalA | ExternalB |       Mean |    Error |   StdDev |
+|--------------- |---------- |---------- |-----------:|---------:|---------:|
+|      Interpret |         0 |         0 | 3,858.0 ns | 19.19 ns | 17.95 ns |
+|   CompileLines |         0 |         0 |   469.4 ns |  2.94 ns |  2.61 ns |
+| CompileProgram |         0 |         0 |   541.8 ns |  4.60 ns |  4.30 ns |
+|        Rewrite |         0 |         0 |   254.0 ns |  1.11 ns |  0.98 ns |
+
+5,031,291.53 avg | 298,663.56 dev
+
+# V4 (dynamic type recovery)
+
+|         Method | ExternalA | ExternalB |       Mean |    Error |   StdDev |
+|--------------- |---------- |---------- |-----------:|---------:|---------:|
+|      Interpret |         0 |         0 | 3,856.2 ns | 31.93 ns | 24.93 ns |
+|   CompileLines |         0 |         0 |   418.4 ns |  4.15 ns |  3.46 ns |
+| CompileProgram |         0 |         0 |   529.7 ns |  3.76 ns |  3.52 ns |
+|        Rewrite |         0 |         0 |   142.3 ns |  0.35 ns |  0.28 ns |
+
+5,051,793.27 avg | 222,339.31 dev
