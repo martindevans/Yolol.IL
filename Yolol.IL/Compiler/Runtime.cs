@@ -9,7 +9,7 @@ namespace Yolol.IL.Compiler
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Number BoolToNumber(bool b)
         {
-            return b ? 1 : 0;
+            return b ? Number.One : Number.Zero;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

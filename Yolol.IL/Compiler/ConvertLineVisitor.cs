@@ -69,6 +69,18 @@ namespace Yolol.IL.Compiler
                 _emitter.Call(method);
             }
         }
+
+        private void GetRuntimeFieldValue<T>(string fieldName)
+        {
+            var field = typeof(T).GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static);
+            
+            using (var local = _emitter.DeclareLocal(typeof(T)))
+            {
+                _emitter.StoreLocal(local);
+                _emitter.LoadLocalAddress(local);
+                _emitter.LoadField(field);
+            }
+        }
         #endregion
 
         #region type tracking
@@ -465,8 +477,8 @@ namespace Yolol.IL.Compiler
         protected override BaseExpression Visit(ConstantNumber con)
         {
             // Reflect out the raw int64 value
-            var rawValueProp = typeof(Number).GetProperty("Value", BindingFlags.NonPublic | BindingFlags.Instance, null, typeof(long), Array.Empty<System.Type>(), null);
-            var rawValue = (long)rawValueProp.GetValue(con.Value);
+            var rawValueField = typeof(Number).GetField("_value", BindingFlags.NonPublic | BindingFlags.Instance);
+            var rawValue = (long)rawValueField.GetValue(con.Value);
 
             // if the raw value represents one of the two boolean values, emit a bool
             if (rawValue == 0 || rawValue == 1000)
@@ -481,6 +493,7 @@ namespace Yolol.IL.Compiler
                 _emitter.NewObject<Number, long>();
                 Push(StackType.YololNumber);
             }
+
 
             return con;
         }
@@ -520,14 +533,28 @@ namespace Yolol.IL.Compiler
             {
                 if (type == Execution.Type.Number)
                 {
-                    GetRuntimePropertyValue<Value>(nameof(Value.Number));
+                    // If this is a release build directly access the underlying field value, avoiding the dynamic type check. If it's
+                    // a debug build load it through the field (which will throw if your type annotations are wrong)
+                    #if RELEASE
+                        GetRuntimeFieldValue<Value>("_number");
+                    #else
+                        GetRuntimePropertyValue<Value>(nameof(Value.Number));
+                    #endif
+
                     Push(StackType.YololNumber);
                     return var;
                 }
 
                 if (type == Execution.Type.String)
                 {
-                    GetRuntimePropertyValue<Value>(nameof(Value.String));
+                    // If this is a release build directly access the underlying field value, avoiding the dynamic type check. If it's
+                    // a debug build load it through the field (which will throw if your type annotations are wrong)
+                    #if RELEASE
+                        GetRuntimeFieldValue<Value>("_string");
+                    #else
+                        GetRuntimePropertyValue<Value>(nameof(Value.String));
+                    #endif
+
                     Push(StackType.YololString);
                     return var;
                 }
@@ -604,10 +631,13 @@ namespace Yolol.IL.Compiler
                 CallRuntime<Value>("op_Addition");
                 return StackType.YololValue;
             },
-            Number = () =>
-            {
+            Number = () => {
                 CallRuntime<Number>("op_Addition");
                 return StackType.YololNumber;
+            },
+            String = () => {
+                CallRuntime<YString>("op_Addition");
+                return StackType.YololString;
             }
         });
 
@@ -620,6 +650,10 @@ namespace Yolol.IL.Compiler
             {
                 CallRuntime<Number>("op_Subtraction");
                 return StackType.YololNumber;
+            },
+            String = () => {
+                CallRuntime<YString>("op_Subtraction");
+                return StackType.YololString;
             }
         });
 
@@ -667,6 +701,11 @@ namespace Yolol.IL.Compiler
                 CallRuntime<Runtime>(nameof(Runtime.BoolEquals));
                 return StackType.Bool;
             },
+            String = () =>
+            {
+                CallRuntime<YString>("op_Equality");
+                return StackType.Bool;
+            },
         });
 
         protected override BaseExpression Visit(NotEqualTo neq) => Visit(new Not(new EqualTo(neq.Left, neq.Right)));
@@ -681,6 +720,11 @@ namespace Yolol.IL.Compiler
                 CallRuntime<Number>("op_GreaterThan");
                 return StackType.Bool;
             },
+            String = () =>
+            {
+                CallRuntime<YString>("op_GreaterThan");
+                return StackType.Bool;
+            },
         });
 
         protected override BaseExpression Visit(GreaterThanEqualTo gteq) => ConvertBinary(gteq, new Emitters2 {
@@ -691,6 +735,11 @@ namespace Yolol.IL.Compiler
             Number = () =>
             {
                 CallRuntime<Number>("op_GreaterThanOrEqual");
+                return StackType.Bool;
+            },
+            String = () =>
+            {
+                CallRuntime<YString>("op_GreaterThanOrEqual");
                 return StackType.Bool;
             },
         });
@@ -705,6 +754,11 @@ namespace Yolol.IL.Compiler
                 CallRuntime<Number>("op_LessThan");
                 return StackType.Bool;
             },
+            String = () =>
+            {
+                CallRuntime<YString>("op_LessThan");
+                return StackType.Bool;
+            },
         });
 
         protected override BaseExpression Visit(LessThanEqualTo lteq) => ConvertBinary(lteq, new Emitters2 {
@@ -715,6 +769,11 @@ namespace Yolol.IL.Compiler
             Number = () =>
             {
                 CallRuntime<Number>("op_LessThanOrEqual");
+                return StackType.Bool;
+            },
+            String = () =>
+            {
+                CallRuntime<YString>("op_LessThanOrEqual");
                 return StackType.Bool;
             },
         });

@@ -14,9 +14,10 @@ namespace Benchmark
         readonly string[] _program = new[] {
             "r = 715237",
             "i = 0 A = 1664524+cos(0)    M = 2^32",
-            "s = 0 C = 1013904223 F = 2^16",
+            "s = 0 C = 1013904223 F = 2^16 b = \"str\"" ,
             "r=((r*A)+C)%M x=(r%F)/F r=((r*A)+C)%M y=(r%F)/F",
-            "s++ i=i+((x*x+y*y)<1) :pi=4*(i/s) goto 4"
+            "s++ i=i+((x*x+y*y)<1) :pi=4*(i/s)" +
+            ":pi += b+b-\"t\"==b goto4",
         };
 
         private readonly Func<Memory<Value>, Memory<Value>, int>[] _compiledLines;
@@ -46,7 +47,9 @@ namespace Benchmark
             _externalsMap = new Dictionary<string, int>();
             _compiledLines = new Func<Memory<Value>, Memory<Value>, int>[ast.Lines.Count];
             for (var i = 0; i < ast.Lines.Count; i++)
+            {
                 _compiledLines[i] = ast.Lines[i].Compile(i + 1, 20, _internalsMap, _externalsMap, staticTypes);
+            }
 
             _internals = new Value[_internalsMap.Count];
             Array.Fill(_internals, new Value(0));
@@ -73,7 +76,7 @@ namespace Benchmark
                 var lps = iterations / timer.Elapsed.TotalSeconds;
                 samples.Add(lps);
 
-                var avg = samples.Average();
+                var avg = samples.AsEnumerable().Reverse().Take(20).Average();
                 var sum = samples.Sum(d => Math.Pow(d - avg, 2));
                 var stdDev = Math.Sqrt(sum / (samples.Count - 1));
 
