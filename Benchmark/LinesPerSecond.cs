@@ -17,7 +17,7 @@ namespace Benchmark
             "s = 0 C = 1013904223 F = 2^16 b = \"str\"" ,
             "r=((r*A)+C)%M x=(r%F)/F r=((r*A)+C)%M y=(r%F)/F",
             "s++ i=i+((x*x+y*y)<1) :pi=4*(i/s)" +
-            ":pi += b+b-\"t\"==b goto4",
+            ":pi += ((b+b)-\"t\")==b goto 1",
         };
 
         private readonly Func<Memory<Value>, Memory<Value>, int>[] _compiledLines;
@@ -59,7 +59,7 @@ namespace Benchmark
 
         public void Run()
         {
-            const int iterations = 1000000;
+            const int iterations = 5000000;
             var pc = 0;
 
             var samples = new List<double>();
@@ -76,7 +76,7 @@ namespace Benchmark
                 var lps = iterations / timer.Elapsed.TotalSeconds;
                 samples.Add(lps);
 
-                var avg = samples.AsEnumerable().Reverse().Take(20).Average();
+                var avg = samples.AsEnumerable().Reverse().Take(10).Average();
                 var sum = samples.Sum(d => Math.Pow(d - avg, 2));
                 var stdDev = Math.Sqrt(sum / (samples.Count - 1));
 

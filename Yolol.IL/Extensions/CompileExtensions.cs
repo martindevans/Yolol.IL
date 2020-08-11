@@ -99,6 +99,7 @@ namespace Yolol.IL.Extensions
             emitter.StoreLocal(linesToExecute);
 
             // Clamp index into the correct range and then jump to that index
+            emitter.LoadConstant(program.Lines.Count);
             emitter.Call(typeof(ILExtension).GetMethod(nameof(FixupGotoIndex), BindingFlags.NonPublic | BindingFlags.Static));
             emitter.Switch(lineLabels.ToArray());
 
@@ -134,12 +135,12 @@ namespace Yolol.IL.Extensions
             return emitter.CreateDelegate();
         }
 
-        private static int FixupGotoIndex(int oneBasedIndex)
+        private static int FixupGotoIndex(int oneBasedIndex, int maxLines)
         {
             if (oneBasedIndex <= 0)
                 return 0;
-            if (oneBasedIndex >= 20)
-                return 19;
+            if (oneBasedIndex >= maxLines)
+                return maxLines - 1;
             return oneBasedIndex - 1;
         }
     }

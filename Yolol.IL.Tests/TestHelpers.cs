@@ -24,8 +24,8 @@ namespace Yolol.IL.Tests
             var internals = new Dictionary<string, int>();
             var externals = new Dictionary<string, int>();
 
-            try
-            {
+            //try
+            //{
                 var ast = Parse(line);
                 var compiled = ast.Lines[0].Compile(lineNumber, 20, internals, externals);
 
@@ -35,12 +35,12 @@ namespace Yolol.IL.Tests
                 var r = compiled(i, e);
 
                 return (new EasyMachineState(i, e, internals, externals), r);
-            }
-            catch (SigilVerificationException e)
-            {
-                Console.WriteLine(e.GetDebugInfo());
-                throw;
-            }
+            //}
+            //catch (SigilVerificationException e)
+            //{
+            //    Console.WriteLine(e.GetDebugInfo());
+            //    throw;
+            //}
         }
     }
 
