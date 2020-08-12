@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Reflection;
 using Sigil;
 using Yolol.Analysis.TreeVisitor;
 using Yolol.Execution;
-using Yolol.Execution.Extensions;
 using Yolol.Grammar;
 using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
@@ -88,13 +88,13 @@ namespace Yolol.IL.Compiler
             return method.ReturnType;
         }
 
-        private void CallRuntimeThis0<T>(string methodName)
+        private System.Type? CallRuntimeThis0<T>(string methodName)
         {
             using (var local = _emitter.DeclareLocal(typeof(T)))
             {
                 _emitter.StoreLocal(local);
                 _emitter.LoadLocalAddress(local);
-                CallRuntimeN<T>(methodName);
+                return CallRuntimeN<T>(methodName);
             }
         }
 
@@ -120,6 +120,14 @@ namespace Yolol.IL.Compiler
                 _emitter.LoadLocalAddress(local);
                 _emitter.LoadField(field);
             }
+        }
+
+        private System.Type RuntimeError(string message)
+        {
+            _emitter.LoadConstant(message);
+            _emitter.NewObject<StaticError, string>();
+
+            return typeof(StaticError);
         }
         #endregion
 
@@ -537,7 +545,7 @@ namespace Yolol.IL.Compiler
 #if !DEBUG
             if (expr.IsConstant)
             {
-                var v = expr.TryStaticEvaluate();
+                var v = Execution.Extensions.BaseExpressionExtensions.TryStaticEvaluate(expr);
                 if (v.HasValue)
                 {
                     Visit(v.Value.ToConstant());
@@ -693,7 +701,7 @@ namespace Yolol.IL.Compiler
         #endregion
 
         #region unary expressions
-        private T ConvertUnary<T>(T expr, Func<StackType, StackType> emit)
+        private T ConvertUnaryExpr<T, TB, TN, TS, TV>(T expr, Expression<Func<bool, TB>> emitBool, Expression<Func<Number, TN>> emitNum, Expression<Func<YString, TS>> emitStr, Expression<Func<Value, TV>> emitVal)
             where T : BaseUnaryExpression
         {
             if (TryStaticEvaluate(expr))
@@ -702,8 +710,16 @@ namespace Yolol.IL.Compiler
             // Visit the inner expression of the unary
             Visit(expr.Parameter);
 
-            // Emit the correct IL code for the type on the stack
-            var result = emit(Peek());
+            // Emit code
+            var p = Peek();
+            var emitType = p switch {
+                StackType.Bool => emitBool.ConvertUnary(_emitter),
+                StackType.YololNumber => emitNum.ConvertUnary(_emitter),
+                StackType.YololString => emitStr.ConvertUnary(_emitter),
+                StackType.YololValue => emitVal.ConvertUnary(_emitter),
+                _ => throw new InvalidOperationException($"{expr.GetType().Name}({p})")
+            };
+            var result = emitType!.ToStackType();
 
             // Update types
             Pop(Peek());
@@ -712,100 +728,68 @@ namespace Yolol.IL.Compiler
             return expr;
         }
 
-        private T ConvertUnary<T>(T expr, Func<System.Type?> emitBool, Func<System.Type?> emitNum, Func<System.Type?> emitStr, Func<System.Type?> emitVal)
-            where T : BaseUnaryExpression
-        {
-            return ConvertUnary(expr, l => {
-                var result = l switch {
-                    StackType.Bool => emitBool(),
-                    StackType.YololNumber => emitNum(),
-                    StackType.YololString => emitStr(),
-                    StackType.YololValue => emitVal(),
-                    _ => throw new InvalidOperationException($"{expr.GetType().Name}({l})"),
-                };
-                return result!.ToStackType();
-            });
-        }
-
-        private T ConvertUnaryCoerce<T>(T expr, StackType input, StackType output, Action emit)
-            where T : BaseUnaryExpression
-        {
-            if (TryStaticEvaluate(expr))
-                return expr;
-
-            // Visit the inner expression of the unary and coerce it to the correct type
-            Visit(expr.Parameter);
-            Coerce(input);
-
-            // Emit IL
-            emit();
-
-            // Update types
-            Pop(input);
-            Push(output);
-
-            return expr;
-        }
-
-        private T ConvertUnary<T>(T expr, Emitters1 emitters)
-            where T : BaseUnaryExpression
-        {
-            if (TryStaticEvaluate(expr))
-                return expr;
-
-            // Visit the inner expression of the unary
-            Visit(expr.Parameter);
-
-            // Emit the correct IL code for the type on the stack
-            emitters.Emit(this);
-
-            return expr;
-        }
-
-        protected override BaseExpression Visit(Not not) => ConvertUnaryCoerce(not, StackType.Bool, StackType.Bool, () => CallRuntime1<Runtime>(nameof(Runtime.LogicalNot)));
-
-        protected override BaseExpression Visit(Negate neg) => ConvertUnary(neg,
-            () => CallRuntime1<Runtime>(nameof(Runtime.BoolNegate)),
-            () => CallRuntime1<Number>("op_UnaryNegation"),
-            () => CallRuntime1<YString>("op_UnaryNegation"),
-            () => CallRuntime1<Value>("op_UnaryNegation")
+        protected override BaseExpression Visit(Not not) => ConvertUnaryExpr(not,
+            b => !b,
+            n => n == 0,
+            s => false,
+            v => !v
         );
 
-        protected override BaseExpression Visit(Sqrt sqrt) => ConvertUnary(sqrt, new Emitters1
-        {
-            Number = () => {
-                CallRuntimeThis0<Number>(nameof(Number.Sqrt));
-                return StackType.YololNumber;
-            },
-            Value = () => CallRuntime1<Value>(nameof(Value.Sqrt))!.ToStackType()
-        });
-        #endregion
+        protected override BaseExpression Visit(Negate neg) => ConvertUnaryExpr(neg,
+            b => -(Number)b,
+            n => -n,
+            s => new StaticError("Attempted to negate a string"),
+            v => -v
+        );
 
-        #region trig expressions
-        private T ConvertUnaryTrig<T>(T trig, string name)
-            where T : BaseTrigonometry
-        {
-            return ConvertUnary(trig, new Emitters1
-            {
-                Number = () => {
-                    CallRuntimeThis0<Number>(name);
-                    return StackType.YololNumber;
-                },
-                Value = () => CallRuntime1<Value>(name)!.ToStackType(),
-            });
-        }
+        protected override BaseExpression Visit(Sqrt sqrt) => ConvertUnaryExpr(sqrt,
+            b => b,
+            n => n.Sqrt(),
+            s => new StaticError("Attempted to sqrt a string"),
+            v => Value.Sqrt(v)
+        );
 
-        protected override BaseExpression Visit(ArcCos acos) => ConvertUnaryTrig(acos, "ArcCos");
+        protected override BaseExpression Visit(ArcCos acos) => ConvertUnaryExpr(acos,
+            b => ((Number)b).ArcCos(),
+            n => n.ArcCos(),
+            s => new StaticError("Attempted to Acos a string"),
+            v => Value.ArcCos(v)
+        );
 
-        protected override BaseExpression Visit(ArcSine acos) => ConvertUnaryTrig(acos, "ArcSin");
+        protected override BaseExpression Visit(ArcSine asin) => ConvertUnaryExpr(asin,
+            b => ((Number)b).ArcSin(),
+            n => n.ArcSin(),
+            s => new StaticError("Attempted to ASin a string"),
+            v => Value.ArcSin(v)
+        );
 
-        protected override BaseExpression Visit(ArcTan acos) => ConvertUnaryTrig(acos, "ArcTan");
+        protected override BaseExpression Visit(ArcTan atan) => ConvertUnaryExpr(atan,
+            b => ((Number)b).ArcTan(),
+            n => n.ArcTan(),
+            s => new StaticError("Attempted to ATan a string"),
+            v => Value.ArcTan(v)
+        );
 
-        protected override BaseExpression Visit(Cosine acos) => ConvertUnaryTrig(acos, "Cos");
+        protected override BaseExpression Visit(Cosine cos) => ConvertUnaryExpr(cos,
+            b => ((Number)b).Cos(),
+            n => n.Cos(),
+            s => new StaticError("Attempted to Cos a string"),
+            v => Value.Cos(v)
+        );
 
-        protected override BaseExpression Visit(Sine acos) => ConvertUnaryTrig(acos, "Sin");
+        protected override BaseExpression Visit(Sine sin) => ConvertUnaryExpr(sin,
+            b => ((Number)b).Sin(),
+            n => n.Sin(),
+            s => new StaticError("Attempted to Sin a string"),
+            v => Value.Sin(v)
+        );
 
-        protected override BaseExpression Visit(Tangent acos) => ConvertUnaryTrig(acos, "Tan");
+        protected override BaseExpression Visit(Tangent tan) => ConvertUnaryExpr(tan,
+            b => ((Number)b).Tan(),
+            n => n.Tan(),
+            s => new StaticError("Attempted to Tan a string"),
+            v => Value.Tan(v)
+        );
         #endregion
 
         #region modify expressions

@@ -1,5 +1,6 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-
+﻿using System.Reflection;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Yolol.Execution;
 using static Yolol.IL.Tests.TestHelpers;
 
 namespace Yolol.IL.Tests
@@ -8,7 +9,25 @@ namespace Yolol.IL.Tests
     public class UnaryExpressionTests
     {
         [TestMethod]
-        public void NotNumbers()
+        public void NotNum()
+        {
+            var (st, _) = Test("a = not 3 b = not 0");
+
+            Assert.AreEqual(0, st.GetVariable("a"));
+            Assert.AreEqual(1, st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void NotStr()
+        {
+            var (st, _) = Test("a = not \"\" b = not \"0\"");
+
+            Assert.AreEqual(0, st.GetVariable("a"));
+            Assert.AreEqual(0, st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void NotBool()
         {
             var (st, _) = Test("a = not 1 b = not 0");
 
@@ -17,12 +36,12 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
-        public void NotStrings()
+        public void NotVal()
         {
-            var (st, _) = Test("a = not \"\" b = not \"0\"");
+            var (st, _) = Test("aa=1 bb=0 a = not aa b = not bb");
 
             Assert.AreEqual(0, st.GetVariable("a"));
-            Assert.AreEqual(0, st.GetVariable("b"));
+            Assert.AreEqual(1, st.GetVariable("b"));
         }
 
         [TestMethod]
@@ -42,9 +61,33 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
-        public void Sqrt()
+        public void SqrtNum()
         {
             var (st, _) = Test("a = sqrt(9)");
+
+            Assert.AreEqual(3, st.GetVariable("a"));
+        }
+
+        [TestMethod]
+        public void SqrtBool()
+        {
+            var (st, _) = Test("a = sqrt(1)");
+
+            Assert.AreEqual(1, st.GetVariable("a"));
+        }
+
+        [TestMethod]
+        public void SqrtStr()
+        {
+            Assert.ThrowsException<ExecutionException>(() => {
+                Test("a = sqrt(\"9\")");
+            });
+        }
+
+        [TestMethod]
+        public void SqrtVal()
+        {
+            var (st, _) = Test("b=9 a=sqrt(b)");
 
             Assert.AreEqual(3, st.GetVariable("a"));
         }
@@ -58,11 +101,19 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
-        public void Cos()
+        public void Cos90()
         {
             var (st, _) = Test("a = cos(90)");
 
             Assert.AreEqual(0, st.GetVariable("a"));
+        }
+
+        [TestMethod]
+        public void Cos0()
+        {
+            var (st, _) = Test("a = cos(0)");
+
+            Assert.AreEqual(1, st.GetVariable("a"));
         }
 
         [TestMethod]

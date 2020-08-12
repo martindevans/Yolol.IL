@@ -59,7 +59,7 @@ namespace Benchmark
 
         public void Run()
         {
-            const int iterations = 5000000;
+            const int iterations = 2000000;
             var pc = 0;
 
             var samples = new List<double>();
