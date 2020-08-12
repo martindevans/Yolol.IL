@@ -11,6 +11,7 @@ using Yolol.Grammar.AST.Expressions.Binary;
 using Yolol.Grammar.AST.Expressions.Unary;
 using Yolol.Grammar.AST.Statements;
 using Yolol.IL.Extensions;
+using Type = System.Type;
 
 namespace Yolol.IL.Compiler
 {
@@ -43,12 +44,10 @@ namespace Yolol.IL.Compiler
         }
 
         #region runtime
-        private System.Type? CallRuntimeN<T>(string methodName, params System.Type[] args)
+        private void CallRuntimeN<T>(string methodName, params Type[] args)
         {
             var method = typeof(T).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, args, null);
             _emitter.Call(method);
-
-            return method.ReturnType;
         }
 
         /// <summary>
@@ -57,7 +56,7 @@ namespace Yolol.IL.Compiler
         /// <typeparam name="T"></typeparam>
         /// <param name="methodName"></param>
         /// <returns></returns>
-        private System.Type? CallRuntime1<T>(string methodName)
+        private Type? CallRuntime1<T>(string methodName)
         {
             // Get the parameter type
             var p = Peek();
@@ -74,7 +73,7 @@ namespace Yolol.IL.Compiler
         /// <typeparam name="T"></typeparam>
         /// <param name="methodName"></param>
         /// <returns></returns>
-        private System.Type? CallRuntime2<T>(string methodName)
+        private void CallRuntime2<T>(string methodName)
         {
             // Get the left and right items from the type stack
             var r = Peek();
@@ -84,32 +83,19 @@ namespace Yolol.IL.Compiler
 
             var method = typeof(T).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, new[] { l.ToType(), r.ToType() }, null);
             _emitter.Call(method);
-
-            return method.ReturnType;
         }
 
-        private System.Type? CallRuntimeThis0<T>(string methodName)
+        private void CallRuntimeThis0<T>(string methodName)
         {
             using (var local = _emitter.DeclareLocal(typeof(T)))
             {
                 _emitter.StoreLocal(local);
                 _emitter.LoadLocalAddress(local);
-                return CallRuntimeN<T>(methodName);
+                CallRuntimeN<T>(methodName);
             }
         }
 
-        private void GetRuntimePropertyValue<T>(string propertyName)
-        {
-            var method = typeof(T).GetProperty(propertyName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static).GetMethod;
-
-            using (var local = _emitter.DeclareLocal(typeof(T)))
-            {
-                _emitter.StoreLocal(local);
-                _emitter.LoadLocalAddress(local);
-                _emitter.Call(method);
-            }
-        }
-
+#if RELEASE
         private void GetRuntimeFieldValue<T>(string fieldName)
         {
             var field = typeof(T).GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static);
@@ -121,14 +107,19 @@ namespace Yolol.IL.Compiler
                 _emitter.LoadField(field);
             }
         }
-
-        private System.Type RuntimeError(string message)
+#else
+        private void GetRuntimePropertyValue<T>(string propertyName)
         {
-            _emitter.LoadConstant(message);
-            _emitter.NewObject<StaticError, string>();
+            var method = typeof(T).GetProperty(propertyName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static).GetMethod;
 
-            return typeof(StaticError);
+            using (var local = _emitter.DeclareLocal(typeof(T)))
+            {
+                _emitter.StoreLocal(local);
+                _emitter.LoadLocalAddress(local);
+                _emitter.Call(method);
+            }
         }
+#endif
         #endregion
 
         #region type tracking
@@ -168,7 +159,7 @@ namespace Yolol.IL.Compiler
 
                 #region error conversion
                 case (StackType.StaticError, StackType.YololValue):
-                    CallRuntimeN<Runtime>(nameof(Runtime.ErrorToValue), new[] { typeof(StaticError) });
+                    CallRuntimeN<Runtime>(nameof(Runtime.ErrorToValue), typeof(StaticError));
                     break;
                 #endregion
 
@@ -178,7 +169,7 @@ namespace Yolol.IL.Compiler
                     break;
 
                 case (StackType.Bool, StackType.YololNumber):
-                    CallRuntimeN<Runtime>(nameof(Runtime.BoolToNumber), new[] { typeof(bool) });
+                    CallRuntimeN<Runtime>(nameof(Runtime.BoolToNumber), typeof(bool));
                     break;
                 #endregion
 
@@ -228,39 +219,6 @@ namespace Yolol.IL.Compiler
 
             // If we get here type coercion succeeded
             Push(target);
-        }
-
-        private Local Stash(StackType type)
-        {
-            Pop(type);
-
-            var local = type switch {
-                StackType.YololNumber => _emitter.DeclareLocal(typeof(Number)),
-                StackType.YololValue => _emitter.DeclareLocal(typeof(Value)),
-                StackType.YololString => _emitter.DeclareLocal(typeof(YString)),
-                StackType.Bool => _emitter.DeclareLocal(typeof(bool)),
-                _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
-            };
-            _emitter.StoreLocal(local);
-
-            return local;
-        }
-
-        private void Unstash(Local local, StackType type)
-        {
-            _emitter.LoadLocal(local);
-            Push(type);
-            local.Dispose();
-        }
-
-        void CoerceOneDown(StackType output)
-        {
-            var top = Peek();
-            using (var stash = Stash(top))
-            {
-                Coerce(output);
-                Unstash(stash, top);
-            }
         }
         #endregion
 
@@ -559,29 +517,6 @@ namespace Yolol.IL.Compiler
         #endregion
 
         #region binary expressions
-        private T ConvertBinary<T>(T expr, Func<StackType, StackType, StackType> emit)
-            where T : BaseBinaryExpression
-        {
-            if (TryStaticEvaluate(expr))
-                return expr;
-
-            // Convert the two sides of the expression
-            Visit(expr.Left);
-            var left = Peek();
-            Visit(expr.Right);
-            var right = Peek();
-
-            // Emit code for this expression
-            var result = emit(left, right);
-
-            // Update types
-            Pop(Peek());
-            Pop(Peek());
-            Push(result);
-
-            return expr;
-        }
-
         private T ConvertBinaryCoerce<T>(T expr, StackType input, StackType output, Action emit)
             where T : BaseBinaryExpression
         {
@@ -606,54 +541,277 @@ namespace Yolol.IL.Compiler
             return expr;
         }
 
-        private T ConvertBinary<T>(T expr, Func<System.Type?> emitBool, Func<System.Type?> emitNum, Func<System.Type?> emitStr, Func<System.Type?> emitVal)
+        private T ConvertBinaryExpr<T, TBB, TBN, TBS, TBV, TNB, TNN, TNS, TNV, TSB, TSN, TSS, TSV, TVB, TVN, TVS, TVV>(T expr,
+            Expression<Func<bool, bool, TBB>> emitBoolBool,
+            Expression<Func<bool, Number, TBN>> emitBoolNum,
+            Expression<Func<bool, YString, TBS>> emitBoolStr,
+            Expression<Func<bool, Value, TBV>> emitBoolVal,
+            Expression<Func<Number, bool, TNB>> emitNumBool,
+            Expression<Func<Number, Number, TNN>> emitNumNum,
+            Expression<Func<Number, YString, TNS>> emitNumStr,
+            Expression<Func<Number, Value, TNV>> emitNumVal,
+            Expression<Func<YString, bool, TSB>> emitStrBool,
+            Expression<Func<YString, Number, TSN>> emitStNum,
+            Expression<Func<YString, YString, TSS>> emitStStr,
+            Expression<Func<YString, Value, TSV>> emitStVal,
+            Expression<Func<Value, bool, TVB>> emitValBool,
+            Expression<Func<Value, Number, TVN>> emitValNum,
+            Expression<Func<Value, YString, TVS>> emitValStr,
+            Expression<Func<Value, Value, TVV>> emitValVal
+        )
             where T : BaseBinaryExpression
         {
-            return ConvertBinary(expr, (l, r) => {
-                var result = (l, r) switch {
-                    (StackType.Bool, _) => emitBool(),
-                    (StackType.YololNumber, _) => emitNum(),
-                    (StackType.YololString, _) => emitStr(),
-                    (StackType.YololValue, _) => emitVal(),
-                    _ => throw new InvalidOperationException($"{expr.GetType().Name}({l},{r})"),
-                };
-                return result!.ToStackType();
-            });
+            if (TryStaticEvaluate(expr))
+                return expr;
+
+            // Convert the two sides of the expression
+            Visit(expr.Left);
+            var left = Peek();
+            Visit(expr.Right);
+            var right = Peek();
+
+            // Emit code
+            var emitType = (left, right) switch {
+
+                (StackType.Bool, StackType.Bool) => emitBoolBool.ConvertBinary(_emitter),
+                (StackType.Bool, StackType.YololNumber) => emitBoolNum.ConvertBinary(_emitter),
+                (StackType.Bool, StackType.YololString) => emitBoolStr.ConvertBinary(_emitter),
+                (StackType.Bool, StackType.YololValue) => emitBoolVal.ConvertBinary(_emitter),
+
+                (StackType.YololNumber, StackType.Bool) => emitNumBool.ConvertBinary(_emitter),
+                (StackType.YololNumber, StackType.YololNumber) => emitNumNum.ConvertBinary(_emitter),
+                (StackType.YololNumber, StackType.YololString) => emitNumStr.ConvertBinary(_emitter),
+                (StackType.YololNumber, StackType.YololValue) => emitNumVal.ConvertBinary(_emitter),
+
+                (StackType.YololString, StackType.Bool) => emitStrBool.ConvertBinary(_emitter),
+                (StackType.YololString, StackType.YololNumber) => emitStNum.ConvertBinary(_emitter),
+                (StackType.YololString, StackType.YololString) => emitStStr.ConvertBinary(_emitter),
+                (StackType.YololString, StackType.YololValue) => emitStVal.ConvertBinary(_emitter),
+
+                (StackType.YololValue, StackType.Bool) => emitValBool.ConvertBinary(_emitter),
+                (StackType.YololValue, StackType.YololNumber) => emitValNum.ConvertBinary(_emitter),
+                (StackType.YololValue, StackType.YololString) => emitValStr.ConvertBinary(_emitter),
+                (StackType.YololValue, StackType.YololValue) => emitValVal.ConvertBinary(_emitter),
+
+                _ => throw new InvalidOperationException($"{expr.GetType().Name}({left},{right})")
+            };
+            var result = emitType!.ToStackType();
+
+            Pop(right);
+            Pop(left);
+            Push(result);
+
+            return expr;
         }
 
-        private T ConvertBinary<T>(T expr, string boolOpName, string opName)
-            where T : BaseBinaryExpression
-        {
-            return ConvertBinary(
-                expr,
-                () => CallRuntime2<Runtime>(boolOpName),
-                () => CallRuntime2<Number>(opName),
-                () => CallRuntime2<YString>(opName),
-                () => CallRuntime2<Value>(opName)
-            );
-        }
+        protected override BaseExpression Visit(Add add) => ConvertBinaryExpr(add,
+            (a, b) => (Number)a + b,
+            (a, b) => a + b,
+            (a, b) => (Number)a + b,
+            (a, b) => (Number)a + b,
+            (a, b) => a + b,
+            (a, b) => a + b,
+            (a, b) => a + b,
+            (a, b) => a + b,
+            (a, b) => a + b,
+            (a, b) => a + b,
+            (a, b) => a + b,
+            (a, b) => a + b,
+            (a, b) => a + b,
+            (a, b) => a + b,
+            (a, b) => a + b,
+            (a, b) => a + b
+        );
 
-        protected override BaseExpression Visit(Add add) => ConvertBinary(add, nameof(Runtime.Add), "op_Addition");
+        protected override BaseExpression Visit(Subtract sub) => ConvertBinaryExpr(sub,
+            (a, b) => (Number)a - b,
+            (a, b) => a - b,
+            (a, b) => (Number)a - b,
+            (a, b) => (Number)a - b,
+            (a, b) => a - b,
+            (a, b) => a - b,
+            (a, b) => a - b,
+            (a, b) => a - b,
+            (a, b) => a - b,
+            (a, b) => a - b,
+            (a, b) => a - b,
+            (a, b) => a - b,
+            (a, b) => a - b,
+            (a, b) => a - b,
+            (a, b) => a - b,
+            (a, b) => a - b
+        );
 
-        protected override BaseExpression Visit(Subtract sub) => ConvertBinary(sub, nameof(Runtime.Subtract), "op_Subtraction");
+        protected override BaseExpression Visit(Multiply mul) => ConvertBinaryExpr(mul,
+            (a, b) => (Number)a * b,
+            (a, b) => a * b,
+            (a, b) => (Number)a * b,
+            (a, b) => (Number)a * b,
+            (a, b) => a * b,
+            (a, b) => a * b,
+            (a, b) => a * b,
+            (a, b) => a * b,
+            (a, b) => a * b,
+            (a, b) => a * b,
+            (a, b) => a * b,
+            (a, b) => a * b,
+            (a, b) => a * b,
+            (a, b) => a * b,
+            (a, b) => a * b,
+            (a, b) => a * b
+        );
 
-        protected override BaseExpression Visit(Multiply mul) => ConvertBinary(mul, nameof(Runtime.Multiply), "op_Multiply");
+        protected override BaseExpression Visit(Divide div) => ConvertBinaryExpr(div,
+            (a, b) => (Number)a / b,
+            (a, b) => a / b,
+            (a, b) => (Number)a / b,
+            (a, b) => (Number)a / b,
+            (a, b) => a / b,
+            (a, b) => a / b,
+            (a, b) => a / b,
+            (a, b) => a / b,
+            (a, b) => a / b,
+            (a, b) => a / b,
+            (a, b) => a / b,
+            (a, b) => a / b,
+            (a, b) => a / b,
+            (a, b) => a / b,
+            (a, b) => a / b,
+            (a, b) => a / b
+        );
 
-        protected override BaseExpression Visit(Divide div) => ConvertBinary(div, nameof(Runtime.Divide), "op_Division");
+        protected override BaseExpression Visit(EqualTo eq) => ConvertBinaryExpr(eq,
+            (a, b) => (Number)a == b,
+            (a, b) => a == b,
+            (a, b) => (Number)a == b,
+            (a, b) => (Number)a == b,
+            (a, b) => a == b,
+            (a, b) => a == b,
+            (a, b) => a == b,
+            (a, b) => a == b,
+            (a, b) => a == b,
+            (a, b) => a == b,
+            (a, b) => a == b,
+            (a, b) => a == b,
+            (a, b) => a == b,
+            (a, b) => a == b,
+            (a, b) => a == b,
+            (a, b) => a == b
+        );
 
-        protected override BaseExpression Visit(EqualTo eq) => ConvertBinary(eq, nameof(Runtime.BoolEquals), "op_Equality");
+        protected override BaseExpression Visit(NotEqualTo neq) => ConvertBinaryExpr(neq,
+            (a, b) => (Number)a != b,
+            (a, b) => a != b,
+            (a, b) => (Number)a != b,
+            (a, b) => (Number)a != b,
+            (a, b) => a != b,
+            (a, b) => a != b,
+            (a, b) => a != b,
+            (a, b) => a != b,
+            (a, b) => a != b,
+            (a, b) => a != b,
+            (a, b) => a != b,
+            (a, b) => a != b,
+            (a, b) => a != b,
+            (a, b) => a != b,
+            (a, b) => a != b,
+            (a, b) => a != b
+        );
 
-        protected override BaseExpression Visit(NotEqualTo neq) => Visit(new Not(new EqualTo(neq.Left, neq.Right)));
+        protected override BaseExpression Visit(GreaterThan gt) => ConvertBinaryExpr(gt,
+            (a, b) => (Number)a > b,
+            (a, b) => a > b,
+            (a, b) => (Number)a > b,
+            (a, b) => (Number)a > b,
+            (a, b) => a > b,
+            (a, b) => a > b,
+            (a, b) => a > b,
+            (a, b) => a > b,
+            (a, b) => a > b,
+            (a, b) => a > b,
+            (a, b) => a > b,
+            (a, b) => a > b,
+            (a, b) => a > b,
+            (a, b) => a > b,
+            (a, b) => a > b,
+            (a, b) => a > b
+        );
 
-        protected override BaseExpression Visit(GreaterThan gt) => ConvertBinary(gt, nameof(Runtime.BoolGreaterThan), "op_GreaterThan");
+        protected override BaseExpression Visit(GreaterThanEqualTo gteq) => ConvertBinaryExpr(gteq,
+            (a, b) => (Number)a >= b,
+            (a, b) => a >= b,
+            (a, b) => (Number)a >= b,
+            (a, b) => (Number)a >= b,
+            (a, b) => a >= b,
+            (a, b) => a >= b,
+            (a, b) => a >= b,
+            (a, b) => a >= b,
+            (a, b) => a >= b,
+            (a, b) => a >= b,
+            (a, b) => a >= b,
+            (a, b) => a >= b,
+            (a, b) => a >= b,
+            (a, b) => a >= b,
+            (a, b) => a >= b,
+            (a, b) => a >= b
+        );
 
-        protected override BaseExpression Visit(GreaterThanEqualTo gteq) => ConvertBinary(gteq, nameof(Runtime.BoolGreaterThanEqualTo), "op_GreaterThanOrEqual");
+        protected override BaseExpression Visit(LessThan lt) => ConvertBinaryExpr(lt,
+            (a, b) => (Number)a < b,
+            (a, b) => a < b,
+            (a, b) => (Number)a < b,
+            (a, b) => (Number)a < b,
+            (a, b) => a < b,
+            (a, b) => a < b,
+            (a, b) => a < b,
+            (a, b) => a < b,
+            (a, b) => a < b,
+            (a, b) => a < b,
+            (a, b) => a < b,
+            (a, b) => a < b,
+            (a, b) => a < b,
+            (a, b) => a < b,
+            (a, b) => a < b,
+            (a, b) => a < b
+        );
 
-        protected override BaseExpression Visit(LessThan lt) => ConvertBinary(lt, nameof(Runtime.BoolLessThan), "op_LessThan");
+        protected override BaseExpression Visit(LessThanEqualTo lteq) => ConvertBinaryExpr(lteq,
+            (a, b) => (Number)a <= b,
+            (a, b) => a <= b,
+            (a, b) => (Number)a <= b,
+            (a, b) => (Number)a <= b,
+            (a, b) => a <= b,
+            (a, b) => a <= b,
+            (a, b) => a <= b,
+            (a, b) => a <= b,
+            (a, b) => a <= b,
+            (a, b) => a <= b,
+            (a, b) => a <= b,
+            (a, b) => a <= b,
+            (a, b) => a <= b,
+            (a, b) => a <= b,
+            (a, b) => a <= b,
+            (a, b) => a <= b
+        );
 
-        protected override BaseExpression Visit(LessThanEqualTo lteq) => ConvertBinary(lteq, nameof(Runtime.BoolLessThanEqualTo), "op_LessThanOrEqual");
-
-        protected override BaseExpression Visit(Modulo mod) => ConvertBinary(mod, nameof(Runtime.Modulus), "op_Modulus");
+        protected override BaseExpression Visit(Modulo mod) => ConvertBinaryExpr(mod,
+            (a, b) => (Number)a % b,
+            (a, b) => a % b,
+            (a, b) => (Number)a % b,
+            (a, b) => (Number)a % b,
+            (a, b) => a % b,
+            (a, b) => a % b,
+            (a, b) => a % b,
+            (a, b) => a % b,
+            (a, b) => a % b,
+            (a, b) => a % b,
+            (a, b) => a % b,
+            (a, b) => a % b,
+            (a, b) => a % (Number)b,
+            (a, b) => a % b,
+            (a, b) => a % b,
+            (a, b) => a % b
+        );
 
         protected override BaseExpression Visit(And and) => ConvertBinaryCoerce(and, StackType.Bool, StackType.Bool, () => {
             _emitter.And();
@@ -663,41 +821,24 @@ namespace Yolol.IL.Compiler
             _emitter.Or();
         });
 
-        protected override BaseExpression Visit(Exponent exp)
-        {
-            Func<System.Type?> ThisCall(Func<System.Type, System.Type?> emit)
-            {
-                return () => {
-                    // The stack has `L,R` on it, but we need `L*,R` to make a `this` call
-
-                    // Get `R` out of the way
-                    var stashType = Peek();
-                    var stash = Stash(stashType);
-
-                    // Convert `L` to `L*`
-                    using (var local = _emitter.DeclareLocal(Peek().ToType()))
-                    {
-                        _emitter.StoreLocal(local);
-                        _emitter.LoadLocalAddress(local);
-
-                        // Put `R` back o the stack
-                        Unstash(stash, stashType);
-
-                        return emit(stashType.ToType());
-                    }
-                };
-            }
-
-            return ConvertBinary(
-                exp,
-                () => CallRuntime2<Runtime>("Exponent"),
-                ThisCall(r => CallRuntimeN<Number>("Exponent", r)),
-                ThisCall(r => CallRuntimeN<YString>("Exponent", r)),
-                () => CallRuntime2<Value>("Exponent")
-            );
-
-
-        }
+        protected override BaseExpression Visit(Exponent exp) => ConvertBinaryExpr(exp,
+            (a, b) => ((Number)a).Exponent(b),
+            (a, b) => ((Number)a).Exponent(b),
+            (a, b) => ((Number)a).Exponent(b),
+            (a, b) => ((Number)a).Exponent(b),
+            (a, b) => a.Exponent(b),
+            (a, b) => a.Exponent(b),
+            (a, b) => a.Exponent(b),
+            (a, b) => a.Exponent(b),
+            (a, b) => a.Exponent(b),
+            (a, b) => a.Exponent(b),
+            (a, b) => a.Exponent(b),
+            (a, b) => a.Exponent(b),
+            (a, b) => Value.Exponent(a, b),
+            (a, b) => Value.Exponent(a, b),
+            (a, b) => Value.Exponent(a, b),
+            (a, b) => Value.Exponent(a, b)
+        );
         #endregion
 
         #region unary expressions

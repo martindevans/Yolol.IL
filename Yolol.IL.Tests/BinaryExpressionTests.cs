@@ -30,9 +30,9 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void AddNumbers()
         {
-            var (st, _) = Test("a = 1 + 2");
+            var (st, _) = Test("a = 3 + 2");
 
-            Assert.AreEqual(3, st.GetVariable("a"));
+            Assert.AreEqual(5, st.GetVariable("a"));
         }
 
         [TestMethod]
