@@ -16,8 +16,8 @@ namespace Benchmark
             "i = 0 A = 1664524+cos(0)    M = 2^32",
             "s = 0 C = 1013904223 F = 2^16 b = \"str\"" ,
             "r=((r*A)+C)%M x=(r%F)/F r=((r*A)+C)%M y=(r%F)/F",
-            "s++ i=i+((x*x+y*y)<1) :pi=4*(i/s)" +
-            ":pi += ((b+b)-\"t\")==b goto 1",
+            "s++ i+=(x*x+y*y)<1 :pi=4*(i/s)" +
+            ":pi -= \"t\" goto 1",
         };
 
         private readonly Func<Memory<Value>, Memory<Value>, int>[] _compiledLines;
@@ -57,6 +57,15 @@ namespace Benchmark
             Array.Fill(_externals, new Value(0));
         }
 
+        private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
+        {
+            var result = Parser.ParseProgram(string.Join("\n", lines));
+            if (!result.IsOk)
+                throw new ArgumentException($"Cannot parse program: {result.Err}");
+
+            return result.Ok;
+        }
+
         public void Run()
         {
             const int iterations = 2000000;
@@ -68,8 +77,8 @@ namespace Benchmark
             {
                 timer.Restart();
 
-                for (var i = 0; i < iterations; i++)
-                    pc = _compiledLines[pc](_internals, _externals) - 1;
+                RunCompiled(iterations);
+                //_externals[0] = RunRewritten(iterations);
 
                 timer.Stop();
 
@@ -84,13 +93,42 @@ namespace Benchmark
             }
         }
 
-        private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
+        public void RunCompiled(int iterations)
         {
-            var result = Parser.ParseProgram(string.Join("\n", lines));
-            if (!result.IsOk)
-                throw new ArgumentException($"Cannot parse program: {result.Err}");
+            var pc = 0;
+            for (var i = 0; i < iterations; i++)
+                pc = _compiledLines[pc](_internals, _externals) - 1;
+        }
 
-            return result.Ok;
+        public Number RunRewritten(int iterations)
+        {
+            var pi = (Number)0;
+
+            for (var j = 0; j < iterations; j += 6)
+            {
+                var r = (Number)715237;
+
+                var i = (Number)0;
+                var A = 1664524 + ((Number)0).Cos();
+                var M = (Number)int.MaxValue;
+
+                var s = (Number)0;
+                var C = (Number)1013904223;
+                var F = (Number)ushort.MaxValue;
+                var b = new YString("str");
+
+                r = ((r * A) + C) % M;
+                var x = (r % F) / F;
+                r = ((r * A) + C) % M;
+                var y = (r % F) / F;
+
+                s += 1;
+                i = i + ((x * x + y * y) < 1);
+                pi = 4 * (i / s);
+                pi += ((b + b) - "t") == b;
+            }
+
+            return pi;
         }
     }
 }

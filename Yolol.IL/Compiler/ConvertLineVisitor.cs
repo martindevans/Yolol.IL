@@ -15,24 +15,28 @@ using Type = System.Type;
 
 namespace Yolol.IL.Compiler
 {
-    internal class ConvertLineVisitor
+    internal class ConvertLineVisitor<TEmit>
         : BaseTreeVisitor
     {
-        private readonly Emit<Func<Memory<Value>, Memory<Value>, int, int, int>> _emitter;
+        private readonly Emit<TEmit> _emitter;
 
         private readonly int _maxLineNumber;
         private readonly Dictionary<string, int> _internalVariableMap;
         private readonly Dictionary<string, int> _externalVariableMap;
         private readonly Label _gotoLabel;
+        private readonly Local _internalSpanLocal;
+        private readonly Local _externalSpanLocal;
         private readonly IReadOnlyDictionary<VariableName, Execution.Type> _staticTypes;
         private readonly Stack<StackType> _types = new Stack<StackType>();
 
         public ConvertLineVisitor(
-            Emit<Func<Memory<Value>, Memory<Value>, int, int, int>> emitter,
+            Emit<TEmit> emitter,
             int maxLineNumber, Dictionary<string, int> internalVariableMap,
             Dictionary<string, int> externalVariableMap,
             Label gotoLabel,
-            IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes
+            IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes,
+            Local internalSpanLocal,
+            Local externalSpanLocal
         )
         {
             _emitter = emitter;
@@ -40,6 +44,8 @@ namespace Yolol.IL.Compiler
             _internalVariableMap = internalVariableMap;
             _externalVariableMap = externalVariableMap;
             _gotoLabel = gotoLabel;
+            _internalSpanLocal = internalSpanLocal;
+            _externalSpanLocal = externalSpanLocal;
             _staticTypes = staticTypes ?? new Dictionary<VariableName, Execution.Type>();
         }
 
@@ -222,58 +228,6 @@ namespace Yolol.IL.Compiler
         }
         #endregion
 
-        #region type emitters
-        private class Emitters1
-        {
-            public Func<StackType>? Number;
-            public Func<StackType>? Value;
-            public Func<StackType>? String;
-            public Func<StackType>? Bool;
-
-            public void Emit(ConvertLineVisitor converter)
-            {
-                // Replace all null emitters by falling back to a more general case
-                if (Value == null)
-                    throw new InvalidOperationException("Must specify `YololValue` handler");
-                if (Number == null)
-                {
-                    Number = () => {
-                        converter.Coerce(StackType.YololValue);
-                        return Value();
-                    };
-                }
-                if (String == null)
-                {
-                    String = () => {
-                        converter.Coerce(StackType.YololValue);
-                        return Value();
-                    };
-                }
-                if (Bool == null)
-                {
-                    Bool = () => {
-                        converter.Coerce(StackType.YololNumber);
-                        return Number();
-                    };
-                }
-
-                // Invoke the emitters for the type on the stack
-                var peek = converter.Peek();
-                var result = peek switch {
-                    StackType.YololNumber => Number(),
-                    StackType.YololValue => Value(),
-                    StackType.YololString => String(),
-                    StackType.Bool => Bool(),
-                    _ => throw new ArgumentOutOfRangeException($"Unknown StackType.{peek}")
-                };
-
-                // Update the stack to reflect the values
-                converter.Pop(converter.Peek());
-                converter.Push(result);
-            }
-        }
-        #endregion
-
         #region statements
         private void EmitAssign(VariableName name)
         {
@@ -283,9 +237,9 @@ namespace Yolol.IL.Compiler
 
             // Load the correct memory span for whichever type of variable we're accessing
             if (name.IsExternal)
-                _emitter.LoadArgument(1);
+                _emitter.LoadLocal(_externalSpanLocal);
             else
-                _emitter.LoadArgument(0);
+                _emitter.LoadLocal(_internalSpanLocal);
 
             // Lookup the index for the given name
             var map = (name.IsExternal ? _externalVariableMap : _internalVariableMap);
@@ -297,7 +251,7 @@ namespace Yolol.IL.Compiler
             _emitter.LoadConstant(idx);
 
             // Put the value on the stack into the span
-            CallRuntimeN<Runtime>(nameof(Runtime.SetSpanIndex), typeof(Value), typeof(Memory<Value>), typeof(int));
+            CallRuntimeN<Runtime>(nameof(Runtime.SetSpanIndex), typeof(Value), typeof(Span<Value>), typeof(int));
         }
 
         protected override BaseStatement Visit(Assignment ass)
@@ -363,11 +317,8 @@ namespace Yolol.IL.Compiler
             switch (Peek())
             {
                 case StackType.Bool:
-                    Coerce(StackType.YololNumber);
-                    goto num;
-                    
                 case StackType.YololNumber:
-                    num:
+                    Coerce(StackType.YololNumber);
                     Pop(StackType.YololNumber);
                     _emitter.LoadConstant(_maxLineNumber);
                     CallRuntimeN<Runtime>(nameof(Runtime.GotoNumber), typeof(Number), typeof(int));
@@ -444,9 +395,9 @@ namespace Yolol.IL.Compiler
         {
             // Load the correct memory span for whichever type of variable we're accessing
             if (var.Name.IsExternal)
-                _emitter.LoadArgument(1);
+                _emitter.LoadLocal(_externalSpanLocal);
             else
-                _emitter.LoadArgument(0);
+                _emitter.LoadLocal(_internalSpanLocal);
 
             // Lookup the index for the given name
             var map = (var.Name.IsExternal ? _externalVariableMap : _internalVariableMap);
@@ -458,7 +409,7 @@ namespace Yolol.IL.Compiler
             _emitter.LoadConstant(idx);
 
             // Get the value from the span
-            CallRuntimeN<Runtime>(nameof(Runtime.GetSpanIndex), typeof(Memory<Value>), typeof(int));
+            CallRuntimeN<Runtime>(nameof(Runtime.GetSpanIndex), typeof(Span<Value>), typeof(int));
 
             // Check if we statically know the type
             if (_staticTypes.TryGetValue(var.Name, out var type))
@@ -934,7 +885,7 @@ namespace Yolol.IL.Compiler
         #endregion
 
         #region modify expressions
-        private T Modify<T>(T expr, bool preOp, Emitters1 emitters)
+        private T Modify<T>(T expr, bool preOp, Func<StackType>? boolEmit, Func<StackType>? numEmit, Func<StackType>? strEmit, Func<StackType>? valEmit)
             where T : BaseModifyInPlace
         {
             // Put the current value of the variable onto the stack
@@ -948,7 +899,42 @@ namespace Yolol.IL.Compiler
             }
 
             // emit the IL for the operation
-            emitters.Emit(this);
+            // Replace all null emitters by falling back to a more general case
+            if (valEmit == null)
+                throw new InvalidOperationException("Must specify `YololValue` handler");
+            if (numEmit == null)
+            {
+                numEmit = () => {
+                    Coerce(StackType.YololValue);
+                    return valEmit();
+                };
+            }
+            if (strEmit == null)
+            {
+                strEmit = () => {
+                    Coerce(StackType.YololValue);
+                    return valEmit();
+                };
+            }
+            if (boolEmit == null)
+            {
+                boolEmit = () => {
+                    Coerce(StackType.YololNumber);
+                    return numEmit();
+                };
+            }
+
+            // Invoke the emitters for the type on the stack
+            var peek = Peek();
+            var result = peek switch {
+                StackType.YololNumber => numEmit(),
+                StackType.YololValue => valEmit(),
+                StackType.YololString => strEmit(),
+                StackType.Bool => boolEmit(),
+                _ => throw new ArgumentOutOfRangeException($"Unknown StackType.{peek}")
+            };
+            Pop(peek);
+            Push(result);
 
             // If we need to return the new value, save it now by duplicating it
             if (preOp)
@@ -963,52 +949,65 @@ namespace Yolol.IL.Compiler
             return expr;
         }
 
-        protected override BaseExpression Visit(PreIncrement inc) => Modify(inc, true, new Emitters1 {
-            Value = () => CallRuntime1<Value>("op_Increment")!.ToStackType(),
-            Number = () => {
-                _emitter.LoadConstant(1L);
+        protected override BaseExpression Visit(PreIncrement inc) => Modify(inc, true,
+            null,
+            () => {
+                _emitter.LoadConstant(1000L);
                 _emitter.NewObject<Number, long>();
                 CallRuntime2<Number>("op_Addition");
                 return StackType.YololNumber;
             },
-            String = () => {
+            () => {
                 CallRuntime1<YString>("op_Increment");
                 return StackType.YololString;
-            }
-        });
+            },
+            () => CallRuntime1<Value>("op_Increment")!.ToStackType()
+        );
 
-        protected override BaseExpression Visit(PreDecrement inc) => Modify(inc, true, new Emitters1 {
-            Value = () => CallRuntime1<Value>("op_Decrement")!.ToStackType(),
-            Number = () => {
-                _emitter.LoadConstant(-1L);
+        protected override BaseExpression Visit(PreDecrement inc) => Modify(inc, true,
+            null,
+            () => {
+                _emitter.LoadConstant(-1000L);
                 _emitter.NewObject<Number, long>();
                 CallRuntime2<Number>("op_Addition");
                 return StackType.YololNumber;
             },
-            String = () => CallRuntime1<YString>("op_Decrement")!.ToStackType()
-        });
+            () => {
+                CallRuntime1<YString>("op_Decrement");
+                return StackType.YololString;
+            },
+            () => CallRuntime1<Value>("op_Decrement")!.ToStackType()
+        );
 
-        protected override BaseExpression Visit(PostIncrement inc) => Modify(inc, false, new Emitters1 {
-            Value = () => CallRuntime1<Value>("op_Increment")!.ToStackType(),
-            Number = () => {
-                _emitter.LoadConstant(1L);
+        protected override BaseExpression Visit(PostIncrement inc) => Modify(inc, false,
+            null,
+            () => {
+                _emitter.LoadConstant(1000L);
                 _emitter.NewObject<Number, long>();
                 CallRuntime2<Number>("op_Addition");
                 return StackType.YololNumber;
             },
-            String = () => CallRuntime1<YString>("op_Increment")!.ToStackType()
-        });
+            () => {
+                CallRuntime1<YString>("op_Increment");
+                return StackType.YololString;
+            },
+            () => CallRuntime1<Value>("op_Increment")!.ToStackType()
+        );
 
-        protected override BaseExpression Visit(PostDecrement inc) => Modify(inc, false, new Emitters1 {
-            Value = () => CallRuntime1<Value>("op_Decrement")!.ToStackType(),
-            Number = () => {
-                _emitter.LoadConstant(-1L);
+        protected override BaseExpression Visit(PostDecrement inc) => Modify(inc, false,
+            null,
+            () => {
+                _emitter.LoadConstant(-1000L);
                 _emitter.NewObject<Number, long>();
                 CallRuntime2<Number>("op_Addition");
                 return StackType.YololNumber;
             },
-            String = () => CallRuntime1<YString>("op_Decrement")!.ToStackType()
-        });
+            () => {
+                CallRuntime1<YString>("op_Decrement");
+                return StackType.YololString;
+            },
+            () => CallRuntime1<Value>("op_Decrement")!.ToStackType()
+        );
         #endregion
 
         protected override BaseStatement Visit(ExpressionWrapper expr)

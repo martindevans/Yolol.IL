@@ -7,7 +7,7 @@ namespace Benchmark
     {
         public static void Main(string[] args)
         {
-            //var config = DefaultConfig.Instance.With(ConfigOptions.DisableOptimizationsValidator);
+            //var config = DefaultConfig.Instance;
             //var summary = BenchmarkRunner.Run<CompareInterpreter>(config);
 
             var lps = new LinesPerSecond();

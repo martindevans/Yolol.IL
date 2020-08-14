@@ -17,7 +17,6 @@ namespace Benchmark
         private readonly Func<Memory<Value>, Memory<Value>, int>[] _compiledLines;
         private readonly Value[] _internals;
         private readonly Value[] _externals;
-        private readonly Func<Memory<Value>, Memory<Value>, int, int, int> _compiledProgram;
 
         public CompareInterpreter()
         {
@@ -32,18 +31,22 @@ namespace Benchmark
             _network = new Network(1, 2, 0);
             _state = new MachineState(_network);
 
+            var types = new Dictionary<VariableName, Yolol.Execution.Type> {
+                { new VariableName("a"), Yolol.Execution.Type.Number },
+                { new VariableName("b"), Yolol.Execution.Type.Number },
+                { new VariableName("c"), Yolol.Execution.Type.Number },
+                { new VariableName("d"), Yolol.Execution.Type.Number },
+                { new VariableName("e"), Yolol.Execution.Type.Number },
+                { new VariableName("f"), Yolol.Execution.Type.Number },
+            };
             var internalsPerLine = new Dictionary<string, int>();
             var externalsPerLine = new Dictionary<string, int>();
             _compiledLines = new Func<Memory<Value>, Memory<Value>, int>[_ast.Lines.Count];
             for (var i = 0; i < _ast.Lines.Count; i++)
-                _compiledLines[i] = _ast.Lines[i].Compile(i + 1, 20, internalsPerLine, externalsPerLine);
+                _compiledLines[i] = _ast.Lines[i].Compile(i + 1, 20, internalsPerLine, externalsPerLine, types);
 
             _internals = new Value[internalsPerLine.Count];
             _externals = new Value[externalsPerLine.Count];
-
-            var internalsWholeProgram = new Dictionary<string, int>();
-            var externalsWholeProgram = new Dictionary<string, int>();
-            _compiledProgram = _ast.Compile(internalsWholeProgram, externalsWholeProgram);
         }
 
         private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
@@ -100,15 +103,6 @@ namespace Benchmark
                 pc = _compiledLines[pc](_internals, _externals) - 1;
 
             return (_internals, _externals);
-        }
-
-        [Benchmark]
-        public int CompileProgram()
-        {
-            Array.Fill(_externals, new Value(0));
-            Array.Fill(_internals, new Value(0));
-
-            return _compiledProgram(_internals, _externals, 0, 5);
         }
 
         [Params(0)]
