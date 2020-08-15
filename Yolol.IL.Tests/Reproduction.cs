@@ -16,7 +16,7 @@ namespace Yolol.IL.Tests
 
             var internalsMap = new Dictionary<string, int>();
             var externalsMap = new Dictionary<string, int>();
-            var compiledLines = new Func<Memory<Value>, Memory<Value>, int>[ast.Lines.Count];
+            var compiledLines = new Func<ArraySegment<Value>, ArraySegment<Value>, int>[ast.Lines.Count];
             for (var i = 0; i < ast.Lines.Count; i++)
                 compiledLines[i] = ast.Lines[i].Compile(i + 1, 20, internalsMap, externalsMap);
 

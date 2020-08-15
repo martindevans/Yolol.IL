@@ -20,7 +20,7 @@ namespace Benchmark
             ":pi -= \"t\" goto 1",
         };
 
-        private readonly Func<Memory<Value>, Memory<Value>, int>[] _compiledLines;
+        private readonly Func<ArraySegment<Value>, ArraySegment<Value>, int>[] _compiledLines;
         private readonly Value[] _internals;
         private readonly Value[] _externals;
 
@@ -39,13 +39,14 @@ namespace Benchmark
                 { new VariableName("s"), Yolol.Execution.Type.Number },
                 { new VariableName("C"), Yolol.Execution.Type.Number },
                 { new VariableName("F"), Yolol.Execution.Type.Number },
+                { new VariableName("b"), Yolol.Execution.Type.String },
                 { new VariableName("x"), Yolol.Execution.Type.Number },
                 { new VariableName("y"), Yolol.Execution.Type.Number },
             };
 
             _internalsMap = new Dictionary<string, int>();
             _externalsMap = new Dictionary<string, int>();
-            _compiledLines = new Func<Memory<Value>, Memory<Value>, int>[ast.Lines.Count];
+            _compiledLines = new Func<ArraySegment<Value>, ArraySegment<Value>, int>[ast.Lines.Count];
             for (var i = 0; i < ast.Lines.Count; i++)
             {
                 _compiledLines[i] = ast.Lines[i].Compile(i + 1, 20, _internalsMap, _externalsMap, staticTypes);
@@ -100,9 +101,9 @@ namespace Benchmark
                 pc = _compiledLines[pc](_internals, _externals) - 1;
         }
 
-        public Number RunRewritten(int iterations)
+        public Value RunRewritten(int iterations)
         {
-            var pi = (Number)0;
+            Value pi = (Number)0;
 
             for (var j = 0; j < iterations; j += 6)
             {
@@ -125,7 +126,7 @@ namespace Benchmark
                 s += 1;
                 i = i + ((x * x + y * y) < 1);
                 pi = 4 * (i / s);
-                pi += ((b + b) - "t") == b;
+                pi -= "t";
             }
 
             return pi;

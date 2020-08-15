@@ -51,9 +51,9 @@ namespace Yolol.IL.Compiler
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Span<Value> GetSpan(Memory<Value> mem)
+        public static Span<Value> GetSpan(ArraySegment<Value> seg)
         {
-            return mem.Span;
+            return seg;
         }
         #endregion
 

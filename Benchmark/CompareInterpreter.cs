@@ -14,7 +14,7 @@ namespace Benchmark
         private readonly Network _network;
         private readonly MachineState _state;
 
-        private readonly Func<Memory<Value>, Memory<Value>, int>[] _compiledLines;
+        private readonly Func<ArraySegment<Value>, ArraySegment<Value>, int>[] _compiledLines;
         private readonly Value[] _internals;
         private readonly Value[] _externals;
 
@@ -41,7 +41,7 @@ namespace Benchmark
             };
             var internalsPerLine = new Dictionary<string, int>();
             var externalsPerLine = new Dictionary<string, int>();
-            _compiledLines = new Func<Memory<Value>, Memory<Value>, int>[_ast.Lines.Count];
+            _compiledLines = new Func<ArraySegment<Value>, ArraySegment<Value>, int>[_ast.Lines.Count];
             for (var i = 0; i < _ast.Lines.Count; i++)
                 _compiledLines[i] = _ast.Lines[i].Compile(i + 1, 20, internalsPerLine, externalsPerLine, types);
 

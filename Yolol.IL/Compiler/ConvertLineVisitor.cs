@@ -492,7 +492,9 @@ namespace Yolol.IL.Compiler
             return expr;
         }
 
+        // ReSharper disable InconsistentNaming
         private T ConvertBinaryExpr<T, TBB, TBN, TBS, TBV, TNB, TNN, TNS, TNV, TSB, TSN, TSS, TSV, TVB, TVN, TVS, TVV>(T expr,
+        // ReSharper restore InconsistentNaming
             Expression<Func<bool, bool, TBB>> emitBoolBool,
             Expression<Func<bool, Number, TBN>> emitBoolNum,
             Expression<Func<bool, YString, TBS>> emitBoolStr,
