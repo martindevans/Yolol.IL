@@ -17,7 +17,7 @@ namespace Benchmark
             "s = 0 C = 1013904223 F = 2^16 b = \"str\"" ,
             "r=((r*A)+C)%M x=(r%F)/F r=((r*A)+C)%M y=(r%F)/F",
             "s++ i+=(x*x+y*y)<1 :pi=4*(i/s)" +
-            ":pi -= \"t\" goto 1",
+            ":pi -= \"t\" :done=0 goto 1",
         };
 
         private readonly Func<ArraySegment<Value>, ArraySegment<Value>, int>[] _compiledLines;

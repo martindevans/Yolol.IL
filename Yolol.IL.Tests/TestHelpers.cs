@@ -1,5 +1,4 @@
-﻿using Sigil;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Yolol.Execution;
@@ -30,7 +29,9 @@ namespace Yolol.IL.Tests
                 var compiled = ast.Lines[0].Compile(lineNumber, 20, internals, externals);
 
                 var i = new Value[internals.Count];
+                Array.Fill(i, new Value(0));
                 var e = new Value[externals.Count];
+                Array.Fill(e, new Value(0));
 
                 var r = compiled(i, e);
 

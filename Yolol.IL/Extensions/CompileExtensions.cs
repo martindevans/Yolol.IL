@@ -21,17 +21,17 @@ namespace Yolol.IL.Extensions
         /// <param name="externalVariableMap">A dictionary used for mapping externals to integers in all lines in this script</param>
         /// <param name="staticTypes">Statically known types for variables</param>
         /// <returns>A function which runs this line of code. Accepts two sections of memory, internal variables and external variables. Returns the line number to go to next</returns>
-        public static Func<Memory<Value>, Memory<Value>, int> Compile(this Line line, int lineNumber, int maxLines, Dictionary<string, int> internalVariableMap, Dictionary<string, int> externalVariableMap, IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes = null)
+        public static Func<ArraySegment<Value>, ArraySegment<Value>, int> Compile(this Line line, int lineNumber, int maxLines, Dictionary<string, int> internalVariableMap, Dictionary<string, int> externalVariableMap, IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes = null)
         {
-            var emitter = Emit<Func<Memory<Value>, Memory<Value>, int>>.NewDynamicMethod();
+            var emitter = Emit<Func<ArraySegment<Value>, ArraySegment<Value>, int>>.NewDynamicMethod();
 
-            // Convert `Memory<Value>` to `Span<Value>` just once and store it in a local field
+            // Convert `ArraySegment<Value>` to `Span<Value>` just once and store it in a local field
             using var internals = ConvertSpan(emitter, 0);
             using var externals = ConvertSpan(emitter, 1);
             
             // Convert the entire line into IL
             var gotoLabel = emitter.DefineLabel();
-            var converter = new ConvertLineVisitor<Func<Memory<Value>, Memory<Value>, int>>(emitter, maxLines, internalVariableMap, externalVariableMap, gotoLabel, staticTypes, internals, externals);
+            var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, internalVariableMap, externalVariableMap, gotoLabel, staticTypes, internals, externals);
             converter.Visit(line);
 
             // If there were no gotos eventually flow will fall through to here

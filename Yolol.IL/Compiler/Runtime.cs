@@ -25,9 +25,9 @@ namespace Yolol.IL.Compiler
         public static int GotoValue(Value value, int maxLineNumber)
         {
             if (value.Type == Execution.Type.Number)
-                GotoNumber(value.Number, maxLineNumber);
-
-            throw new ExecutionException("Attempted to `goto` a `string`");
+                return GotoNumber(value.Number, maxLineNumber);
+            else
+                throw new ExecutionException("Attempted to `goto` a `string`");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

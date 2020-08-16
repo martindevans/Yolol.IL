@@ -23,5 +23,21 @@ namespace Yolol.IL.Tests
             var pc = compiledLines[0](new Value[internalsMap.Count], new Value[externalsMap.Count]);
             Assert.AreEqual(1, pc);
         }
+
+        [TestMethod]
+        public void ConstantEvaluationW()
+        {
+            var result = TestHelpers.Test("a = \"2\" + 2 + 2");
+
+            Assert.AreEqual("222", result.Item1.GetVariable("a").String.ToString());
+        }
+
+        [TestMethod]
+        public void GotoDonePlusPlus()
+        {
+            var (ms, pc) = TestHelpers.Test("goto:done++");
+
+            Assert.AreEqual(1, pc);
+        }
     }
 }
