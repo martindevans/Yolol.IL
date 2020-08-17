@@ -25,7 +25,7 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
-        public void ConstantEvaluationW()
+        public void ConstantEvaluation()
         {
             var result = TestHelpers.Test("a = \"2\" + 2 + 2");
 
@@ -38,6 +38,12 @@ namespace Yolol.IL.Tests
             var (ms, pc) = TestHelpers.Test("goto:done++");
 
             Assert.AreEqual(1, pc);
+        }
+
+        [TestMethod]
+        public void UnreachableCode()
+        {
+            var (ms, pc) = TestHelpers.Test("if :i>8191 then :done=1 goto 1 end");
         }
     }
 }

@@ -339,6 +339,9 @@ namespace Yolol.IL.Compiler
             // Jump to the `goto` label
             _emitter.Branch(_gotoLabel);
 
+            // Drop a label here so any code following the goto is still "reachable" and thus valid.
+            _emitter.MarkLabel(_emitter.DefineLabel());
+
             return @goto;
         }
 
