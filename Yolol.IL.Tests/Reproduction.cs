@@ -35,7 +35,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void GotoDonePlusPlus()
         {
-            var (ms, pc) = TestHelpers.Test("goto:done++");
+            var (_, pc) = TestHelpers.Test("goto:done++");
 
             Assert.AreEqual(1, pc);
         }
@@ -43,7 +43,14 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void UnreachableCode()
         {
-            var (ms, pc) = TestHelpers.Test("if :i>8191 then :done=1 goto 1 end");
+            TestHelpers.Test("if :i>8191 then :done=1 goto 1 end");
+        }
+
+        [TestMethod]
+        public void NonStringSubtraction()
+        {
+            var (ms, _) = TestHelpers.Test("a=70 b=\"\"+a-0");
+            Assert.AreEqual(new YString("7"), ms.GetVariable("b").String);
         }
     }
 }
