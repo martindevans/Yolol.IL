@@ -17,24 +17,16 @@ namespace Yolol.IL.Extensions
                 return fast;
 
             // Put the parameters into local, ready to be used later
-            var parameterRight = emitter.DeclareLocal(typeof(TInRight));
+            using var parameterRight = emitter.DeclareLocal(typeof(TInRight));
             emitter.StoreLocal(parameterRight);
-            var parameterLeft = emitter.DeclareLocal(typeof(TInLeft));
+            using var parameterLeft = emitter.DeclareLocal(typeof(TInLeft));
             emitter.StoreLocal(parameterLeft);
             var parameters = new Dictionary<string, Local> {
                 { expr.Parameters[0].Name, parameterLeft },
                 { expr.Parameters[1].Name, parameterRight },
             };
 
-            try
-            {
-                return ConvertExpression(expr.Body, emitter, parameters);
-            }
-            finally
-            {
-                foreach (var local in parameters)
-                    local.Value.Dispose();
-            }
+            return ConvertExpression(expr.Body, emitter, parameters);
         }
 
         public static Type ConvertUnary<TIn, TOut, TEmit>(this Expression<Func<TIn, TOut>> expr, Emit<TEmit> emitter)
@@ -45,21 +37,13 @@ namespace Yolol.IL.Extensions
                 return fast;
 
             // Put the parameter into a local, ready to be used later
-            var parameter = emitter.DeclareLocal(typeof(TIn));
+            using var parameter = emitter.DeclareLocal(typeof(TIn));
             emitter.StoreLocal(parameter);
             var parameters = new Dictionary<string, Local> {
                 { expr.Parameters[0].Name, parameter }
             };
 
-            try
-            {
-                return ConvertExpression(expr.Body, emitter, parameters);
-            }
-            finally
-            {
-                foreach (var local in parameters)
-                    local.Value.Dispose();
-            }
+            return ConvertExpression(expr.Body, emitter, parameters);
         }
 
         private static Type ConvertExpression<TEmit>(Expression expr, Emit<TEmit> emitter, IReadOnlyDictionary<string, Local> parameters)
@@ -110,7 +94,7 @@ namespace Yolol.IL.Extensions
                         ? typeof(Runtime).GetMethod(nameof(Runtime.LogicalNot))
                         : unary.Operand.Type.GetMethod("op_LogicalNot");
                     emitter.Call(m);
-                    return m.ReturnType;
+                    return m!.ReturnType;
                 }
 
                 case ExpressionType.Negate: {
@@ -120,7 +104,7 @@ namespace Yolol.IL.Extensions
                         ? typeof(Runtime).GetMethod(nameof(Runtime.BoolNegate))
                         : unary.Operand.Type.GetMethod("op_UnaryNegation");
                     emitter.Call(m);
-                    return m.ReturnType;
+                    return m!.ReturnType;
                 }
 
                 case ExpressionType.Convert: {
@@ -141,8 +125,8 @@ namespace Yolol.IL.Extensions
                     }
                     else
                     {
-                        ConvertExpression(c.Object, emitter, parameters);
-                        using (var local = emitter.DeclareLocal(c.Object.Type))
+                        ConvertExpression(c.Object!, emitter, parameters);
+                        using (var local = emitter.DeclareLocal(c.Object!.Type))
                         {
                             emitter.StoreLocal(local);
                             emitter.LoadLocalAddress(local);
@@ -169,7 +153,7 @@ namespace Yolol.IL.Extensions
                     ConvertExpression(binary.Left, emitter, parameters);
                     ConvertExpression(binary.Right, emitter, parameters);
                     emitter.Call(binary.Method);
-                    return binary.Method.ReturnType;
+                    return binary.Method!.ReturnType;
                 }
 
                 default:
@@ -198,7 +182,7 @@ namespace Yolol.IL.Extensions
                     if (!(binary.Right is ParameterExpression pr) || pr.Name != expr.Parameters[1].Name)
                         return null;
                     emitter.Call(binary.Method);
-                    return binary.Method.ReturnType;
+                    return binary.Method!.ReturnType;
 
                 default:
                     return null;

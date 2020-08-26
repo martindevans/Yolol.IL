@@ -5,6 +5,8 @@
     <Version>3.0.3</Version>
     <Platforms>AnyCPU;x64</Platforms>
     <Nullable>enable</Nullable>
+    <Authors>Martin Evans</Authors>
+    <Company />
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

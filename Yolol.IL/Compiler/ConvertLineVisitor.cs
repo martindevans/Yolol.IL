@@ -62,7 +62,7 @@ namespace Yolol.IL.Compiler
         /// <typeparam name="T"></typeparam>
         /// <param name="methodName"></param>
         /// <returns></returns>
-        private Type? CallRuntime1<T>(string methodName)
+        private Type CallRuntime1<T>(string methodName)
         {
             // Get the parameter type
             var p = Peek();
@@ -70,7 +70,7 @@ namespace Yolol.IL.Compiler
             var method = typeof(T).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, new[] { p.ToType() }, null);
             _emitter.Call(method);
 
-            return method.ReturnType;
+            return method!.ReturnType;
         }
 
         /// <summary>
@@ -196,9 +196,7 @@ namespace Yolol.IL.Compiler
                     break;
 
                 case (StackType.YololNumber, StackType.Bool):
-                    _emitter.LoadConstant(0L);
-                    _emitter.NewObject<Number, long>();
-                    _emitter.Call(typeof(Number).GetMethod("op_Inequality", BindingFlags.Public | BindingFlags.Static));
+                    CallRuntimeN<Runtime>(nameof(Runtime.NumberToBool), typeof(Number));
                     break;
 
                 case (StackType.YololNumber, StackType.YololString):
@@ -364,7 +362,7 @@ namespace Yolol.IL.Compiler
         {
             // Reflect out the raw int64 value
             var rawValueField = typeof(Number).GetField("_value", BindingFlags.NonPublic | BindingFlags.Instance);
-            var rawValue = (long)rawValueField.GetValue(con.Value);
+            var rawValue = (long)rawValueField!.GetValue(con.Value);
 
             // if the raw value represents one of the two boolean values, emit a bool
             if (rawValue == 0 || rawValue == 1000)
@@ -966,7 +964,7 @@ namespace Yolol.IL.Compiler
                 CallRuntime1<YString>("op_Increment");
                 return StackType.YololString;
             },
-            () => CallRuntime1<Value>("op_Increment")!.ToStackType()
+            () => CallRuntime1<Value>("op_Increment").ToStackType()
         );
 
         protected override BaseExpression Visit(PreDecrement inc) => Modify(inc, true,
@@ -981,7 +979,7 @@ namespace Yolol.IL.Compiler
                 CallRuntime1<YString>("op_Decrement");
                 return StackType.YololString;
             },
-            () => CallRuntime1<Value>("op_Decrement")!.ToStackType()
+            () => CallRuntime1<Value>("op_Decrement").ToStackType()
         );
 
         protected override BaseExpression Visit(PostIncrement inc) => Modify(inc, false,
@@ -996,7 +994,7 @@ namespace Yolol.IL.Compiler
                 CallRuntime1<YString>("op_Increment");
                 return StackType.YololString;
             },
-            () => CallRuntime1<Value>("op_Increment")!.ToStackType()
+            () => CallRuntime1<Value>("op_Increment").ToStackType()
         );
 
         protected override BaseExpression Visit(PostDecrement inc) => Modify(inc, false,
@@ -1011,7 +1009,7 @@ namespace Yolol.IL.Compiler
                 CallRuntime1<YString>("op_Decrement");
                 return StackType.YololString;
             },
-            () => CallRuntime1<Value>("op_Decrement")!.ToStackType()
+            () => CallRuntime1<Value>("op_Decrement").ToStackType()
         );
         #endregion
 

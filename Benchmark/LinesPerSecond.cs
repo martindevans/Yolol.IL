@@ -105,6 +105,7 @@ namespace Benchmark
         {
             Value pi = (Number)0;
 
+            // Yolol code is 6 lines, this code is all 6 lines. Increase the iters counter by 6 for every run to compensate.
             for (var j = 0; j < iterations; j += 6)
             {
                 var r = (Number)715237;

@@ -8,6 +8,12 @@ namespace Yolol.IL.Compiler
     {
         #region conversions
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool NumberToBool(Number num)
+        {
+            return num != 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Number BoolToNumber(bool b)
         {
             return b;

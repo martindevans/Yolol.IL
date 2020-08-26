@@ -52,5 +52,11 @@ namespace Yolol.IL.Tests
             var (ms, _) = TestHelpers.Test("a=70 b=\"\"+a-0");
             Assert.AreEqual(new YString("7"), ms.GetVariable("b").String);
         }
+
+        [TestMethod]
+        public void SomeoneLucasIf()
+        {
+            var (ms, _) = TestHelpers.Test("if 7 then end");
+        }
     }
 }
