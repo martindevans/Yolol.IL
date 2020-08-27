@@ -56,7 +56,14 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void SomeoneLucasIf()
         {
-            var (ms, _) = TestHelpers.Test("if 7 then end");
+            TestHelpers.Test("if 7 then end");
+        }
+
+        [TestMethod]
+        public void Abs()
+        {
+            var (ms, _) = TestHelpers.Test("a = abs -7");
+            Assert.AreEqual(7, ms.GetVariable("a").Number);
         }
     }
 }

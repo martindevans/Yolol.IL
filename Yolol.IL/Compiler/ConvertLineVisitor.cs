@@ -833,57 +833,64 @@ namespace Yolol.IL.Compiler
         protected override BaseExpression Visit(Negate neg) => ConvertUnaryExpr(neg,
             b => -(Number)b,
             n => -n,
-            s => new StaticError("Attempted to negate a string"),
+            s => new StaticError("Attempted to negate a string value"),
             v => -v
         );
 
         protected override BaseExpression Visit(Sqrt sqrt) => ConvertUnaryExpr(sqrt,
             b => b,
             n => n.Sqrt(),
-            s => new StaticError("Attempted to sqrt a string"),
+            s => new StaticError("Attempted to `SQRT` a string value"),
             v => Value.Sqrt(v)
         );
 
         protected override BaseExpression Visit(ArcCos acos) => ConvertUnaryExpr(acos,
             b => ((Number)b).ArcCos(),
             n => n.ArcCos(),
-            s => new StaticError("Attempted to Acos a string"),
+            s => new StaticError("Attempted to `ACOS` a string value"),
             v => Value.ArcCos(v)
         );
 
         protected override BaseExpression Visit(ArcSine asin) => ConvertUnaryExpr(asin,
             b => ((Number)b).ArcSin(),
             n => n.ArcSin(),
-            s => new StaticError("Attempted to ASin a string"),
+            s => new StaticError("Attempted to `ASIN` a string value"),
             v => Value.ArcSin(v)
         );
 
         protected override BaseExpression Visit(ArcTan atan) => ConvertUnaryExpr(atan,
             b => ((Number)b).ArcTan(),
             n => n.ArcTan(),
-            s => new StaticError("Attempted to ATan a string"),
+            s => new StaticError("Attempted to `ATAN` a string value"),
             v => Value.ArcTan(v)
         );
 
         protected override BaseExpression Visit(Cosine cos) => ConvertUnaryExpr(cos,
             b => ((Number)b).Cos(),
             n => n.Cos(),
-            s => new StaticError("Attempted to Cos a string"),
+            s => new StaticError("Attempted to `COS` a string value"),
             v => Value.Cos(v)
         );
 
         protected override BaseExpression Visit(Sine sin) => ConvertUnaryExpr(sin,
             b => ((Number)b).Sin(),
             n => n.Sin(),
-            s => new StaticError("Attempted to Sin a string"),
+            s => new StaticError("Attempted to `SIN` a string value"),
             v => Value.Sin(v)
         );
 
         protected override BaseExpression Visit(Tangent tan) => ConvertUnaryExpr(tan,
             b => ((Number)b).Tan(),
             n => n.Tan(),
-            s => new StaticError("Attempted to Tan a string"),
+            s => new StaticError("Attempted to `TAN` a string value"),
             v => Value.Tan(v)
+        );
+
+        protected override BaseExpression Visit(Abs abs) => ConvertUnaryExpr(abs,
+            b => b,
+            n => n.Abs(),
+            s => new StaticError("Attempted to `ABS` a string value"),
+            v => Value.Abs(v)
         );
         #endregion
 
