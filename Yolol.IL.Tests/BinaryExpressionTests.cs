@@ -70,10 +70,9 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void MultiplyStrings()
         {
-            Assert.ThrowsException<ExecutionException>(() =>
-            {
-                Test("a = \"3\" * \"2\"");
-            });
+            var (st, _) = Test("a=1 a=\"3\"*\"2\" a=2");
+
+            Assert.AreEqual(1, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -87,10 +86,9 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void DivideStrings()
         {
-            Assert.ThrowsException<ExecutionException>(() =>
-            {
-                Test("a = \"3\" / \"2\"");
-            });
+            var (st, _) = Test("a=1 a=\"3\"/\"2\" a=2");
+
+            Assert.AreEqual(1, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -112,10 +110,9 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void ModStrings()
         {
-            Assert.ThrowsException<ExecutionException>(() =>
-            {
-                Test("a = \"3\" % \"2\"");
-            });
+            var (st, _) = Test("a=1 a=\"3\"%\"2\" a=2");
+
+            Assert.AreEqual(1, st.GetVariable("a"));
         }
 
         [TestMethod]

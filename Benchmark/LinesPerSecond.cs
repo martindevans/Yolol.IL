@@ -12,12 +12,12 @@ namespace Benchmark
     public class LinesPerSecond
     {
         readonly string[] _program = new[] {
-            "r = 715237",
-            "i = 0 A = 1664524+cos(0)    M = 2^32",
-            "s = 0 C = 1013904223 F = 2^16 b = \"str\"" ,
-            "r=((r*A)+C)%M x=(r%F)/F r=((r*A)+C)%M y=(r%F)/F",
-            "s++ i+=(x*x+y*y)<1 :pi=4*(i/s)" +
-            ":pi -= \"t\" :done=0 goto 1",
+            "a=\"\" b=1 l=0 z++ a=-\"\"",
+            "b*=2 c=\"\"+b d=c",
+            "d-- l++ goto3",
+            "a+=b if l<25 then goto2 end",
+            "a-- l-- goto5",
+            "goto1"
         };
 
         private readonly Func<ArraySegment<Value>, ArraySegment<Value>, int>[] _compiledLines;
@@ -32,16 +32,12 @@ namespace Benchmark
             var ast = Parse(_program);
 
             var staticTypes = new Dictionary<VariableName, Yolol.Execution.Type> {
-                { new VariableName("r"), Yolol.Execution.Type.Number },
-                { new VariableName("i"), Yolol.Execution.Type.Number },
-                { new VariableName("A"), Yolol.Execution.Type.Number },
-                { new VariableName("M"), Yolol.Execution.Type.Number },
-                { new VariableName("s"), Yolol.Execution.Type.Number },
-                { new VariableName("C"), Yolol.Execution.Type.Number },
-                { new VariableName("F"), Yolol.Execution.Type.Number },
-                { new VariableName("b"), Yolol.Execution.Type.String },
-                { new VariableName("x"), Yolol.Execution.Type.Number },
-                { new VariableName("y"), Yolol.Execution.Type.Number },
+                //{ new VariableName("l"), Yolol.Execution.Type.Number },
+                //{ new VariableName("z"), Yolol.Execution.Type.Number },
+                //{ new VariableName("b"), Yolol.Execution.Type.Number },
+                //{ new VariableName("a"), Yolol.Execution.Type.String },
+                //{ new VariableName("c"), Yolol.Execution.Type.String },
+                //{ new VariableName("d"), Yolol.Execution.Type.String },
             };
 
             _internalsMap = new Dictionary<string, int>();
@@ -69,7 +65,7 @@ namespace Benchmark
 
         public void Run()
         {
-            const int iterations = 2000000;
+            const int iterations = 10000;
             var pc = 0;
 
             var samples = new List<double>();
@@ -90,7 +86,7 @@ namespace Benchmark
                 var sum = samples.Sum(d => Math.Pow(d - avg, 2));
                 var stdDev = Math.Sqrt(sum / (samples.Count - 1));
 
-                Console.WriteLine($"{lps:#,##0.00} l/s | {avg:#,##0.00} avg | {stdDev:#,##0.00} dev | {_externals[0]} pi");
+                Console.WriteLine($"{lps:#,##0.00} l/s | {avg:#,##0.00} avg | {stdDev:#,##0.00} dev | z: {_internals[_internalsMap["z"]]}");
             }
         }
 

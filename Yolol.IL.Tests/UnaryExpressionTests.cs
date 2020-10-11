@@ -79,9 +79,9 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void SqrtStr()
         {
-            Assert.ThrowsException<ExecutionException>(() => {
-                Test("a = sqrt(\"9\")");
-            });
+            var (st, _) = Test("a=1 a=sqrt(\"9\") a=2");
+
+            Assert.AreEqual(1, st.GetVariable("a"));
         }
 
         [TestMethod]

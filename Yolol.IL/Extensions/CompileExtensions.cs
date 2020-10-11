@@ -28,15 +28,25 @@ namespace Yolol.IL.Extensions
             // Convert `ArraySegment<Value>` to `Span<Value>` just once and store it in a local field
             using var internals = ConvertSpan(emitter, 0);
             using var externals = ConvertSpan(emitter, 1);
-            
-            // Convert the entire line into IL
+
+            // Create a label which any `goto` statements can use. They drop their destination PC on the stack and then jump to this label
             var gotoLabel = emitter.DefineLabel();
-            var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, internalVariableMap, externalVariableMap, gotoLabel, staticTypes, internals, externals);
+
+            // Create a label which any runtime errors can use. They jump here after emptying the stack
+            var runtimeErrorLabel = emitter.DefineLabel();
+
+            // Convert the entire line into IL
+            var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, internalVariableMap, externalVariableMap, gotoLabel, runtimeErrorLabel, staticTypes, internals, externals);
             converter.Visit(line);
 
-            // If there were no gotos eventually flow will fall through to here
-            // goto the next line. Drop a label here to work around this code being unreachable on lines that do have a goto.
+            // If there were no gotos eventually flow will fall through to here.
+            // Drop a label here to work around this code being unreachable on lines that do have a goto.
             emitter.MarkLabel(emitter.DefineLabel());
+
+            // If an error occurs the stack will be emptied and it will jump here.
+            emitter.MarkLabel(runtimeErrorLabel);
+
+            // go to the next line.
             if (lineNumber == maxLines)
                 emitter.LoadConstant(1);
             else
@@ -53,8 +63,23 @@ namespace Yolol.IL.Extensions
             if (!converter.IsTypeStackEmpty)
                 throw new InvalidOperationException("Type stack is not empty after conversion");
 
-            // Pass in a dummy argument for third argument (it's not used)
-            return d;
+            return MakeLine(lineNumber, maxLines, d);
+        }
+
+        private static Func<ArraySegment<Value>, ArraySegment<Value>, int> MakeLine(int lineNumber, int maxLines, Func<ArraySegment<Value>, ArraySegment<Value>, int> line)
+        {
+            return (a, b) => {
+                try
+                {
+                    return line(a, b);
+                }
+                catch (ExecutionException)
+                {
+                    if (lineNumber == maxLines)
+                        return 1;
+                    return lineNumber + 1;
+                }
+            };
         }
 
         private static Local ConvertSpan<T>(Emit<T> emitter, ushort arg)
