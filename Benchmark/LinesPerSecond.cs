@@ -16,7 +16,7 @@ namespace Benchmark
             "b*=2 c=\"\"+b d=c",
             "d-- l++ goto3",
             "a+=b if l<25 then goto2 end",
-            "a-- l-- goto5",
+            "a-- l-- goto5/(x>0)",
             "goto1"
         };
 
@@ -32,12 +32,12 @@ namespace Benchmark
             var ast = Parse(_program);
 
             var staticTypes = new Dictionary<VariableName, Yolol.Execution.Type> {
-                //{ new VariableName("l"), Yolol.Execution.Type.Number },
-                //{ new VariableName("z"), Yolol.Execution.Type.Number },
-                //{ new VariableName("b"), Yolol.Execution.Type.Number },
-                //{ new VariableName("a"), Yolol.Execution.Type.String },
-                //{ new VariableName("c"), Yolol.Execution.Type.String },
-                //{ new VariableName("d"), Yolol.Execution.Type.String },
+                { new VariableName("l"), Yolol.Execution.Type.Number },
+                { new VariableName("z"), Yolol.Execution.Type.Number },
+                { new VariableName("b"), Yolol.Execution.Type.Number },
+                { new VariableName("a"), Yolol.Execution.Type.String },
+                { new VariableName("c"), Yolol.Execution.Type.String },
+                { new VariableName("d"), Yolol.Execution.Type.String },
             };
 
             _internalsMap = new Dictionary<string, int>();
@@ -65,8 +65,7 @@ namespace Benchmark
 
         public void Run()
         {
-            const int iterations = 10000;
-            var pc = 0;
+            const int iterations = 300;
 
             var samples = new List<double>();
             var timer = new Stopwatch();

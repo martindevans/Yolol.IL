@@ -196,7 +196,7 @@ namespace Yolol.IL.Compiler
                     _emitter.Pop();
                 }
 
-                // jump to the error handler
+                // Jump away to the error handler
                 _emitter.Branch(_runtimeErrorLabel);
 
                 // Some dead code will be emitted after this point. Drop down a label to satisfy sigil that this is ok
@@ -300,13 +300,13 @@ namespace Yolol.IL.Compiler
             return var;
         }
 
-        private bool TryStaticEvaluate<T>(T expr)
+        private bool TryStaticEvaluate<T>(T expr, out bool runtimeError)
             where T : BaseExpression
         {
 #if !DEBUG
             if (expr.IsConstant)
             {
-                var v = Execution.Extensions.BaseExpressionExtensions.TryStaticEvaluate(expr);
+                var v = Execution.Extensions.BaseExpressionExtensions.TryStaticEvaluate(expr, out runtimeError);
                 if (v.HasValue)
                 {
                     Visit(v.Value.ToConstant());
@@ -314,7 +314,7 @@ namespace Yolol.IL.Compiler
                 }
             }
 #endif
-
+            runtimeError = false;
             return false;
         }
         #endregion
@@ -323,8 +323,8 @@ namespace Yolol.IL.Compiler
         private BaseExpression ConvertBinaryCoerce<T>(T expr, StackType input, StackType output, Action emit)
             where T : BaseBinaryExpression
         {
-            if (TryStaticEvaluate(expr))
-                return expr;
+            if (TryStaticEvaluate(expr, out var runtimeError))
+                return runtimeError ? new ErrorExpression() : (BaseExpression)expr;
 
             // Visit the inner expression of the unary and coerce it to the correct type
             // Visit left and right, coercing them into `Value`s
@@ -368,8 +368,8 @@ namespace Yolol.IL.Compiler
         )
             where T : BaseBinaryExpression
         {
-            if (TryStaticEvaluate(expr))
-                return expr;
+            if (TryStaticEvaluate(expr, out var runtimeError))
+                return runtimeError ? new ErrorExpression() : (BaseExpression)expr;
 
             // Convert the two sides of the expression
             if (Visit(expr.Left) is ErrorExpression)
@@ -379,36 +379,54 @@ namespace Yolol.IL.Compiler
                 return new ErrorExpression();
             var right = _types.Peek();
 
+            // Create some labels for error handling stuff
+            var errorLabel = _emitter.DefineLabel();
+            var noErrorLabel = _emitter.DefineLabel();
+            
             // Emit code
+            _types.Pop(right);
+            _types.Pop(left);
             var emitType = (left, right) switch {
 
-                (StackType.Bool, StackType.Bool) => emitBoolBool.ConvertBinary(_emitter),
-                (StackType.Bool, StackType.YololNumber) => emitBoolNum.ConvertBinary(_emitter),
-                (StackType.Bool, StackType.YololString) => emitBoolStr.ConvertBinary(_emitter),
-                (StackType.Bool, StackType.YololValue) => emitBoolVal.ConvertBinary(_emitter),
+                (StackType.Bool, StackType.Bool) => emitBoolBool.ConvertBinary(_emitter, errorLabel),
+                (StackType.Bool, StackType.YololNumber) => emitBoolNum.ConvertBinary(_emitter, errorLabel),
+                (StackType.Bool, StackType.YololString) => emitBoolStr.ConvertBinary(_emitter, errorLabel),
+                (StackType.Bool, StackType.YololValue) => emitBoolVal.ConvertBinary(_emitter, errorLabel),
 
-                (StackType.YololNumber, StackType.Bool) => emitNumBool.ConvertBinary(_emitter),
-                (StackType.YololNumber, StackType.YololNumber) => emitNumNum.ConvertBinary(_emitter),
-                (StackType.YololNumber, StackType.YololString) => emitNumStr.ConvertBinary(_emitter),
-                (StackType.YololNumber, StackType.YololValue) => emitNumVal.ConvertBinary(_emitter),
+                (StackType.YololNumber, StackType.Bool) => emitNumBool.ConvertBinary(_emitter, errorLabel),
+                (StackType.YololNumber, StackType.YololNumber) => emitNumNum.ConvertBinary(_emitter, errorLabel),
+                (StackType.YololNumber, StackType.YololString) => emitNumStr.ConvertBinary(_emitter, errorLabel),
+                (StackType.YololNumber, StackType.YololValue) => emitNumVal.ConvertBinary(_emitter, errorLabel),
 
-                (StackType.YololString, StackType.Bool) => emitStrBool.ConvertBinary(_emitter),
-                (StackType.YololString, StackType.YololNumber) => emitStNum.ConvertBinary(_emitter),
-                (StackType.YololString, StackType.YololString) => emitStStr.ConvertBinary(_emitter),
-                (StackType.YololString, StackType.YololValue) => emitStVal.ConvertBinary(_emitter),
+                (StackType.YololString, StackType.Bool) => emitStrBool.ConvertBinary(_emitter, errorLabel),
+                (StackType.YololString, StackType.YololNumber) => emitStNum.ConvertBinary(_emitter, errorLabel),
+                (StackType.YololString, StackType.YololString) => emitStStr.ConvertBinary(_emitter, errorLabel),
+                (StackType.YololString, StackType.YololValue) => emitStVal.ConvertBinary(_emitter, errorLabel),
 
-                (StackType.YololValue, StackType.Bool) => emitValBool.ConvertBinary(_emitter),
-                (StackType.YololValue, StackType.YololNumber) => emitValNum.ConvertBinary(_emitter),
-                (StackType.YololValue, StackType.YololString) => emitValStr.ConvertBinary(_emitter),
-                (StackType.YololValue, StackType.YololValue) => emitValVal.ConvertBinary(_emitter),
+                (StackType.YololValue, StackType.Bool) => emitValBool.ConvertBinary(_emitter, errorLabel),
+                (StackType.YololValue, StackType.YololNumber) => emitValNum.ConvertBinary(_emitter, errorLabel),
+                (StackType.YololValue, StackType.YololString) => emitValStr.ConvertBinary(_emitter, errorLabel),
+                (StackType.YololValue, StackType.YololValue) => emitValVal.ConvertBinary(_emitter, errorLabel),
 
                 _ => throw new InvalidOperationException($"{expr.GetType().Name}({left},{right})")
             };
-            var result = emitType!.ToStackType();
+            _types.Push(emitType!.ToStackType());
 
-            _types.Pop(right);
-            _types.Pop(left);
-            _types.Push(result);
+            // Jump past the error handler
+            _emitter.Branch(noErrorLabel);
+
+            // Create the error handler which empties the stack
+            _emitter.MarkLabel(errorLabel);
+
+            // If execution arrives here a runtime error has occured. Empty the stack and jump to the global error handler.
+            // There is one less item on the stack than you'd think, because the result of this operation was pushed onto the
+            // type tracking stack (but isn't really there in the error case)
+            for (var i = 0; i < _types.Count - 1; i++)
+                _emitter.Pop();
+            _emitter.Branch(_runtimeErrorLabel);
+
+            // Mark label to jump past error handler
+            _emitter.MarkLabel(noErrorLabel);
 
             return expr;
         }
@@ -654,27 +672,44 @@ namespace Yolol.IL.Compiler
         private BaseExpression ConvertUnaryExpr<T, TB, TN, TS, TV>(T expr, Expression<Func<bool, TB>> emitBool, Expression<Func<Number, TN>> emitNum, Expression<Func<YString, TS>> emitStr, Expression<Func<Value, TV>> emitVal)
             where T : BaseUnaryExpression
         {
-            if (TryStaticEvaluate(expr))
-                return expr;
+            if (TryStaticEvaluate(expr, out var runtimeError))
+                return runtimeError ? new ErrorExpression() : (BaseExpression)expr;
 
             // Visit the inner expression of the unary
             if (Visit(expr.Parameter) is ErrorExpression)
                 return new ErrorExpression();
 
+            // Create some labels for error handling stuff
+            var errorLabel = _emitter.DefineLabel();
+            var noErrorLabel = _emitter.DefineLabel();
+
             // Emit code
             var p = _types.Peek();
+            _types.Pop(p);
             var emitType = p switch {
-                StackType.Bool => emitBool.ConvertUnary(_emitter),
-                StackType.YololNumber => emitNum.ConvertUnary(_emitter),
-                StackType.YololString => emitStr.ConvertUnary(_emitter),
-                StackType.YololValue => emitVal.ConvertUnary(_emitter),
+                StackType.Bool => emitBool.ConvertUnary(_emitter, errorLabel),
+                StackType.YololNumber => emitNum.ConvertUnary(_emitter, errorLabel),
+                StackType.YololString => emitStr.ConvertUnary(_emitter, errorLabel),
+                StackType.YololValue => emitVal.ConvertUnary(_emitter, errorLabel),
                 _ => throw new InvalidOperationException($"{expr.GetType().Name}({p})")
             };
-            var result = emitType!.ToStackType();
+            _types.Push(emitType!.ToStackType());
 
-            // Update types
-            _types.Pop(_types.Peek());
-            _types.Push(result);
+            // Jump past the error handler
+            _emitter.Branch(noErrorLabel);
+
+            // Create the error handler which empties the stack
+            _emitter.MarkLabel(errorLabel);
+
+            // If execution arrives here a runtime error has occured. Empty the stack and jump to the global error handler.
+            // There is one less item on the stack than you'd think, because the result of this operation was pushed onto the
+            // type tracking stack (but isn't really there in the error case)
+            for (var i = 0; i < _types.Count - 1; i++)
+                _emitter.Pop();
+            _emitter.Branch(_runtimeErrorLabel);
+
+            // Mark label to jump past error handler
+            _emitter.MarkLabel(noErrorLabel);
 
             return expr;
         }
@@ -830,7 +865,7 @@ namespace Yolol.IL.Compiler
             () => _emitter.CallRuntime1<TEmit, Value>("op_Increment", _types).ToStackType()
         );
 
-        protected override BaseExpression Visit(PreDecrement inc) => Modify(inc, true,
+        protected override BaseExpression Visit(PreDecrement dec) => Modify(dec, true,
             null,
             () => {
                 _emitter.LoadConstant(-1000L);
@@ -860,7 +895,7 @@ namespace Yolol.IL.Compiler
             () => _emitter.CallRuntime1<TEmit, Value>("op_Increment", _types).ToStackType()
         );
 
-        protected override BaseExpression Visit(PostDecrement inc) => Modify(inc, false,
+        protected override BaseExpression Visit(PostDecrement dec) => Modify(dec, false,
             null,
             () => {
                 _emitter.LoadConstant(-1000L);

@@ -35,18 +35,21 @@ namespace Yolol.IL.Extensions
             // Create a label which any runtime errors can use. They jump here after emptying the stack
             var runtimeErrorLabel = emitter.DefineLabel();
 
+            // Create a label which marks the end of the line, code reaching here falls through to the next line
+            var eolLabel = emitter.DefineLabel();
+
             // Convert the entire line into IL
             var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, internalVariableMap, externalVariableMap, gotoLabel, runtimeErrorLabel, staticTypes, internals, externals);
             converter.Visit(line);
+            emitter.Branch(eolLabel);
 
-            // If there were no gotos eventually flow will fall through to here.
-            // Drop a label here to work around this code being unreachable on lines that do have a goto.
-            emitter.MarkLabel(emitter.DefineLabel());
-
-            // If an error occurs the stack will be emptied and it will jump here.
+            // If an error occurs control flow will jump to here. Just act as if control flow fell off the end of the line
             emitter.MarkLabel(runtimeErrorLabel);
+            emitter.Branch(eolLabel);
 
+            // When a line finishes (with no gotos in the line) call flow eventually reaches here.
             // go to the next line.
+            emitter.MarkLabel(eolLabel);
             if (lineNumber == maxLines)
                 emitter.LoadConstant(1);
             else
@@ -63,6 +66,13 @@ namespace Yolol.IL.Extensions
             if (!converter.IsTypeStackEmpty)
                 throw new InvalidOperationException("Type stack is not empty after conversion");
 
+            #if DEBUG
+            Console.WriteLine(line);
+            Console.WriteLine("==========================================================");
+            Console.WriteLine(emitter.Instructions());
+            Console.WriteLine("==========================================================");
+            #endif
+
             return MakeLine(lineNumber, maxLines, d);
         }
 
@@ -73,7 +83,7 @@ namespace Yolol.IL.Extensions
                 {
                     return line(a, b);
                 }
-                catch (ExecutionException)
+                catch (ExecutionException e)
                 {
                     if (lineNumber == maxLines)
                         return 1;

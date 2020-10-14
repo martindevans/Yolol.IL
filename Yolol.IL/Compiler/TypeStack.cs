@@ -13,6 +13,8 @@ namespace Yolol.IL.Compiler
 
         public bool IsEmpty => _types.Count == 0;
 
+        public int Count => _types.Count;
+
         public TypeStack(Emit<TEmit> emitter)
         {
             _emitter = emitter;
