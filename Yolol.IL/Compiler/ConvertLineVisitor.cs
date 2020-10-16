@@ -6,6 +6,7 @@ using Sigil;
 using Yolol.Analysis.ControlFlowGraph.AST;
 using Yolol.Analysis.TreeVisitor;
 using Yolol.Execution;
+using Yolol.Execution.Attributes;
 using Yolol.Grammar;
 using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
@@ -786,7 +787,7 @@ namespace Yolol.IL.Compiler
         #endregion
 
         #region modify expressions
-        private T Modify<T>(T expr, bool preOp, Func<StackType>? boolEmit, Func<StackType>? numEmit, Func<StackType>? strEmit, Func<StackType>? valEmit)
+        private T Modify2<T>(T expr, bool preOp, string opName)
             where T : BaseModifyInPlace
         {
             // Put the current value of the variable onto the stack
@@ -799,43 +800,49 @@ namespace Yolol.IL.Compiler
                 _types.Push(_types.Peek());
             }
 
-            // emit the IL for the operation
-            // Replace all null emitters by falling back to a more general case
-            if (valEmit == null)
-                throw new InvalidOperationException("Must specify `YololValue` handler");
-            if (numEmit == null)
+            // If there is a bool on the stack coerce it to a number (bool won't have inc/dec operators defined on it)
+            if (StackType.Bool == _types.Peek())
+                _types.Coerce(StackType.YololNumber);
+
+            // Find the operator method
+            var peek = _types.Peek().ToType();
+            var method = peek.GetMethod(opName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { peek }, null);
+            if (method == null)
+                throw new InvalidOperationException($"Cannot find method `{opName}` on type {peek}");
+
+            // Find the `will throw` method
+            var willThrow = method.TryGetWillThrowMethod(peek);
+
+            // Emit code to actually do the work
+            var noErrorLabel = _emitter.DefineLabel();
+            if (willThrow != null)
             {
-                numEmit = () => {
-                    _types.Coerce(StackType.YololValue);
-                    return valEmit();
-                };
-            }
-            if (strEmit == null)
-            {
-                strEmit = () => {
-                    _types.Coerce(StackType.YololValue);
-                    return valEmit();
-                };
-            }
-            if (boolEmit == null)
-            {
-                boolEmit = () => {
-                    _types.Coerce(StackType.YololNumber);
-                    return numEmit();
-                };
+                // Duplicate the item on the top of the stack
+                using var dup = _emitter.DeclareLocal(peek);
+                _emitter.StoreLocal(dup);
+                _emitter.LoadLocal(dup);
+                _emitter.LoadLocal(dup);
+
+                // Call the "will throw" method
+                _emitter.Call(willThrow);
+
+                // Jump past the error handler if "will throw" return false
+                _emitter.BranchIfFalse(noErrorLabel);
+
+                // If execution arrives here a runtime error has occured. Empty the stack and jump to the global error handler.
+                for (var i = 0; i < _types.Count; i++)
+                    _emitter.Pop();
+                _emitter.Branch(_runtimeErrorLabel);
             }
 
-            // Invoke the emitters for the type on the stack
-            var peek = _types.Peek();
-            var result = peek switch {
-                StackType.YololNumber => numEmit(),
-                StackType.YololValue => valEmit(),
-                StackType.YololString => strEmit(),
-                StackType.Bool => boolEmit(),
-                _ => throw new ArgumentOutOfRangeException($"Unknown StackType.{peek}")
-            };
-            _types.Pop(peek);
-            _types.Push(result);
+            // Mark label to jump past error handler
+            _emitter.MarkLabel(noErrorLabel);
+
+            // Do the actual work
+            _emitter.Call(method);
+            _types.Pop(_types.Peek());
+            _types.Push(method.ReturnType.ToStackType());
+            
 
             // If we need to return the new value, save it now by duplicating it
             if (preOp)
@@ -850,65 +857,13 @@ namespace Yolol.IL.Compiler
             return expr;
         }
 
-        protected override BaseExpression Visit(PreIncrement inc) => Modify(inc, true,
-            null,
-            () => {
-                _emitter.LoadConstant(1000L);
-                _emitter.NewObject<Number, long>();
-                _emitter.CallRuntime2<TEmit, Number>("op_Addition", _types);
-                return StackType.YololNumber;
-            },
-            () => {
-                _emitter.CallRuntime1<TEmit, YString>("op_Increment", _types);
-                return StackType.YololString;
-            },
-            () => _emitter.CallRuntime1<TEmit, Value>("op_Increment", _types).ToStackType()
-        );
+        protected override BaseExpression Visit(PreIncrement inc) => Modify2(inc, true, "op_Increment");
 
-        protected override BaseExpression Visit(PreDecrement dec) => Modify(dec, true,
-            null,
-            () => {
-                _emitter.LoadConstant(-1000L);
-                _emitter.NewObject<Number, long>();
-                _emitter.CallRuntime2<TEmit, Number>("op_Addition", _types);
-                return StackType.YololNumber;
-            },
-            () => {
-                _emitter.CallRuntime1<TEmit, YString>("op_Decrement", _types);
-                return StackType.YololString;
-            },
-            () => _emitter.CallRuntime1<TEmit, Value>("op_Decrement", _types).ToStackType()
-        );
+        protected override BaseExpression Visit(PreDecrement dec) => Modify2(dec, true, "op_Decrement");
 
-        protected override BaseExpression Visit(PostIncrement inc) => Modify(inc, false,
-            null,
-            () => {
-                _emitter.LoadConstant(1000L);
-                _emitter.NewObject<Number, long>();
-                _emitter.CallRuntime2<TEmit, Number>("op_Addition", _types);
-                return StackType.YololNumber;
-            },
-            () => {
-                _emitter.CallRuntime1<TEmit, YString>("op_Increment", _types);
-                return StackType.YololString;
-            },
-            () => _emitter.CallRuntime1<TEmit, Value>("op_Increment", _types).ToStackType()
-        );
+        protected override BaseExpression Visit(PostIncrement inc) => Modify2(inc, false, "op_Increment");
 
-        protected override BaseExpression Visit(PostDecrement dec) => Modify(dec, false,
-            null,
-            () => {
-                _emitter.LoadConstant(-1000L);
-                _emitter.NewObject<Number, long>();
-                _emitter.CallRuntime2<TEmit, Number>("op_Addition", _types);
-                return StackType.YololNumber;
-            },
-            () => {
-                _emitter.CallRuntime1<TEmit, YString>("op_Decrement", _types);
-                return StackType.YololString;
-            },
-            () => _emitter.CallRuntime1<TEmit, Value>("op_Decrement", _types).ToStackType()
-        );
+        protected override BaseExpression Visit(PostDecrement dec) => Modify2(dec, false, "op_Decrement");
         #endregion
 
         protected override BaseExpression Visit(Bracketed brk)

@@ -172,13 +172,6 @@ namespace Yolol.IL.Extensions
                     var rt = ConvertExpression(binary.Right, emitter, parameters, errorLabel, stackSize + 1);
 
                     return ConvertBinaryWithErrorHandling(lt, rt, binary, emitter, errorLabel, stackSize + 2);
-
-                    //if (binary.Method == null)
-                    //    throw new InvalidOperationException("Cannot convert binary method with null `Method`");
-                    //if (binary.Method.DeclaringType == null)
-                    //    throw new InvalidOperationException("Cannot convert binary method with null `DeclaringType`");
-                    //emitter.Call(binary.Method);
-                    //return binary.Method!.ReturnType;
                 }
 
                 default:
@@ -198,53 +191,40 @@ namespace Yolol.IL.Extensions
             if (binary.Method.DeclaringType == null)
                 throw new InvalidOperationException("Cannot convert binary method with null `DeclaringType`");
 
-            // Reflect out the error metadata, this can tell us in advance if the method will throw
-            var attrs = binary.Method.GetCustomAttributes(typeof(ErrorMetadataAttribute), false);
-            if (attrs.Length > 1)
-                throw new InvalidOperationException("Method has more than one `ErrorMetadataAttribute`");
-            if (attrs.Length > 0)
+            var willThrow = binary.Method.TryGetWillThrowMethod(leftType, rightType);
+
+            if (willThrow != null)
             {
-                var attr = (ErrorMetadataAttribute)attrs[0];
-                if (!attr.IsInfallible && attr.WillThrow != null)
-                {
-                    // Save the left and right parameters into locals
-                    using var rl = emitter.DeclareLocal(rightType);
-                    emitter.StoreLocal(rl);
-                    using var ll = emitter.DeclareLocal(leftType);
-                    emitter.StoreLocal(ll);
+                // Save the left and right parameters into locals
+                using var rl = emitter.DeclareLocal(rightType);
+                emitter.StoreLocal(rl);
+                using var ll = emitter.DeclareLocal(leftType);
+                emitter.StoreLocal(ll);
 
-                    // Put left and right parameters back onto stack
-                    emitter.LoadLocal(ll);
-                    emitter.LoadLocal(rl);
+                // Put left and right parameters back onto stack
+                emitter.LoadLocal(ll);
+                emitter.LoadLocal(rl);
 
-                    // Get the `will throw` method which tells us if a given pair of values would cause a runtime error
-                    var willThrow = binary.Method.DeclaringType.GetMethod(attr.WillThrow, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { leftType, rightType }, null);
-                    if (willThrow == null)
-                        throw new InvalidOperationException($"ErrorMetadataAttribute references an invalid method: `{attr.WillThrow}`");
-                    if (willThrow.ReturnType != typeof(bool))
-                        throw new InvalidOperationException($"ErrorMetadataAttribute references an method which does not return bool: `{attr.WillThrow}`");
+                // Invoke the `will throw` method to discover if this invocation would trigger a runtime error
+                emitter.Call(willThrow);
 
-                    // Invoke the `will throw` method to discover if this invocation would trigger a runtime error
-                    emitter.Call(willThrow);
+                // Create a label to jump past the error handling for the normal case
+                var noThrowLabel = emitter.DefineLabel();
 
-                    // Create a label to jump past the error handling for the normal case
-                    var noThrowLabel = emitter.DefineLabel();
+                // Jump past error handling if this is ok
+                emitter.BranchIfFalse(noThrowLabel);
 
-                    // Jump past error handling if this is ok
-                    emitter.BranchIfFalse(noThrowLabel);
+                // If execution reaches here it means an error would occur in this operation. First empty out the stack and then jump
+                // to the error handling label for this expression.
+                // There are two less things on the stack than indicated by stackSize because the two parameter to this method have already been taken off the stack.
+                for (var i = 0; i < stackSize - 2; i++)
+                    emitter.Pop();
+                emitter.Branch(errorLabel);
 
-                    // If execution reaches here it means an error would occur in this operation. First empty out the stack and then jump
-                    // to the error handling label for this expression.
-                    // There are two less things on the stack than indicated by stackSize because the two parameter to this method have already been taken off the stack.
-                    for (var i = 0; i < stackSize - 2; i++)
-                        emitter.Pop();
-                    emitter.Branch(errorLabel);
-
-                    // Put the left and right sides back onto the stack
-                    emitter.MarkLabel(noThrowLabel);
-                    emitter.LoadLocal(ll);
-                    emitter.LoadLocal(rl);
-                }
+                // Put the left and right sides back onto the stack
+                emitter.MarkLabel(noThrowLabel);
+                emitter.LoadLocal(ll);
+                emitter.LoadLocal(rl);
             }
 
             emitter.Call(binary.Method);
