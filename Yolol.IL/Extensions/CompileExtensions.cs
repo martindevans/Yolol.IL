@@ -66,19 +66,22 @@ namespace Yolol.IL.Extensions
             if (!converter.IsTypeStackEmpty)
                 throw new InvalidOperationException("Type stack is not empty after conversion");
 
-            #if DEBUG
-            Console.WriteLine(line);
-            Console.WriteLine("==========================================================");
-            Console.WriteLine(emitter.Instructions());
-            Console.WriteLine("==========================================================");
-            #endif
-
             return MakeLine(lineNumber, maxLines, d);
         }
 
         private static Func<ArraySegment<Value>, ArraySegment<Value>, int> MakeLine(int lineNumber, int maxLines, Func<ArraySegment<Value>, ArraySegment<Value>, int> line)
         {
             return (a, b) => {
+
+                #if DEBUG
+                for (var i = 0; i < a.Count; i++)
+                    if (a[i].Type == Execution.Type.Unassigned)
+                        throw new InvalidOperationException($"Attempted to run Yolol.IL with uninitialised Value (locals, index: {i})");
+                for (var i = 0; i < b.Count; i++)
+                    if (b[i].Type == Execution.Type.Unassigned)
+                        throw new InvalidOperationException($"Attempted to run Yolol.IL with uninitialised Value (globals, index: {i})");
+                #endif
+
                 try
                 {
                     return line(a, b);

@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Yolol.Execution;
-using Yolol.IL.Extensions;
 
 namespace Yolol.IL.Tests
 {
@@ -12,16 +9,22 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void GotoStringBug()
         {
-            var ast = TestHelpers.Parse("b=\"tt\" :pi += (b-\"t\")==b goto 1");
-
-            var internalsMap = new Dictionary<string, int>();
-            var externalsMap = new Dictionary<string, int>();
-            var compiledLines = new Func<ArraySegment<Value>, ArraySegment<Value>, int>[ast.Lines.Count];
-            for (var i = 0; i < ast.Lines.Count; i++)
-                compiledLines[i] = ast.Lines[i].Compile(i + 1, 20, internalsMap, externalsMap);
-
-            var pc = compiledLines[0](new Value[internalsMap.Count], new Value[externalsMap.Count]);
+            var (_, pc) = TestHelpers.Test("b=\"tt\" :pi += (b-\"t\")==b goto 1");
             Assert.AreEqual(1, pc);
+        }
+
+        [TestMethod]
+        public void NullRefString()
+        {
+            var (ms, _) = TestHelpers.Test("c += \"t\"");
+            Assert.AreEqual("0t", ms.GetVariable("c").String.ToString());
+        }
+
+        [TestMethod]
+        public void NullRefString2()
+        {
+            var (ms, _) = TestHelpers.Test("c = c + \"t\"");
+            Assert.AreEqual("0t", ms.GetVariable("c").String.ToString());
         }
 
         [TestMethod]
