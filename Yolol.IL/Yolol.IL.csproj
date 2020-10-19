@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <Version>4.0.2</Version>
+    <Version>4.0.3</Version>
     <Platforms>AnyCPU;x64</Platforms>
     <Nullable>enable</Nullable>
     <Authors>Martin Evans</Authors>
@@ -23,7 +23,7 @@
 
   <ItemGroup>
     <PackageReference Include="Sigil.NetStandard" Version="4.8.0" />
-    <PackageReference Include="Yolol" Version="11.0.1" />
+    <PackageReference Include="Yolol" Version="11.0.2" />
     <PackageReference Include="Yolol.Analysis" Version="6.0.1" />
   </ItemGroup>
 
