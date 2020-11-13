@@ -21,7 +21,14 @@ namespace Yolol.IL.Extensions
         /// <param name="externalVariableMap">A dictionary used for mapping externals to integers in all lines in this script</param>
         /// <param name="staticTypes">Statically known types for variables</param>
         /// <returns>A function which runs this line of code. Accepts two sections of memory, internal variables and external variables. Returns the line number to go to next</returns>
-        public static Func<ArraySegment<Value>, ArraySegment<Value>, int> Compile(this Line line, int lineNumber, int maxLines, Dictionary<string, int> internalVariableMap, Dictionary<string, int> externalVariableMap, IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes = null)
+        public static Func<ArraySegment<Value>, ArraySegment<Value>, int> Compile(
+            this Line line,
+            int lineNumber,
+            int maxLines,
+            Dictionary<string, int> internalVariableMap,
+            Dictionary<string, int> externalVariableMap,
+            IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes = null
+        )
         {
             var emitter = Emit<Func<ArraySegment<Value>, ArraySegment<Value>, int>>.NewDynamicMethod();
 

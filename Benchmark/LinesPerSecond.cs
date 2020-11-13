@@ -11,7 +11,13 @@ namespace Benchmark
 {
     public class LinesPerSecond
     {
-        readonly string[] _program = new[] {
+        // a="" b=1 l=0 z++ a=-""
+        // b*=2 c=""+b d=c
+        // d-- l++ goto3
+        // a+=b if l<25 then goto2 end
+        // a-- l-- goto5/(x>0)
+        // goto1
+        readonly string[] _program = {
             "a=\"\" b=1 l=0 z++ a=-\"\"",
             "b*=2 c=\"\"+b d=c",
             "d-- l++ goto3",

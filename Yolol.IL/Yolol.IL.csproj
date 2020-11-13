@@ -23,7 +23,7 @@
 
   <ItemGroup>
     <PackageReference Include="Sigil.NetStandard" Version="4.8.0" />
-    <PackageReference Include="Yolol" Version="11.0.2" />
+    <PackageReference Include="Yolol" Version="11.0.3" />
     <PackageReference Include="Yolol.Analysis" Version="6.0.1" />
   </ItemGroup>
 
