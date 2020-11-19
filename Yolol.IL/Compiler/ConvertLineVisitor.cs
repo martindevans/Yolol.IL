@@ -6,7 +6,6 @@ using Sigil;
 using Yolol.Analysis.ControlFlowGraph.AST;
 using Yolol.Analysis.TreeVisitor;
 using Yolol.Execution;
-using Yolol.Execution.Attributes;
 using Yolol.Grammar;
 using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
@@ -434,7 +433,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(Add add) => ConvertBinaryExpr(add,
             (a, b) => (Number)a + b,
-            (a, b) => a + b,
+            (a, b) => (Number)a + b,
             (a, b) => (Number)a + b,
             (a, b) => (Number)a + b,
             (a, b) => a + b,
@@ -453,7 +452,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(Subtract sub) => ConvertBinaryExpr(sub,
             (a, b) => (Number)a - b,
-            (a, b) => a - b,
+            (a, b) => (Number)a - b,
             (a, b) => (Number)a - b,
             (a, b) => (Number)a - b,
             (a, b) => a - b,
@@ -472,7 +471,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(Multiply mul) => ConvertBinaryExpr(mul,
             (a, b) => (Number)a * b,
-            (a, b) => a * b,
+            (a, b) => (Number)a * b,
             (a, b) => (Number)a * b,
             (a, b) => (Number)a * b,
             (a, b) => a * b,
@@ -491,7 +490,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(Divide div) => ConvertBinaryExpr(div,
             (a, b) => (Number)a / b,
-            (a, b) => a / b,
+            (a, b) => (Number)a / b,
             (a, b) => (Number)a / b,
             (a, b) => (Number)a / b,
             (a, b) => a / b,
@@ -510,7 +509,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(EqualTo eq) => ConvertBinaryExpr(eq,
             (a, b) => (Number)a == b,
-            (a, b) => a == b,
+            (a, b) => (Number)a == b,
             (a, b) => (Number)a == b,
             (a, b) => (Number)a == b,
             (a, b) => a == b,
@@ -529,7 +528,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(NotEqualTo neq) => ConvertBinaryExpr(neq,
             (a, b) => (Number)a != b,
-            (a, b) => a != b,
+            (a, b) => (Number)a != b,
             (a, b) => (Number)a != b,
             (a, b) => (Number)a != b,
             (a, b) => a != b,
@@ -548,7 +547,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(GreaterThan gt) => ConvertBinaryExpr(gt,
             (a, b) => (Number)a > b,
-            (a, b) => a > b,
+            (a, b) => (Number)a > b,
             (a, b) => (Number)a > b,
             (a, b) => (Number)a > b,
             (a, b) => a > b,
@@ -567,7 +566,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(GreaterThanEqualTo gteq) => ConvertBinaryExpr(gteq,
             (a, b) => (Number)a >= b,
-            (a, b) => a >= b,
+            (a, b) => (Number)a >= b,
             (a, b) => (Number)a >= b,
             (a, b) => (Number)a >= b,
             (a, b) => a >= b,
@@ -586,7 +585,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(LessThan lt) => ConvertBinaryExpr(lt,
             (a, b) => (Number)a < b,
-            (a, b) => a < b,
+            (a, b) => (Number)a < b,
             (a, b) => (Number)a < b,
             (a, b) => (Number)a < b,
             (a, b) => a < b,
@@ -605,7 +604,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(LessThanEqualTo lteq) => ConvertBinaryExpr(lteq,
             (a, b) => (Number)a <= b,
-            (a, b) => a <= b,
+            (a, b) => (Number)a <= b,
             (a, b) => (Number)a <= b,
             (a, b) => (Number)a <= b,
             (a, b) => a <= b,
@@ -624,7 +623,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(Modulo mod) => ConvertBinaryExpr(mod,
             (a, b) => (Number)a % b,
-            (a, b) => a % b,
+            (a, b) => (Number)a % b,
             (a, b) => (Number)a % b,
             (a, b) => (Number)a % b,
             (a, b) => a % b,

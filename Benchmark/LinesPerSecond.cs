@@ -55,9 +55,9 @@ namespace Benchmark
             }
 
             _internals = new Value[_internalsMap.Count];
-            Array.Fill(_internals, new Value(0));
+            Array.Fill(_internals, new Value((Number)0));
             _externals = new Value[_externalsMap.Count];
-            Array.Fill(_externals, new Value(0));
+            Array.Fill(_externals, new Value((Number)0));
         }
 
         private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
@@ -102,36 +102,36 @@ namespace Benchmark
                 pc = _compiledLines[pc](_internals, _externals) - 1;
         }
 
-        public Value RunRewritten(int iterations)
-        {
-            Value pi = (Number)0;
+        //public Value RunRewritten(int iterations)
+        //{
+        //    Value pi = (Number)0;
 
-            // Yolol code is 6 lines, this code is all 6 lines. Increase the iters counter by 6 for every run to compensate.
-            for (var j = 0; j < iterations; j += 6)
-            {
-                var r = (Number)715237;
+        //    // Yolol code is 6 lines, this code is all 6 lines. Increase the iters counter by 6 for every run to compensate.
+        //    for (var j = 0; j < iterations; j += 6)
+        //    {
+        //        var r = (Number)715237;
 
-                var i = (Number)0;
-                var A = 1664524 + ((Number)0).Cos();
-                var M = (Number)int.MaxValue;
+        //        var i = (Number)0;
+        //        var A = 1664524 + ((Number)0).Cos();
+        //        var M = (Number)int.MaxValue;
 
-                var s = (Number)0;
-                var C = (Number)1013904223;
-                var F = (Number)ushort.MaxValue;
-                var b = new YString("str");
+        //        var s = (Number)0;
+        //        var C = (Number)1013904223;
+        //        var F = (Number)ushort.MaxValue;
+        //        var b = new YString("str");
 
-                r = ((r * A) + C) % M;
-                var x = (r % F) / F;
-                r = ((r * A) + C) % M;
-                var y = (r % F) / F;
+        //        r = ((r * A) + C) % M;
+        //        var x = (r % F) / F;
+        //        r = ((r * A) + C) % M;
+        //        var y = (r % F) / F;
 
-                s += 1;
-                i = i + ((x * x + y * y) < 1);
-                pi = 4 * (i / s);
-                pi -= "t";
-            }
+        //        s += 1;
+        //        i = i + ((x * x + y * y) < 1);
+        //        pi = 4 * (i / s);
+        //        pi -= "t";
+        //    }
 
-            return pi;
-        }
+        //    return pi;
+        //}
     }
 }

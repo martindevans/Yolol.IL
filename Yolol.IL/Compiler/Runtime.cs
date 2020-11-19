@@ -16,7 +16,7 @@ namespace Yolol.IL.Compiler
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Number BoolToNumber(bool b)
         {
-            return b;
+            return (Number)b;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

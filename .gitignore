@@ -8,3 +8,4 @@
 obj
 bin
 _ReSharper.Caches
+/Yolol.IL/nuget-push.ps1

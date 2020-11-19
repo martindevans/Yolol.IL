@@ -28,7 +28,7 @@ namespace Benchmark
                 ":g = f"
             );
 
-            _network = new Network(1, 2, 0);
+            _network = new Network((Number)1, (Number)2, (Number)0);
             _state = new MachineState(_network);
 
             var types = new Dictionary<VariableName, Yolol.Execution.Type> {
@@ -95,8 +95,8 @@ namespace Benchmark
         [Benchmark]
         public (Value[] _internals, Value[] _externals) CompileLines()
         {
-            Array.Fill(_externals, new Value(0));
-            Array.Fill(_internals, new Value(0));
+            Array.Fill(_externals, new Value((Number)0));
+            Array.Fill(_internals, new Value((Number)0));
 
             var pc = 0;
             for (var i = 0; i < 5; i++)
