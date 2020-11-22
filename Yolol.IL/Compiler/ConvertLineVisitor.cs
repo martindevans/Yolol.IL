@@ -716,7 +716,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(Not not) => ConvertUnaryExpr(not,
             b => !b,
-            n => n == 0,
+            n => n == (Number)0,
             s => false,
             v => !v
         );

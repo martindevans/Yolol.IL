@@ -68,5 +68,11 @@ namespace Yolol.IL.Tests
             var (ms, _) = TestHelpers.Test("a = abs -7");
             Assert.AreEqual(7, ms.GetVariable("a").Number);
         }
+
+        [TestMethod]
+        public void NotModulo()
+        {
+            var (ms, _) = TestHelpers.Test(":o=not (:i%100)");
+        }
     }
 }
