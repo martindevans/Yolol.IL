@@ -1,5 +1,5 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-
+using Yolol.Execution;
 using static Yolol.IL.Tests.TestHelpers;
 
 namespace Yolol.IL.Tests
@@ -97,6 +97,14 @@ namespace Yolol.IL.Tests
             var (st, _) = Test("a=1 ++a");
 
             Assert.AreEqual(2, st.GetVariable("a"));
+        }
+
+        [TestMethod]
+        public void Factorial()
+        {
+            var (st, _) = Test("a=7 b=a!");
+
+            Assert.AreEqual((Number)5040, st.GetVariable("b"));
         }
     }
 }

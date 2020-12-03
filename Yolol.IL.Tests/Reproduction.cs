@@ -66,7 +66,7 @@ namespace Yolol.IL.Tests
         public void Abs()
         {
             var (ms, _) = TestHelpers.Test("a = abs -7");
-            Assert.AreEqual(7, ms.GetVariable("a").Number);
+            Assert.AreEqual((Number)7, ms.GetVariable("a").Number);
         }
 
         [TestMethod]

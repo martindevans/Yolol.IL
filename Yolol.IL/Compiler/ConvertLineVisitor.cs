@@ -714,6 +714,13 @@ namespace Yolol.IL.Compiler
             return expr;
         }
 
+        protected override BaseExpression Visit(Factorial fac) => ConvertUnaryExpr(fac,
+            b => (Number)1,
+            n => n.Factorial(),
+            s => new StaticError("Attempted to Factorial a string value"),
+            v => v.Factorial()
+        );
+
         protected override BaseExpression Visit(Not not) => ConvertUnaryExpr(not,
             b => !b,
             n => n == (Number)0,
