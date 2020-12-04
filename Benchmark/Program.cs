@@ -12,6 +12,8 @@ namespace Benchmark
 
             var lps = new LinesPerSecond();
             lps.Run();
+
+            //new Yolol.IL.Serializer().Save("foo");
         }
     }
 }

@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Lokad.ILPack" Version="0.1.6" />
     <PackageReference Include="Sigil.NetStandard" Version="4.8.0" />
     <PackageReference Include="Yolol" Version="11.1.2" />
     <PackageReference Include="Yolol.Analysis" Version="6.2.2" />

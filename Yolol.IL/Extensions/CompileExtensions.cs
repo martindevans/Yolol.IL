@@ -32,9 +32,14 @@ namespace Yolol.IL.Extensions
         {
             var emitter = Emit<Func<ArraySegment<Value>, ArraySegment<Value>, int>>.NewDynamicMethod();
 
+            var exBlock = emitter.BeginExceptionBlock();
+
             // Convert `ArraySegment<Value>` to `Span<Value>` just once and store it in a local field
             using var internals = ConvertSpan(emitter, 0);
             using var externals = ConvertSpan(emitter, 1);
+
+            // Create a local to store the return address from inside the try/catch block
+            var retAddr = emitter.DeclareLocal<int>();
 
             // Create a label which any `goto` statements can use. They drop their destination PC on the stack and then jump to this label
             var gotoLabel = emitter.DefineLabel();
@@ -44,6 +49,9 @@ namespace Yolol.IL.Extensions
 
             // Create a label which marks the end of the line, code reaching here falls through to the next line
             var eolLabel = emitter.DefineLabel();
+
+            // Define a label that jumps to the end of the try/catch block
+            var exitTry = emitter.DefineLabel();
 
             // Convert the entire line into IL
             var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, internalVariableMap, externalVariableMap, gotoLabel, runtimeErrorLabel, staticTypes, internals, externals);
@@ -61,45 +69,40 @@ namespace Yolol.IL.Extensions
                 emitter.LoadConstant(1);
             else
                 emitter.LoadConstant(lineNumber + 1);
-            emitter.Return();
+            emitter.StoreLocal(retAddr);
+            emitter.Branch(exitTry);
 
             // Create a block to handle gotos. The destination will already be on the stack, so just return
             emitter.MarkLabel(gotoLabel);
+            emitter.StoreLocal(retAddr);
+            emitter.Branch(exitTry);
+
+            // Mark the end of the block for things that want to leave
+            emitter.MarkLabel(exitTry);
+
+            // Catch all execution exceptions and return the appropriate next line number to fall through to
+            var catchBlock = emitter.BeginCatchBlock<ExecutionException>(exBlock);
+            emitter.Pop();
+            if (lineNumber == maxLines)
+                emitter.LoadConstant(1);
+            else
+                emitter.LoadConstant(lineNumber + 1);
+            emitter.StoreLocal(retAddr);
+
+            // Close the exception block which was wrapping the entire method
+            emitter.EndCatchBlock(catchBlock);
+            emitter.EndExceptionBlock(exBlock);
+
+            // Load the return address from inside the catch block
+            emitter.LoadLocal(retAddr);
             emitter.Return();
 
-            // Finally convert the IL into a runnable C# method for this line
-            var d = emitter.CreateDelegate();
-
+            // Sanity check before returning result
             if (!converter.IsTypeStackEmpty)
                 throw new InvalidOperationException("Type stack is not empty after conversion");
 
-            return MakeLine(lineNumber, maxLines, d);
-        }
-
-        private static Func<ArraySegment<Value>, ArraySegment<Value>, int> MakeLine(int lineNumber, int maxLines, Func<ArraySegment<Value>, ArraySegment<Value>, int> line)
-        {
-            return (a, b) => {
-
-                #if DEBUG
-                for (var i = 0; i < a.Count; i++)
-                    if (a[i].Type == Execution.Type.Unassigned)
-                        throw new InvalidOperationException($"Attempted to run Yolol.IL with uninitialised Value (locals, index: {i})");
-                for (var i = 0; i < b.Count; i++)
-                    if (b[i].Type == Execution.Type.Unassigned)
-                        throw new InvalidOperationException($"Attempted to run Yolol.IL with uninitialised Value (globals, index: {i})");
-                #endif
-
-                try
-                {
-                    return line(a, b);
-                }
-                catch (ExecutionException e)
-                {
-                    if (lineNumber == maxLines)
-                        return 1;
-                    return lineNumber + 1;
-                }
-            };
+            // Finally convert the IL into a runnable C# method for this line
+            return emitter.CreateDelegate();
         }
 
         private static Local ConvertSpan<T>(Emit<T> emitter, ushort arg)

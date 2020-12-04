@@ -71,7 +71,7 @@ namespace Benchmark
 
         public void Run()
         {
-            const int iterations = 300000;
+            const int iterations = 1000000;
 
             var samples = new List<double>();
             var timer = new Stopwatch();
