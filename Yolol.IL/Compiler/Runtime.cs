@@ -45,21 +45,15 @@ namespace Yolol.IL.Compiler
 
         #region memory access
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void SetSpanIndex(Value v, Span<Value> span, int index)
+        public static void SetArraySegmentIndex(Value v, ArraySegment<Value> segment, int index)
         {
-            span[index] = v;
+            segment[index] = v;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Value GetSpanIndex(Span<Value> span, int index)
+        public static Value GetArraySegmentIndex(ArraySegment<Value> segment, int index)
         {
-            return span[index];
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Span<Value> GetSpan(ArraySegment<Value> seg)
-        {
-            return seg;
+            return segment[index];
         }
         #endregion
 

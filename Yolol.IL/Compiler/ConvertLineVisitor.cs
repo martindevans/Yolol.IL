@@ -25,8 +25,8 @@ namespace Yolol.IL.Compiler
         private readonly Dictionary<string, int> _externalVariableMap;
         private readonly Label _gotoLabel;
         private readonly Label _runtimeErrorLabel;
-        private readonly Local _internalSpanLocal;
-        private readonly Local _externalSpanLocal;
+        private readonly Local _internalArraySegmentLocal;
+        private readonly Local _externalArraySegmentLocal;
         private readonly IReadOnlyDictionary<VariableName, Execution.Type> _staticTypes;
 
         private readonly TypeStack<TEmit> _types;
@@ -40,8 +40,8 @@ namespace Yolol.IL.Compiler
             Label gotoLabel,
             Label runtimeErrorLabel,
             IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes,
-            Local internalSpanLocal,
-            Local externalSpanLocal
+            Local internalArraySegmentLocal,
+            Local externalArraySegmentLocal
         )
         {
             _emitter = emitter;
@@ -50,8 +50,8 @@ namespace Yolol.IL.Compiler
             _externalVariableMap = externalVariableMap;
             _gotoLabel = gotoLabel;
             _runtimeErrorLabel = runtimeErrorLabel;
-            _internalSpanLocal = internalSpanLocal;
-            _externalSpanLocal = externalSpanLocal;
+            _internalArraySegmentLocal = internalArraySegmentLocal;
+            _externalArraySegmentLocal = externalArraySegmentLocal;
             _staticTypes = staticTypes ?? new Dictionary<VariableName, Execution.Type>();
 
             _types = new TypeStack<TEmit>(_emitter);
@@ -64,11 +64,11 @@ namespace Yolol.IL.Compiler
             _types.Coerce(StackType.YololValue);
             _types.Pop(StackType.YololValue);
 
-            // Load the correct memory span for whichever type of variable we're accessing
+            // Load the correct array segment for whichever type of variable we're accessing
             if (name.IsExternal)
-                _emitter.LoadLocal(_externalSpanLocal);
+                _emitter.LoadLocal(_externalArraySegmentLocal);
             else
-                _emitter.LoadLocal(_internalSpanLocal);
+                _emitter.LoadLocal(_internalArraySegmentLocal);
 
             // Lookup the index for the given name
             var map = (name.IsExternal ? _externalVariableMap : _internalVariableMap);
@@ -79,8 +79,8 @@ namespace Yolol.IL.Compiler
             }
             _emitter.LoadConstant(idx);
 
-            // Put the value on the stack into the span
-            _emitter.CallRuntimeN(nameof(Runtime.SetSpanIndex), typeof(Value), typeof(Span<Value>), typeof(int));
+            // Put the value on the stack into the array segment
+            _emitter.CallRuntimeN(nameof(Runtime.SetArraySegmentIndex), typeof(Value), typeof(ArraySegment<Value>), typeof(int));
         }
 
         protected override BaseStatement Visit(Assignment ass)
@@ -245,11 +245,11 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(Grammar.AST.Expressions.Variable var)
         {
-            // Load the correct memory span for whichever type of variable we're accessing
+            // Load the correct array segment for whichever type of variable we're accessing
             if (var.Name.IsExternal)
-                _emitter.LoadLocal(_externalSpanLocal);
+                _emitter.LoadLocal(_externalArraySegmentLocal);
             else
-                _emitter.LoadLocal(_internalSpanLocal);
+                _emitter.LoadLocal(_internalArraySegmentLocal);
 
             // Lookup the index for the given name
             var map = (var.Name.IsExternal ? _externalVariableMap : _internalVariableMap);
@@ -260,8 +260,8 @@ namespace Yolol.IL.Compiler
             }
             _emitter.LoadConstant(idx);
 
-            // Get the value from the span
-            _emitter.CallRuntimeN(nameof(Runtime.GetSpanIndex), typeof(Span<Value>), typeof(int));
+            // Get the value from the array segment
+            _emitter.CallRuntimeN(nameof(Runtime.GetArraySegmentIndex), typeof(ArraySegment<Value>), typeof(int));
 
             // Check if we statically know the type
             if (_staticTypes.TryGetValue(var.Name, out var type))

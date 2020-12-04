@@ -34,9 +34,8 @@ namespace Yolol.IL.Extensions
 
             var exBlock = emitter.BeginExceptionBlock();
 
-            // Convert `ArraySegment<Value>` to `Span<Value>` just once and store it in a local field
-            using var internals = ConvertSpan(emitter, 0);
-            using var externals = ConvertSpan(emitter, 1);
+            using var internals = StoreMemorySegments(emitter, 0);
+            using var externals = StoreMemorySegments(emitter, 1);
 
             // Create a local to store the return address from inside the try/catch block
             var retAddr = emitter.DeclareLocal<int>();
@@ -105,11 +104,10 @@ namespace Yolol.IL.Extensions
             return emitter.CreateDelegate();
         }
 
-        private static Local ConvertSpan<T>(Emit<T> emitter, ushort arg)
+        private static Local StoreMemorySegments<T>(Emit<T> emitter, ushort arg)
         {
             emitter.LoadArgument(arg);
-            emitter.Call(typeof(Runtime).GetMethod(nameof(Runtime.GetSpan), BindingFlags.Public | BindingFlags.Static));
-            var local = emitter.DeclareLocal(typeof(Span<Value>));
+            var local = emitter.DeclareLocal(typeof(ArraySegment<Value>));
             emitter.StoreLocal(local);
 
             return local;
