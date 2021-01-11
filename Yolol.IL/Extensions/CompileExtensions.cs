@@ -1,16 +1,32 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Reflection;
 using Sigil;
 using Yolol.Execution;
 using Yolol.Grammar;
 using Yolol.Grammar.AST;
 using Yolol.IL.Compiler;
+using Type = Yolol.Execution.Type;
 
 namespace Yolol.IL.Extensions
 {
     public static class ILExtension
     {
+        /// <summary>
+        /// Store the given `ArraySegment[Value]` argument index into a local
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="emitter"></param>
+        /// <param name="arg"></param>
+        /// <returns></returns>
+        private static Local StoreMemorySegments<T>(Emit<T> emitter, ushort arg)
+        {
+            emitter.LoadArgument(arg);
+            var local = emitter.DeclareLocal(typeof(ArraySegment<Value>));
+            emitter.StoreLocal(local);
+
+            return local;
+        }
+
         /// <summary>
         /// Compile a line of Yolol into a runnable C# function
         /// </summary>
@@ -25,13 +41,62 @@ namespace Yolol.IL.Extensions
             this Line line,
             int lineNumber,
             int maxLines,
-            Dictionary<string, int> internalVariableMap,
-            Dictionary<string, int> externalVariableMap,
+            InternalsMap internalVariableMap,
+            ExternalsMap externalVariableMap,
             IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes = null
         )
         {
+            // Create an emitter for a dynamic method
             var emitter = Emit<Func<ArraySegment<Value>, ArraySegment<Value>, int>>.NewDynamicMethod();
 
+            // Compile code into the emitter
+            line.Compile(emitter, lineNumber, maxLines, internalVariableMap, externalVariableMap, staticTypes);
+
+            // Finally convert the IL into a runnable C# method for this line
+            return emitter.CreateDelegate();
+        }
+
+        /// <summary>
+        /// Compile all the lines of a Yolol program into runnable C# functions (one per line)
+        /// </summary>
+        /// <param name="ast"></param>
+        /// <param name="internals"></param>
+        /// <param name="externals"></param>
+        /// <param name="staticTypes"></param>
+        /// <returns></returns>
+        public static Func<ArraySegment<Value>, ArraySegment<Value>, int>[] Compile(
+            this Program ast,
+            InternalsMap internals,
+            ExternalsMap externals,
+            IReadOnlyDictionary<VariableName, Type>? staticTypes = null
+        )
+        {
+            var compiledLines = new Func<ArraySegment<Value>, ArraySegment<Value>, int>[ast.Lines.Count];
+            for (var i = 0; i < ast.Lines.Count; i++)
+                compiledLines[i] = ast.Lines[i].Compile(i + 1, 20, internals, externals, staticTypes);
+            return compiledLines;
+        }
+
+        /// <summary>
+        /// Compile a line of Yolol into the given IL emitter
+        /// </summary>
+        /// <param name="line"></param>
+        /// <param name="emitter"></param>
+        /// <param name="lineNumber"></param>
+        /// <param name="maxLines"></param>
+        /// <param name="internalVariableMap"></param>
+        /// <param name="externalVariableMap"></param>
+        /// <param name="staticTypes"></param>
+        public static void Compile(
+            this Line line,
+            Emit<Func<ArraySegment<Value>, ArraySegment<Value>, int>> emitter,
+            int lineNumber,
+            int maxLines,
+            InternalsMap internalVariableMap,
+            ExternalsMap externalVariableMap,
+            IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes = null
+        )
+        {
             var exBlock = emitter.BeginExceptionBlock();
 
             using var internals = StoreMemorySegments(emitter, 0);
@@ -99,18 +164,8 @@ namespace Yolol.IL.Extensions
             // Sanity check before returning result
             if (!converter.IsTypeStackEmpty)
                 throw new InvalidOperationException("Type stack is not empty after conversion");
-
-            // Finally convert the IL into a runnable C# method for this line
-            return emitter.CreateDelegate();
         }
 
-        private static Local StoreMemorySegments<T>(Emit<T> emitter, ushort arg)
-        {
-            emitter.LoadArgument(arg);
-            var local = emitter.DeclareLocal(typeof(ArraySegment<Value>));
-            emitter.StoreLocal(local);
 
-            return local;
-        }
     }
 }

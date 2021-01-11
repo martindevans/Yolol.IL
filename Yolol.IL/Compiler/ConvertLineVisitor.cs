@@ -21,8 +21,8 @@ namespace Yolol.IL.Compiler
         private readonly Emit<TEmit> _emitter;
 
         private readonly int _maxLineNumber;
-        private readonly Dictionary<string, int> _internalVariableMap;
-        private readonly Dictionary<string, int> _externalVariableMap;
+        private readonly InternalsMap _internalVariableMap;
+        private readonly ExternalsMap _externalVariableMap;
         private readonly Label _gotoLabel;
         private readonly Label _runtimeErrorLabel;
         private readonly Local _internalArraySegmentLocal;
@@ -35,8 +35,9 @@ namespace Yolol.IL.Compiler
 
         public ConvertLineVisitor(
             Emit<TEmit> emitter,
-            int maxLineNumber, Dictionary<string, int> internalVariableMap,
-            Dictionary<string, int> externalVariableMap,
+            int maxLineNumber,
+            InternalsMap internalVariableMap,
+            ExternalsMap externalVariableMap,
             Label gotoLabel,
             Label runtimeErrorLabel,
             IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes,
@@ -71,7 +72,7 @@ namespace Yolol.IL.Compiler
                 _emitter.LoadLocal(_internalArraySegmentLocal);
 
             // Lookup the index for the given name
-            var map = (name.IsExternal ? _externalVariableMap : _internalVariableMap);
+            var map = (name.IsExternal ? (Dictionary<string, int>)_externalVariableMap : _internalVariableMap);
             if (!map.TryGetValue(name.Name, out var idx))
             {
                 idx = map.Count;
@@ -252,7 +253,7 @@ namespace Yolol.IL.Compiler
                 _emitter.LoadLocal(_internalArraySegmentLocal);
 
             // Lookup the index for the given name
-            var map = (var.Name.IsExternal ? _externalVariableMap : _internalVariableMap);
+            var map = (var.Name.IsExternal ? (Dictionary<string, int>)_externalVariableMap : _internalVariableMap);
             if (!map.TryGetValue(var.Name.Name, out var idx))
             {
                 idx = map.Count;

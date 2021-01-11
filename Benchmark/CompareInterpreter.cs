@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using BenchmarkDotNet.Attributes;
 using Yolol.Execution;
 using Yolol.Grammar;
+using Yolol.IL.Compiler;
 using Yolol.IL.Extensions;
 
 namespace Benchmark
@@ -39,8 +40,8 @@ namespace Benchmark
                 { new VariableName("e"), Yolol.Execution.Type.Number },
                 { new VariableName("f"), Yolol.Execution.Type.Number },
             };
-            var internalsPerLine = new Dictionary<string, int>();
-            var externalsPerLine = new Dictionary<string, int>();
+            var internalsPerLine = new InternalsMap();
+            var externalsPerLine = new ExternalsMap();
             _compiledLines = new Func<ArraySegment<Value>, ArraySegment<Value>, int>[_ast.Lines.Count];
             for (var i = 0; i < _ast.Lines.Count; i++)
                 _compiledLines[i] = _ast.Lines[i].Compile(i + 1, 20, internalsPerLine, externalsPerLine, types);

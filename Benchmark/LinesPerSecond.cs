@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Yolol.Execution;
 using Yolol.Grammar;
+using Yolol.IL.Compiler;
 using Yolol.IL.Extensions;
 
 namespace Benchmark
@@ -17,7 +18,7 @@ namespace Benchmark
         // a+=b if l<25 then goto2 end
         // a-- l-- goto5/(x>0)
         // goto1
-        readonly string[] _program = {
+        private readonly string[] _program = {
             "a=\"\" b=1 l=0 z++ a=-\"\"",
             "b*=2 c=\"\"+b d=c",
             "d-- l++ goto3",
@@ -30,8 +31,8 @@ namespace Benchmark
         private readonly Value[] _internals;
         private readonly Value[] _externals;
 
-        private readonly Dictionary<string, int> _internalsMap;
-        private readonly Dictionary<string, int> _externalsMap;
+        private readonly InternalsMap _internalsMap;
+        private readonly ExternalsMap _externalsMap;
 
         public LinesPerSecond()
         {
@@ -46,13 +47,18 @@ namespace Benchmark
                 { new VariableName("d"), Yolol.Execution.Type.String },
             };
 
-            _internalsMap = new Dictionary<string, int>();
-            _externalsMap = new Dictionary<string, int>();
-            _compiledLines = new Func<ArraySegment<Value>, ArraySegment<Value>, int>[ast.Lines.Count];
-            for (var i = 0; i < ast.Lines.Count; i++)
-            {
-                _compiledLines[i] = ast.Lines[i].Compile(i + 1, 20, _internalsMap, _externalsMap, staticTypes);
-            }
+            _internalsMap = new InternalsMap();
+            _externalsMap = new ExternalsMap();
+            _compiledLines = ast.Compile(_internalsMap, _externalsMap, staticTypes);
+
+            ////Comment this in if running hand rewritten code
+            //_internalsMap["a"] = 0;
+            //_internalsMap["b"] = 1;
+            //_internalsMap["c"] = 2;
+            //_internalsMap["d"] = 3;
+            //_internalsMap["l"] = 4;
+            //_internalsMap["z"] = 5;
+            //_internalsMap["x"] = 6;
 
             _internals = new Value[_internalsMap.Count];
             Array.Fill(_internals, new Value((Number)0));
@@ -80,7 +86,7 @@ namespace Benchmark
                 timer.Restart();
 
                 RunCompiled(iterations);
-                //_externals[0] = RunRewritten(iterations);
+                //RunRewritten(iterations);
 
                 timer.Stop();
 
@@ -102,36 +108,106 @@ namespace Benchmark
                 pc = _compiledLines[pc](_internals, _externals) - 1;
         }
 
-        //public Value RunRewritten(int iterations)
-        //{
-        //    Value pi = (Number)0;
+        public void RunRewritten(int iterations)
+        {
+            // a="" b=1 l=0 z++ a=-""
+            // b*=2 c=""+b d=c
+            // d-- l++ goto3
+            // a+=b if l<25 then goto2 end
+            // a-- l-- goto5/(x>0)
+            // goto1
 
-        //    // Yolol code is 6 lines, this code is all 6 lines. Increase the iters counter by 6 for every run to compensate.
-        //    for (var j = 0; j < iterations; j += 6)
-        //    {
-        //        var r = (Number)715237;
+            // a  0
+            // b  1
+            // c  2
+            // d  3
+            // l  4
+            // z  5
+            // x  6
 
-        //        var i = (Number)0;
-        //        var A = 1664524 + ((Number)0).Cos();
-        //        var M = (Number)int.MaxValue;
+            var pc = 1;
+            for (var i = 0; i < iterations; i++)
+            {
+                switch (pc)
+                {
+                    case 1:
+                        // a="" b=1 l=0 z++ a=-""
+                        _internals[0] = new Value(new YString(""));
+                        _internals[1] = (Number)0;
+                        _internals[4] = (Number)0;
+                        _internals[5]++;
+                        // Static error to next line
+                        pc = 2;
+                        break;
 
-        //        var s = (Number)0;
-        //        var C = (Number)1013904223;
-        //        var F = (Number)ushort.MaxValue;
-        //        var b = new YString("str");
+                    case 2:
+                        // b*=2 c=""+b d=c
+                        _internals[1] *= 2;
+                        _internals[2] = "" + _internals[1];
+                        _internals[3] = _internals[2];
+                        pc = 3;
+                        break;
 
-        //        r = ((r * A) + C) % M;
-        //        var x = (r % F) / F;
-        //        r = ((r * A) + C) % M;
-        //        var y = (r % F) / F;
+                    case 3:
+                        // d-- l++ goto3
+                        var d = _internals[3];
+                        if (WillDecThrow(d))
+                            pc = 4;
+                        else
+                        {
+                            _internals[3]--;
+                            _internals[4]++;
+                            pc = 3;
+                        }
 
-        //        s += 1;
-        //        i = i + ((x * x + y * y) < 1);
-        //        pi = 4 * (i / s);
-        //        pi -= "t";
-        //    }
+                        break;
 
-        //    return pi;
-        //}
+                    case 4:
+                        // a+=b if l<25 then goto2 end
+                        _internals[0] += _internals[1];
+                        if (_internals[4] < 25)
+                            pc = 2;
+                        else
+                            pc = 5;
+                        break;
+
+                    case 5:
+                        // a-- l-- goto5/(x>0)
+                        if (WillDecThrow(_internals[0]))
+                        {
+                            pc = 6;
+                            break;
+                        }
+
+                        _internals[0]--;
+
+                        if (WillDecThrow(_internals[4]))
+                        {
+                            pc = 6;
+                            break;
+                        }
+
+                        _internals[4]--;
+
+                        if (_internals[6] <= 0)
+                        {
+                            pc = 6;
+                            break;
+                        }
+
+                        pc = 5;
+                        break;
+
+                    case 6:
+                        pc = 1;
+                        break;
+                }
+            }
+        }
+
+        private static bool WillDecThrow(Value value)
+        {
+            return value.Type == Yolol.Execution.Type.String && value.String.Length == 0;
+        }
     }
 }
