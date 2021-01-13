@@ -11,6 +11,7 @@ using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
 using Yolol.Grammar.AST.Expressions.Unary;
 using Yolol.Grammar.AST.Statements;
+using Yolol.IL.Compiler.Vectorisation;
 using Yolol.IL.Extensions;
 
 namespace Yolol.IL.Compiler
@@ -84,6 +85,37 @@ namespace Yolol.IL.Compiler
             _emitter.CallRuntimeN(nameof(Runtime.SetArraySegmentIndex), typeof(Value), typeof(ArraySegment<Value>), typeof(int));
         }
 
+        protected override StatementList Visit(StatementList list)
+        {
+            var strategies = new BaseVectorisationStrategy<TEmit>[] {
+                new NoStrategy<TEmit>(),
+                new QuadIncNumbers<TEmit>(_internalVariableMap, _externalVariableMap, _internalArraySegmentLocal, _externalArraySegmentLocal, _staticTypes),
+            };
+
+            var q = new List<BaseStatement>(list.Statements);
+            while (q.Count > 0)
+            {
+                var success = false;
+                foreach (var strat in strategies)
+                {
+                    if (strat.Try(q, _emitter))
+                    {
+                        success = true;
+                        break;
+                    }
+                }
+
+                // if no vectorisation strategies succeeded remove one item from the queue and try again
+                if (!success)
+                {
+                    Visit(q[0]);
+                    q.RemoveAt(0);
+                }
+            }
+
+            return list;
+        }
+
         protected override BaseStatement Visit(Assignment ass)
         {
             // Place the value to put into this variable on the stack
@@ -143,30 +175,44 @@ namespace Yolol.IL.Compiler
 
         protected override BaseStatement Visit(Goto @goto)
         {
-            // Put destination on the stack
-            if (Visit(@goto.Destination) is ErrorExpression)
-                return @goto;
-
-            switch (_types.Peek())
+            if (@goto.Destination is ConstantNumber constNum)
             {
-                case StackType.Bool:
-                case StackType.YololNumber:
-                    _types.Coerce(StackType.YololNumber);
-                    _types.Pop(StackType.YololNumber);
-                    _emitter.LoadConstant(_maxLineNumber);
-                    _emitter.CallRuntimeN(nameof(Runtime.GotoNumber), typeof(Number), typeof(int));
-                    break;
+                var dest = Runtime.GotoNumber(constNum.Value, _maxLineNumber);
+                _emitter.LoadConstant(dest);
+            }
+            else
+            {
+                // Put destination value on the stack
+                if (Visit(@goto.Destination) is ErrorExpression)
+                    return @goto;
 
-                case StackType.YololValue:
-                case StackType.YololString:
-                    _types.Coerce(StackType.YololValue);
-                    _types.Pop(StackType.YololValue);
-                    _emitter.LoadConstant(_maxLineNumber);
-                    _emitter.CallRuntimeN(nameof(Runtime.GotoValue), typeof(Value), typeof(int));
-                    break;
+                switch (_types.Peek())
+                {
+                    case StackType.Bool:
+                        // `Goto1` and `Goto0` both go to line 1
+                        _types.Pop(StackType.Bool);
+                        _emitter.Pop();
+                        _emitter.LoadConstant(1);
+                        break;
 
-                default:
-                    throw new ArgumentOutOfRangeException();
+                    case StackType.YololNumber:
+                        _types.Coerce(StackType.YololNumber);
+                        _types.Pop(StackType.YololNumber);
+                        _emitter.LoadConstant(_maxLineNumber);
+                        _emitter.CallRuntimeN(nameof(Runtime.GotoNumber), typeof(Number), typeof(int));
+                        break;
+
+                    case StackType.YololValue:
+                    case StackType.YololString:
+                        _types.Coerce(StackType.YololValue);
+                        _types.Pop(StackType.YololValue);
+                        _emitter.LoadConstant(_maxLineNumber);
+                        _emitter.CallRuntimeN(nameof(Runtime.GotoValue), typeof(Value), typeof(int));
+                        break;
+
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
             }
 
             // Jump to the `goto` label
@@ -214,7 +260,7 @@ namespace Yolol.IL.Compiler
         {
             // Reflect out the raw int64 value
             var rawValueField = typeof(Number).GetField("_value", BindingFlags.NonPublic | BindingFlags.Instance);
-            var rawValue = (long)rawValueField!.GetValue(con.Value);
+            var rawValue = (long)rawValueField!.GetValue(con.Value)!;
 
             // if the raw value represents one of the two boolean values, emit a bool
             if (rawValue == 0 || rawValue == 1000)
@@ -229,7 +275,6 @@ namespace Yolol.IL.Compiler
                 _emitter.NewObject<Number, long>();
                 _types.Push(StackType.YololNumber);
             }
-
 
             return con;
         }
@@ -794,7 +839,7 @@ namespace Yolol.IL.Compiler
         #endregion
 
         #region modify expressions
-        private T Modify2<T>(T expr, bool preOp, string opName)
+        private T Decrement<T>(T expr, bool preOp)
             where T : BaseModifyInPlace
         {
             // Put the current value of the variable onto the stack
@@ -813,14 +858,14 @@ namespace Yolol.IL.Compiler
 
             // Find the operator method
             var peek = _types.Peek().ToType();
-            var method = peek.GetMethod(opName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { peek }, null);
+            var method = peek.GetMethod("op_Decrement", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { peek }, null);
             if (method == null)
-                throw new InvalidOperationException($"Cannot find method `{opName}` on type {peek}");
+                throw new InvalidOperationException($"Cannot find method `op_Decrement` on type {peek}");
 
             // Find the `will throw` method
             var willThrow = method.TryGetWillThrowMethod(peek);
 
-            // Emit code to actually do the work
+            // Emit code to check if the decrement will throw
             var noErrorLabel = _emitter.DefineLabel();
             if (willThrow != null)
             {
@@ -833,7 +878,7 @@ namespace Yolol.IL.Compiler
                 // Call the "will throw" method
                 _emitter.Call(willThrow);
 
-                // Jump past the error handler if "will throw" return false
+                // Jump past the error handler if "will throw" returned false
                 _emitter.BranchIfFalse(noErrorLabel);
 
                 // If execution arrives here a runtime error has occured. Empty the stack and jump to the global error handler.
@@ -864,13 +909,54 @@ namespace Yolol.IL.Compiler
             return expr;
         }
 
-        protected override BaseExpression Visit(PreIncrement inc) => Modify2(inc, true, "op_Increment");
+        private T Increment<T>(T expr, bool preOp)
+            where T : BaseModifyInPlace
+        {
+            // Put the current value of the variable onto the stack
+            Visit(new Grammar.AST.Expressions.Variable(expr.Name));
 
-        protected override BaseExpression Visit(PreDecrement dec) => Modify2(dec, true, "op_Decrement");
+            // If we need the old value save it now
+            if (!preOp)
+            {
+                _emitter.Duplicate();
+                _types.Push(_types.Peek());
+            }
 
-        protected override BaseExpression Visit(PostIncrement inc) => Modify2(inc, false, "op_Increment");
+            // If there is a bool on the stack coerce it to a number (bool won't have inc/dec operators defined on it)
+            if (StackType.Bool == _types.Peek())
+                _types.Coerce(StackType.YololNumber);
 
-        protected override BaseExpression Visit(PostDecrement dec) => Modify2(dec, false, "op_Decrement");
+            // Find the operator method
+            var peek = _types.Peek().ToType();
+            var method = peek.GetMethod("op_Increment", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { peek }, null);
+            if (method == null)
+                throw new InvalidOperationException($"Cannot find method `op_Increment` on type {peek}");
+
+            // Do the actual work
+            _emitter.Call(method);
+            _types.Pop(_types.Peek());
+            _types.Push(method.ReturnType.ToStackType());
+            
+            // If we need to return the new value, save it now by duplicating it
+            if (preOp)
+            {
+                _emitter.Duplicate();
+                _types.Push(_types.Peek());
+            }
+
+            // Write value to variable
+            EmitAssign(expr.Name);
+
+            return expr;
+        }
+
+        protected override BaseExpression Visit(PreIncrement inc) => Increment(inc, true);
+
+        protected override BaseExpression Visit(PreDecrement dec) => Decrement(dec, true);
+
+        protected override BaseExpression Visit(PostIncrement inc) => Increment(inc, false);
+
+        protected override BaseExpression Visit(PostDecrement dec) => Decrement(dec, false);
         #endregion
 
         protected override BaseExpression Visit(Bracketed brk)
@@ -878,13 +964,42 @@ namespace Yolol.IL.Compiler
 
         protected override BaseStatement Visit(ExpressionWrapper expr)
         {
-            var r = base.Visit(expr);
+            void Inc(BaseIncrement inc)
+            {
+                // Put the value to increment on the stack
+                Visit(new Grammar.AST.Expressions.Variable(inc.Name));
 
-            // The wrapped expression left a value on the stack. Pop it off now.
-            _emitter.Pop();
-            _types.Pop(_types.Peek());
+                // Find the increment method on whatever type it is
+                var peek = _types.Peek().ToType();
+                var method = peek.GetMethod("op_Increment", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { peek }, null);
 
-            return r;
+                // Do the work
+                _emitter.Call(method);
+                _types.Pop(_types.Peek());
+                _types.Push(method!.ReturnType.ToStackType());
+
+                // Save the result
+                EmitAssign(inc.Name);
+            }
+
+            // Special case increment here. Since we know the return value isn't going to be used it doesn't matter if it's a pre/post inc
+            // and all of the work duplicating values and shuffling the stack to ensure the right value is returned doesn't matter. Decrement
+            // could also be special cased like this in principle, but it's quite a lot more complex due to error handling.
+            switch (expr.Expression)
+            {
+                case BaseIncrement inc:
+                    Inc(inc);
+                    return expr;
+
+                default:
+                    var r = base.Visit(expr);
+
+                    // The wrapped expression left a value on the stack. Pop it off now.
+                    _emitter.Pop();
+                    _types.Pop(_types.Peek());
+
+                    return r;
+            }
         }
     }
 }

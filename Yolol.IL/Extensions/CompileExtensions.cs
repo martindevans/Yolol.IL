@@ -97,6 +97,7 @@ namespace Yolol.IL.Extensions
             IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes = null
         )
         {
+            // Begin an exception block to catch Yolol runtime errors
             var exBlock = emitter.BeginExceptionBlock();
 
             using var internals = StoreMemorySegments(emitter, 0);
@@ -106,16 +107,16 @@ namespace Yolol.IL.Extensions
             var retAddr = emitter.DeclareLocal<int>();
 
             // Create a label which any `goto` statements can use. They drop their destination PC on the stack and then jump to this label
-            var gotoLabel = emitter.DefineLabel();
+            var gotoLabel = emitter.DefineLabel("encountered_goto");
 
             // Create a label which any runtime errors can use. They jump here after emptying the stack
-            var runtimeErrorLabel = emitter.DefineLabel();
+            var runtimeErrorLabel = emitter.DefineLabel("encountered_runtime_error");
 
             // Create a label which marks the end of the line, code reaching here falls through to the next line
-            var eolLabel = emitter.DefineLabel();
+            var eolLabel = emitter.DefineLabel("encountered_eol");
 
             // Define a label that jumps to the end of the try/catch block
-            var exitTry = emitter.DefineLabel();
+            var exitTry = emitter.DefineLabel("exit_try_catch");
 
             // Convert the entire line into IL
             var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, internalVariableMap, externalVariableMap, gotoLabel, runtimeErrorLabel, staticTypes, internals, externals);
@@ -165,7 +166,5 @@ namespace Yolol.IL.Extensions
             if (!converter.IsTypeStackEmpty)
                 throw new InvalidOperationException("Type stack is not empty after conversion");
         }
-
-
     }
 }
