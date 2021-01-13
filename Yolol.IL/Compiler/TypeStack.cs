@@ -15,6 +15,8 @@ namespace Yolol.IL.Compiler
 
         public int Count => _types.Count;
 
+        public StackType Peek => _types.Peek();
+
         public TypeStack(Emit<TEmit> emitter)
         {
             _emitter = emitter;
@@ -30,11 +32,6 @@ namespace Yolol.IL.Compiler
             var pop = _types.Pop();
             if (pop != type)
                 throw new InvalidOperationException($"Attempted to pop `{type}` but stack had `{pop}`");
-        }
-
-        public StackType Peek()
-        {
-            return _types.Peek();
         }
 
         public void Coerce(StackType target)

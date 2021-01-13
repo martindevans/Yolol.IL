@@ -43,7 +43,7 @@ namespace Yolol.IL.Extensions
             int maxLines,
             InternalsMap internalVariableMap,
             ExternalsMap externalVariableMap,
-            IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes = null
+            IReadOnlyDictionary<VariableName, Type>? staticTypes = null
         )
         {
             // Create an emitter for a dynamic method
@@ -94,7 +94,7 @@ namespace Yolol.IL.Extensions
             int maxLines,
             InternalsMap internalVariableMap,
             ExternalsMap externalVariableMap,
-            IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes = null
+            IReadOnlyDictionary<VariableName, Type>? staticTypes = null
         )
         {
             // Begin an exception block to catch Yolol runtime errors
@@ -118,53 +118,64 @@ namespace Yolol.IL.Extensions
             // Define a label that jumps to the end of the try/catch block
             var exitTry = emitter.DefineLabel("exit_try_catch");
 
-            // Convert the entire line into IL
-            var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, internalVariableMap, externalVariableMap, gotoLabel, runtimeErrorLabel, staticTypes, internals, externals);
-            converter.Visit(line);
-            emitter.Branch(eolLabel);
+            // Create a memory access which manages reading and writing the memory arrays
+            using (var accessor = new MemoryAccessor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(
+                emitter,
+                externals,
+                internals,
+                internalVariableMap,
+                externalVariableMap,
+                staticTypes
+            ))
+            {
+                // Convert the entire line into IL
+                var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, accessor, gotoLabel, runtimeErrorLabel, staticTypes);
+                converter.Visit(line);
+                emitter.Branch(eolLabel);
 
-            // If an error occurs control flow will jump to here. Just act as if control flow fell off the end of the line
-            emitter.MarkLabel(runtimeErrorLabel);
-            emitter.Branch(eolLabel);
+                // Sanity check before returning result
+                if (!converter.IsTypeStackEmpty)
+                    throw new InvalidOperationException("Type stack is not empty after conversion");
 
-            // When a line finishes (with no gotos in the line) call flow eventually reaches here.
-            // go to the next line.
-            emitter.MarkLabel(eolLabel);
-            if (lineNumber == maxLines)
-                emitter.LoadConstant(1);
-            else
-                emitter.LoadConstant(lineNumber + 1);
-            emitter.StoreLocal(retAddr);
-            emitter.Branch(exitTry);
+                // If an error occurs control flow will jump to here. Just act as if control flow fell off the end of the line
+                emitter.MarkLabel(runtimeErrorLabel);
+                emitter.Branch(eolLabel);
 
-            // Create a block to handle gotos. The destination will already be on the stack, so just return
-            emitter.MarkLabel(gotoLabel);
-            emitter.StoreLocal(retAddr);
-            emitter.Branch(exitTry);
+                // When a line finishes (with no gotos in the line) call flow eventually reaches here.
+                // go to the next line.
+                emitter.MarkLabel(eolLabel);
+                if (lineNumber == maxLines)
+                    emitter.LoadConstant(1);
+                else
+                    emitter.LoadConstant(lineNumber + 1);
+                emitter.StoreLocal(retAddr);
+                emitter.Branch(exitTry);
 
-            // Mark the end of the block for things that want to leave
-            emitter.MarkLabel(exitTry);
+                // Create a block to handle gotos. The destination will already be on the stack, so just return
+                emitter.MarkLabel(gotoLabel);
+                emitter.StoreLocal(retAddr);
+                emitter.Branch(exitTry);
 
-            // Catch all execution exceptions and return the appropriate next line number to fall through to
-            var catchBlock = emitter.BeginCatchBlock<ExecutionException>(exBlock);
-            emitter.Pop();
-            if (lineNumber == maxLines)
-                emitter.LoadConstant(1);
-            else
-                emitter.LoadConstant(lineNumber + 1);
-            emitter.StoreLocal(retAddr);
+                // Mark the end of the block for things that want to leave
+                emitter.MarkLabel(exitTry);
 
-            // Close the exception block which was wrapping the entire method
-            emitter.EndCatchBlock(catchBlock);
-            emitter.EndExceptionBlock(exBlock);
+                // Catch all execution exceptions and return the appropriate next line number to fall through to
+                var catchBlock = emitter.BeginCatchBlock<ExecutionException>(exBlock);
+                emitter.Pop();
+                if (lineNumber == maxLines)
+                    emitter.LoadConstant(1);
+                else
+                    emitter.LoadConstant(lineNumber + 1);
+                emitter.StoreLocal(retAddr);
+
+                // Close the exception block which was wrapping the entire method
+                emitter.EndCatchBlock(catchBlock);
+                emitter.EndExceptionBlock(exBlock);
+            }
 
             // Load the return address from inside the catch block
             emitter.LoadLocal(retAddr);
             emitter.Return();
-
-            // Sanity check before returning result
-            if (!converter.IsTypeStackEmpty)
-                throw new InvalidOperationException("Type stack is not empty after conversion");
         }
     }
 }

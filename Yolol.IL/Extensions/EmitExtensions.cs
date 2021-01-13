@@ -63,9 +63,9 @@ namespace Yolol.IL.Extensions
         public static void CallRuntime2<TEmit, TCallee>(this Emit<TEmit> emitter, string methodName, TypeStack<TEmit> types)
         {
             // Get the left and right items from the type stack
-            var r = types.Peek();
+            var r = types.Peek;
             types.Pop(r);
-            var l = types.Peek();
+            var l = types.Peek;
             types.Push(r);
 
             var method = typeof(TCallee).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, new[] { l.ToType(), r.ToType() }, null);
@@ -82,7 +82,7 @@ namespace Yolol.IL.Extensions
         public static Type CallRuntime1<TEmit, TCallee>(this Emit<TEmit> emitter, string methodName, TypeStack<TEmit> types)
         {
             // Get the parameter type
-            var p = types.Peek();
+            var p = types.Peek;
 
             var method = typeof(TCallee).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, new[] { p.ToType() }, null);
             emitter.Call(method);

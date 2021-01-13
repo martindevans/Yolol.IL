@@ -22,12 +22,9 @@ namespace Yolol.IL.Compiler
         private readonly Emit<TEmit> _emitter;
 
         private readonly int _maxLineNumber;
-        private readonly InternalsMap _internalVariableMap;
-        private readonly ExternalsMap _externalVariableMap;
+        private readonly MemoryAccessor<TEmit> _memory;
         private readonly Label _gotoLabel;
         private readonly Label _runtimeErrorLabel;
-        private readonly Local _internalArraySegmentLocal;
-        private readonly Local _externalArraySegmentLocal;
         private readonly IReadOnlyDictionary<VariableName, Execution.Type> _staticTypes;
 
         private readonly TypeStack<TEmit> _types;
@@ -37,23 +34,17 @@ namespace Yolol.IL.Compiler
         public ConvertLineVisitor(
             Emit<TEmit> emitter,
             int maxLineNumber,
-            InternalsMap internalVariableMap,
-            ExternalsMap externalVariableMap,
+            MemoryAccessor<TEmit> memory,
             Label gotoLabel,
             Label runtimeErrorLabel,
-            IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes,
-            Local internalArraySegmentLocal,
-            Local externalArraySegmentLocal
+            IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes
         )
         {
             _emitter = emitter;
             _maxLineNumber = maxLineNumber;
-            _internalVariableMap = internalVariableMap;
-            _externalVariableMap = externalVariableMap;
+            _memory = memory;
             _gotoLabel = gotoLabel;
             _runtimeErrorLabel = runtimeErrorLabel;
-            _internalArraySegmentLocal = internalArraySegmentLocal;
-            _externalArraySegmentLocal = externalArraySegmentLocal;
             _staticTypes = staticTypes ?? new Dictionary<VariableName, Execution.Type>();
 
             _types = new TypeStack<TEmit>(_emitter);
@@ -62,34 +53,13 @@ namespace Yolol.IL.Compiler
         #region statements
         private void EmitAssign(VariableName name)
         {
-            // Coerce whatever is on the stack into a `Value`
-            _types.Coerce(StackType.YololValue);
-            _types.Pop(StackType.YololValue);
-
-            // Load the correct array segment for whichever type of variable we're accessing
-            if (name.IsExternal)
-                _emitter.LoadLocal(_externalArraySegmentLocal);
-            else
-                _emitter.LoadLocal(_internalArraySegmentLocal);
-
-            // Lookup the index for the given name
-            var map = (name.IsExternal ? (Dictionary<string, int>)_externalVariableMap : _internalVariableMap);
-            if (!map.TryGetValue(name.Name, out var idx))
-            {
-                idx = map.Count;
-                map[name.Name] = idx;
-            }
-            _emitter.LoadConstant(idx);
-
-            // Put the value on the stack into the array segment
-            _emitter.CallRuntimeN(nameof(Runtime.SetArraySegmentIndex), typeof(Value), typeof(ArraySegment<Value>), typeof(int));
+            _memory.EmitStore(name, _types);
         }
 
         protected override StatementList Visit(StatementList list)
         {
             var strategies = new BaseVectorisationStrategy<TEmit>[] {
-                new NoStrategy<TEmit>(),
-                new QuadIncNumbers<TEmit>(_internalVariableMap, _externalVariableMap, _internalArraySegmentLocal, _externalArraySegmentLocal, _staticTypes),
+                new NoStrategy<TEmit>()
             };
 
             var q = new List<BaseStatement>(list.Statements);
@@ -186,7 +156,7 @@ namespace Yolol.IL.Compiler
                 if (Visit(@goto.Destination) is ErrorExpression)
                     return @goto;
 
-                switch (_types.Peek())
+                switch (_types.Peek)
                 {
                     case StackType.Bool:
                         // `Goto1` and `Goto0` both go to line 1
@@ -234,12 +204,12 @@ namespace Yolol.IL.Compiler
 
             // Check if the last expression was guaranteed to generate an error
             // If so jump to the runtime error handler
-            if (_types.Peek() == StackType.StaticError || result is ErrorExpression)
+            if (_types.Peek == StackType.StaticError || result is ErrorExpression)
             {
                 // Empty out all items on the stack
                 while (!_types.IsEmpty)
                 {
-                    _types.Pop(_types.Peek());
+                    _types.Pop(_types.Peek);
                     _emitter.Pop();
                 }
 
@@ -291,58 +261,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(Grammar.AST.Expressions.Variable var)
         {
-            // Load the correct array segment for whichever type of variable we're accessing
-            if (var.Name.IsExternal)
-                _emitter.LoadLocal(_externalArraySegmentLocal);
-            else
-                _emitter.LoadLocal(_internalArraySegmentLocal);
-
-            // Lookup the index for the given name
-            var map = (var.Name.IsExternal ? (Dictionary<string, int>)_externalVariableMap : _internalVariableMap);
-            if (!map.TryGetValue(var.Name.Name, out var idx))
-            {
-                idx = map.Count;
-                map[var.Name.Name] = idx;
-            }
-            _emitter.LoadConstant(idx);
-
-            // Get the value from the array segment
-            _emitter.CallRuntimeN(nameof(Runtime.GetArraySegmentIndex), typeof(ArraySegment<Value>), typeof(int));
-
-            // Check if we statically know the type
-            if (_staticTypes.TryGetValue(var.Name, out var type))
-            {
-                if (type == Execution.Type.Number)
-                {
-                    // If this is a release build directly access the underlying field value, avoiding the dynamic type check. If it's
-                    // a debug build load it through the field (which will throw if your type annotations are wrong)
-                    #if RELEASE
-                        _emitter.GetRuntimeFieldValue<TEmit, Value>("_number");
-                    #else
-                        _emitter.GetRuntimePropertyValue<TEmit, Value>(nameof(Value.Number));
-                    #endif
-
-                    _types.Push(StackType.YololNumber);
-                    return var;
-                }
-
-                if (type == Execution.Type.String)
-                {
-                    // If this is a release build directly access the underlying field value, avoiding the dynamic type check. If it's
-                    // a debug build load it through the field (which will throw if your type annotations are wrong)
-                    #if RELEASE
-                        _emitter.GetRuntimeFieldValue<TEmit, Value>("_string");
-                    #else
-                        _emitter.GetRuntimePropertyValue<TEmit, Value>(nameof(Value.String));
-                    #endif
-
-                    _types.Push(StackType.YololString);
-                    return var;
-                }
-            }
-
-            // Didn't statically know the type, just emit a `Value`
-            _types.Push(StackType.YololValue);
+            _memory.EmitLoad(var.Name, _types);
             return var;
         }
 
@@ -420,10 +339,10 @@ namespace Yolol.IL.Compiler
             // Convert the two sides of the expression
             if (Visit(expr.Left) is ErrorExpression)
                 return new ErrorExpression();
-            var left = _types.Peek();
+            var left = _types.Peek;
             if (Visit(expr.Right) is ErrorExpression)
                 return new ErrorExpression();
-            var right = _types.Peek();
+            var right = _types.Peek;
 
             // Create some labels for error handling stuff
             var errorLabel = _emitter.DefineLabel();
@@ -730,7 +649,7 @@ namespace Yolol.IL.Compiler
             var noErrorLabel = _emitter.DefineLabel();
 
             // Emit code
-            var p = _types.Peek();
+            var p = _types.Peek;
             _types.Pop(p);
             var emitType = p switch {
                 StackType.Bool => emitBool.ConvertUnary(_emitter, errorLabel),
@@ -849,15 +768,15 @@ namespace Yolol.IL.Compiler
             if (!preOp)
             {
                 _emitter.Duplicate();
-                _types.Push(_types.Peek());
+                _types.Push(_types.Peek);
             }
 
             // If there is a bool on the stack coerce it to a number (bool won't have inc/dec operators defined on it)
-            if (StackType.Bool == _types.Peek())
+            if (StackType.Bool == _types.Peek)
                 _types.Coerce(StackType.YololNumber);
 
             // Find the operator method
-            var peek = _types.Peek().ToType();
+            var peek = _types.Peek.ToType();
             var method = peek.GetMethod("op_Decrement", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { peek }, null);
             if (method == null)
                 throw new InvalidOperationException($"Cannot find method `op_Decrement` on type {peek}");
@@ -892,7 +811,7 @@ namespace Yolol.IL.Compiler
 
             // Do the actual work
             _emitter.Call(method);
-            _types.Pop(_types.Peek());
+            _types.Pop(_types.Peek);
             _types.Push(method.ReturnType.ToStackType());
             
 
@@ -900,7 +819,7 @@ namespace Yolol.IL.Compiler
             if (preOp)
             {
                 _emitter.Duplicate();
-                _types.Push(_types.Peek());
+                _types.Push(_types.Peek);
             }
 
             // Write value to variable
@@ -919,29 +838,29 @@ namespace Yolol.IL.Compiler
             if (!preOp)
             {
                 _emitter.Duplicate();
-                _types.Push(_types.Peek());
+                _types.Push(_types.Peek);
             }
 
             // If there is a bool on the stack coerce it to a number (bool won't have inc/dec operators defined on it)
-            if (StackType.Bool == _types.Peek())
+            if (StackType.Bool == _types.Peek)
                 _types.Coerce(StackType.YololNumber);
 
             // Find the operator method
-            var peek = _types.Peek().ToType();
+            var peek = _types.Peek.ToType();
             var method = peek.GetMethod("op_Increment", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { peek }, null);
             if (method == null)
                 throw new InvalidOperationException($"Cannot find method `op_Increment` on type {peek}");
 
             // Do the actual work
             _emitter.Call(method);
-            _types.Pop(_types.Peek());
+            _types.Pop(_types.Peek);
             _types.Push(method.ReturnType.ToStackType());
             
             // If we need to return the new value, save it now by duplicating it
             if (preOp)
             {
                 _emitter.Duplicate();
-                _types.Push(_types.Peek());
+                _types.Push(_types.Peek);
             }
 
             // Write value to variable
@@ -970,12 +889,12 @@ namespace Yolol.IL.Compiler
                 Visit(new Grammar.AST.Expressions.Variable(inc.Name));
 
                 // Find the increment method on whatever type it is
-                var peek = _types.Peek().ToType();
+                var peek = _types.Peek.ToType();
                 var method = peek.GetMethod("op_Increment", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { peek }, null);
 
                 // Do the work
                 _emitter.Call(method);
-                _types.Pop(_types.Peek());
+                _types.Pop(_types.Peek);
                 _types.Push(method!.ReturnType.ToStackType());
 
                 // Save the result
@@ -996,7 +915,7 @@ namespace Yolol.IL.Compiler
 
                     // The wrapped expression left a value on the stack. Pop it off now.
                     _emitter.Pop();
-                    _types.Pop(_types.Peek());
+                    _types.Pop(_types.Peek);
 
                     return r;
             }
