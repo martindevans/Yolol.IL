@@ -16,7 +16,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Yolol" Version="11.2.0" />
+    <PackageReference Include="Yolol" Version="11.3.0" />
   </ItemGroup>
 
   <ItemGroup>

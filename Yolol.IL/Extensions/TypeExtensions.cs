@@ -23,5 +23,15 @@ namespace Yolol.IL.Extensions
 
             throw new ArgumentException($"Unknown type `{type.Name}`, cannot convert to `StackType`");
         }
+
+        public static StackType ToStackType(this Execution.Type type)
+        {
+            return type switch {
+                Execution.Type.Number => StackType.YololNumber,
+                Execution.Type.String => StackType.YololString,
+                Execution.Type.Error => StackType.StaticError,
+                _ => throw new ArgumentOutOfRangeException(nameof(type), $"Cannot convert type `{type}` into StackType")
+            };
+        }
     }
 }

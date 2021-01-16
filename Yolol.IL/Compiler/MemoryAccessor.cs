@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using Sigil;
 using Yolol.Execution;
 using Yolol.Grammar;
+using Yolol.Grammar.AST;
 using Yolol.IL.Extensions;
+using Yolol.Analysis.TreeVisitor.Inspection;
 using Type = Yolol.Execution.Type;
 
 namespace Yolol.IL.Compiler
@@ -16,7 +20,11 @@ namespace Yolol.IL.Compiler
         private readonly Local _internalArraySegmentLocal;
         private readonly InternalsMap _internals;
         private readonly ExternalsMap _externals;
-        private readonly IReadOnlyDictionary<VariableName, Type>? _staticTypes;
+
+        private readonly IReadOnlyDictionary<VariableName, Type> _knownTypes;
+
+        private readonly Dictionary<VariableName, TypedLocal> _cache;
+        private readonly HashSet<VariableName> _mutated;
 
         public MemoryAccessor(
             Emit<TEmit> emitter,
@@ -31,27 +39,158 @@ namespace Yolol.IL.Compiler
             _internalArraySegmentLocal = internalArraySegmentLocal;
             _internals = internals;
             _externals = externals;
-            _staticTypes = staticTypes;
+
+            _knownTypes = staticTypes ?? new Dictionary<VariableName, Type>();
+            _cache = new Dictionary<VariableName, TypedLocal>();
+            _mutated = new HashSet<VariableName>();
         }
         
+        public void Initialise(Line line)
+        {
+            // Find every variable that is loaded anywhere in the line
+            var loadFinder = new FindReadVariables();
+            loadFinder.Visit(line);
+            var loaded = new HashSet<VariableName>(loadFinder.Names);
+
+            // Find every variable that is written to anywhere in the line
+            var storeFinder = new FindAssignedVariables();
+            storeFinder.Visit(line);
+            var stored = new HashSet<VariableName>(storeFinder.Names);
+            _mutated.UnionWith(stored);
+
+            // All stored things will be written out at the end. That means we need to load
+            // everything that's loaded _or_ stored so that the write later is valid.
+            foreach (var variable in loaded.Concat(stored).Distinct())
+            {
+                var type = _knownTypes.TryGetValue(variable, out var t) ? t.ToStackType() : StackType.YololValue;
+                var local = _emitter.DeclareLocal(type.ToType(), $"CacheFor{variable.Name}");
+
+                EmitLoadValue(variable);
+                StaticUnbox(type);
+                _emitter.StoreLocal(local);
+                _cache.Add(variable, new TypedLocal(type, local));
+            }
+        }
+
+        public void Dispose()
+        {
+            // Write the cache back out to backing storage
+            foreach (var (name, local) in _cache)
+            {
+                if (_mutated.Contains(name))
+                {
+                    _emitter.LoadLocal(local.Local);
+                    _emitter.EmitCoerce(local.Type, StackType.YololValue);
+                    EmitStoreValue(name);
+                }
+
+                local.Local.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Emit code storing the value on the stack to memory
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="types"></param>
+        public void Store(VariableName name, TypeStack<TEmit> types)
+        {
+            var local = _cache[name];
+
+            // Convert to the correct type for this local
+            var inType = types.Peek;
+            ConvertType(inType, local.Type);
+            types.Pop(inType);
+
+            // Store in appropriate local
+            _emitter.StoreLocal(local.Local);
+        }
+
+        /// <summary>
+        /// Emit code to load a value onto the stack
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="types"></param>
+        public void Load(VariableName name, TypeStack<TEmit> types)
+        {
+            var local = _cache[name];
+            _emitter.LoadLocal(local.Local);
+            types.Push(local.Type);
+        }
+
+        #region conversions
+        /// <summary>
+        /// Convert a `Value` on the stack into another type (bypassing type checking)
+        /// </summary>
+        private void StaticUnbox(StackType to)
+        {
+            switch (to)
+            {
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(to), $"Cannot unbox to {to}");
+
+                case StackType.YololValue:
+                    return;
+
+                case StackType.YololNumber:
+                    // If this is a release build directly access the underlying field value, avoiding the dynamic type check. If it's
+                    // a debug build load it through the property (which will throw if type annotations are wrong).
+#if RELEASE
+                    _emitter.GetRuntimeFieldValue<TEmit, Value>("_number");
+#else
+                    _emitter.GetRuntimePropertyValue<TEmit, Value>(nameof(Value.Number));
+#endif
+                    return;
+
+                case StackType.YololString:
+                    // If this is a release build directly access the underlying field value, avoiding the dynamic type check. If it's
+                    // a debug build load it through the property (which will throw if type annotations are wrong).
+#if RELEASE
+                    _emitter.GetRuntimeFieldValue<TEmit, Value>("_string");
+#else
+                    _emitter.GetRuntimePropertyValue<TEmit, Value>(nameof(Value.String));
+#endif
+                    return;
+            }
+        }
+
+        private void ConvertType(StackType from, StackType to)
+        {
+            if (from == to)
+                return;
+
+            switch (from, to)
+            {
+                case (StackType.YololValue, _):
+                    StaticUnbox(to);
+                    break;
+
+                default:
+                    _emitter.EmitCoerce(from, to);
+                    break;
+            }
+        }
+        #endregion
+
+        #region direct memory access
         /// <summary>
         /// Load the array segment for this type of variable name onto the stack
         /// </summary>
         /// <param name="name"></param>
-        private void LoadArraySegment(VariableName name)
+        private void EmitLoadArraySegmentAddr(VariableName name)
         {
             // Load the correct array segment for whichever type of variable we're accessing
             if (name.IsExternal)
-                _emitter.LoadLocal(_externalArraySegmentLocal);
+                _emitter.LoadLocalAddress(_externalArraySegmentLocal);
             else
-                _emitter.LoadLocal(_internalArraySegmentLocal);
+                _emitter.LoadLocalAddress(_internalArraySegmentLocal);
         }
 
         /// <summary>
         /// Load the index in the array for this variable name onto the stack
         /// </summary>
         /// <param name="name"></param>
-        private void LoadIndex(VariableName name)
+        private void EmitLoadIndex(VariableName name)
         {
             var map = (name.IsExternal ? (Dictionary<string, int>)_externals : _internals);
             if (!map.TryGetValue(name.Name, out var idx))
@@ -62,77 +201,47 @@ namespace Yolol.IL.Compiler
             _emitter.LoadConstant(idx);
         }
 
-        /// <summary>
-        /// Emit code storing the value on the stack to memory
-        /// </summary>
-        /// <param name="name"></param>
-        /// <param name="types"></param>
-        public void EmitStore(VariableName name, TypeStack<TEmit> types)
+        private void EmitStoreValue(VariableName name)
         {
-            // Coerce whatever is on the stack into a `Value`
-            types.Coerce(StackType.YololValue);
-            types.Pop(StackType.YololValue);
+            using (var l = _emitter.DeclareLocal(typeof(Value)))
+            {
+                _emitter.StoreLocal(l);
 
-            // Put the array segment and index of this variable onto the stack
-            LoadArraySegment(name);
-            LoadIndex(name);
+                // Put the array segment and index of this variable onto the stack
+                EmitLoadArraySegmentAddr(name);
+                EmitLoadIndex(name);
 
-            // Put the value on the stack into the array segment
-            _emitter.CallRuntimeN(nameof(Runtime.SetArraySegmentIndex), typeof(Value), typeof(ArraySegment<Value>), typeof(int));
+                // Put the value back on the stack
+                _emitter.LoadLocal(l);
+            }
+
+            // Find the indexer for array segments
+            var set = typeof(ArraySegment<Value>).GetProperty("Item", BindingFlags.Instance | BindingFlags.Public)!.GetSetMethod(false);
+            _emitter.Call(set);
         }
 
-        /// <summary>
-        /// Emit code to load a value onto the stack
-        /// </summary>
-        /// <param name="name"></param>
-        /// <param name="types"></param>
-        public void EmitLoad(VariableName name, TypeStack<TEmit> types)
+        private void EmitLoadValue(VariableName name)
         {
             // Put the array segment and index of this variable onto the stack
-            LoadArraySegment(name);
-            LoadIndex(name);
+            EmitLoadArraySegmentAddr(name);
+            EmitLoadIndex(name);
 
             // Get the value from the array segment
-            _emitter.CallRuntimeN(nameof(Runtime.GetArraySegmentIndex), typeof(ArraySegment<Value>), typeof(int));
-
-            // Check if we statically know the type
-            if (_staticTypes != null && _staticTypes.TryGetValue(name, out var type))
-            {
-                if (type == Type.Number)
-                {
-                    // If this is a release build directly access the underlying field value, avoiding the dynamic type check. If it's
-                    // a debug build load it through the property (which will throw if type annotations are wrong).
-                    #if RELEASE
-                        _emitter.GetRuntimeFieldValue<TEmit, Value>("_number");
-                    #else
-                        _emitter.GetRuntimePropertyValue<TEmit, Value>(nameof(Value.Number));
-                    #endif
-
-                    types.Push(StackType.YololNumber);
-                }
-
-                if (type == Type.String)
-                {
-                    // If this is a release build directly access the underlying field value, avoiding the dynamic type check. If it's
-                    // a debug build load it through the property (which will throw if type annotations are wrong).
-                    #if RELEASE
-                        _emitter.GetRuntimeFieldValue<TEmit, Value>("_string");
-                    #else
-                        _emitter.GetRuntimePropertyValue<TEmit, Value>(nameof(Value.String));
-                    #endif
-
-                    types.Push(StackType.YololString);
-                }
-            }
-            else
-            {
-                // Didn't statically know the type, just emit a `Value`
-                types.Push(StackType.YololValue);
-            }
+            var get = typeof(ArraySegment<Value>).GetProperty("Item", BindingFlags.Instance | BindingFlags.Public)!.GetGetMethod(false);
+            _emitter.Call(get);
         }
+        #endregion
 
-        public void Dispose()
+        private class TypedLocal
         {
+            public StackType Type { get; }
+            public Local Local { get; }
+
+            public TypedLocal(StackType type, Local local)
+            {
+                Type = type;
+                Local = local;
+            }
         }
     }
 }

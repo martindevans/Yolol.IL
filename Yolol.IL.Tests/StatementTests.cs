@@ -106,5 +106,13 @@ namespace Yolol.IL.Tests
 
             Assert.AreEqual((Number)5040, st.GetVariable("b"));
         }
+
+        [TestMethod]
+        public void LoadInIf()
+        {
+            var (st, _) = Test("a=1 if false then a=2 b=a else c=a end");
+
+            Assert.AreEqual((Number)1, st.GetVariable("c"));
+        }
     }
 }

@@ -51,11 +51,6 @@ namespace Yolol.IL.Compiler
         }
 
         #region statements
-        private void EmitAssign(VariableName name)
-        {
-            _memory.EmitStore(name, _types);
-        }
-
         protected override StatementList Visit(StatementList list)
         {
             var strategies = new BaseVectorisationStrategy<TEmit>[] {
@@ -93,7 +88,7 @@ namespace Yolol.IL.Compiler
                 return ass;
 
             // Emit code to assign the value on the stack to the variable
-            EmitAssign(ass.Left);
+            _memory.Store(ass.Left, _types);
 
             return ass;
         }
@@ -103,16 +98,14 @@ namespace Yolol.IL.Compiler
             // Create labels for control flow like:
             //
             //     entry point
-            //     branch_to trueLabel or falseLabel
-            //     trueLabel:
-            //         true branch code
-            //         jmp exitLabel
+            //     branch_if_false falseLabel
+            //     true branch code
+            //     jmp exitLabel
             //     falseLabel:
             //         false branch code
             //         jmp exitlabel
             //     exitlabel:
             //
-            var trueLabel = _emitter.DefineLabel();
             var falseLabel = _emitter.DefineLabel();
             var exitLabel = _emitter.DefineLabel();
 
@@ -128,7 +121,6 @@ namespace Yolol.IL.Compiler
             _emitter.BranchIfFalse(falseLabel);
 
             // Emit true branch
-            _emitter.MarkLabel(trueLabel);
             Visit(@if.TrueBranch);
             _emitter.Branch(exitLabel);
 
@@ -261,7 +253,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(Grammar.AST.Expressions.Variable var)
         {
-            _memory.EmitLoad(var.Name, _types);
+            _memory.Load(var.Name, _types);
             return var;
         }
 
@@ -823,7 +815,7 @@ namespace Yolol.IL.Compiler
             }
 
             // Write value to variable
-            EmitAssign(expr.Name);
+            _memory.Store(expr.Name, _types);
 
             return expr;
         }
@@ -864,7 +856,7 @@ namespace Yolol.IL.Compiler
             }
 
             // Write value to variable
-            EmitAssign(expr.Name);
+            _memory.Store(expr.Name, _types);
 
             return expr;
         }
@@ -898,7 +890,7 @@ namespace Yolol.IL.Compiler
                 _types.Push(method!.ReturnType.ToStackType());
 
                 // Save the result
-                EmitAssign(inc.Name);
+                _memory.Store(inc.Name, _types);
             }
 
             // Special case increment here. Since we know the return value isn't going to be used it doesn't matter if it's a pre/post inc

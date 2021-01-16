@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Reflection;
 using Sigil;
+using Yolol.Execution;
 using Yolol.IL.Compiler;
+using Type = System.Type;
 
 namespace Yolol.IL.Extensions
 {
@@ -100,7 +102,7 @@ namespace Yolol.IL.Extensions
         public static void GetRuntimePropertyValue<TEmit, TType>(this Emit<TEmit> emitter, string propertyName)
         {
             // ReSharper disable once PossibleNullReferenceException
-            var method = typeof(TType).GetProperty(propertyName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static).GetMethod;
+            var method = typeof(TType).GetProperty(propertyName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static)!.GetMethod;
 
             using (var local = emitter.DeclareLocal(typeof(TType)))
             {
@@ -126,6 +128,85 @@ namespace Yolol.IL.Extensions
                 emitter.StoreLocal(local);
                 emitter.LoadLocalAddress(local);
                 emitter.LoadField(field);
+            }
+        }
+
+        /// <summary>
+        /// Coerce an object of the given type into another type
+        /// </summary>
+        /// <typeparam name="TEmit"></typeparam>
+        /// <param name="emitter"></param>
+        /// <param name="input"></param>
+        /// <param name="output"></param>
+        public static void EmitCoerce<TEmit>(this Emit<TEmit> emitter, StackType input, StackType output)
+        {
+            switch (input, output)
+            {
+                #region identity conversions
+                case (StackType.YololString, StackType.YololString):
+                case (StackType.YololNumber, StackType.YololNumber):
+                case (StackType.YololValue, StackType.YololValue):
+                case (StackType.Bool, StackType.Bool):
+                case (StackType.StaticError, StackType.StaticError):
+                    break;
+                #endregion
+
+                #region error conversion
+                case (StackType.StaticError, StackType.YololValue):
+                    emitter.CallRuntimeN(nameof(Runtime.ErrorToValue), typeof(StaticError));
+                    break;
+                #endregion
+
+                #region bool source
+                case (StackType.Bool, StackType.YololValue):
+                    emitter.NewObject<Value, bool>();
+                    break;
+
+                case (StackType.Bool, StackType.YololNumber):
+                    emitter.CallRuntimeN(nameof(Runtime.BoolToNumber), typeof(bool));
+                    break;
+                #endregion
+
+                #region string source
+                case (StackType.YololString, StackType.Bool):
+                    emitter.Pop();
+                    emitter.LoadConstant(true);
+                    break;
+
+                case (StackType.YololString, StackType.YololValue):
+                    emitter.NewObject<Value, YString>();
+                    break;
+                #endregion
+
+                #region YololNumber source
+                case (StackType.YololNumber, StackType.YololValue):
+                    emitter.NewObject<Value, Number>();
+                    break;
+
+                case (StackType.YololNumber, StackType.Bool):
+                    emitter.CallRuntimeN(nameof(Runtime.NumberToBool), typeof(Number));
+                    break;
+
+                case (StackType.YololNumber, StackType.YololString):
+                    emitter.CallRuntimeThis0<TEmit, Number>(nameof(Number.ToString));
+                    emitter.NewObject<YString, string>();
+                    break;
+                #endregion
+
+                #region YololValue source
+                case (StackType.YololValue, StackType.Bool): {
+                    using (var conditional = emitter.DeclareLocal(typeof(Value)))
+                    {
+                        emitter.StoreLocal(conditional);
+                        emitter.LoadLocalAddress(conditional);
+                        emitter.Call(typeof(Value).GetMethod(nameof(Value.ToBool)));
+                    }
+                    break;
+                }
+                #endregion
+
+                default:
+                    throw new InvalidOperationException($"Cannot coerce `{input}` -> `{output}`");
             }
         }
     }

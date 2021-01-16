@@ -118,7 +118,7 @@ namespace Yolol.IL.Extensions
             // Define a label that jumps to the end of the try/catch block
             var exitTry = emitter.DefineLabel("exit_try_catch");
 
-            // Create a memory access which manages reading and writing the memory arrays
+            // Create a memory accessor which manages reading and writing the memory arrays
             using (var accessor = new MemoryAccessor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(
                 emitter,
                 externals,
@@ -128,6 +128,8 @@ namespace Yolol.IL.Extensions
                 staticTypes
             ))
             {
+                accessor.Initialise(line);
+
                 // Convert the entire line into IL
                 var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, accessor, gotoLabel, runtimeErrorLabel, staticTypes);
                 converter.Visit(line);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Yolol.Execution;
 using Yolol.Grammar;
+using Yolol.IL.Compiler;
 using Yolol.IL.Extensions;
 
 namespace Yolol.IL.Tests
@@ -20,8 +21,8 @@ namespace Yolol.IL.Tests
 
         public static (EasyMachineState, int) Test(string line, int lineNumber = 1)
         {
-            var internals = new Dictionary<string, int>();
-            var externals = new Dictionary<string, int>();
+            var internals = new InternalsMap();
+            var externals = new ExternalsMap();
 
             //try
             //{

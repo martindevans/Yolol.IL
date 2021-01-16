@@ -83,9 +83,11 @@ namespace Benchmark
                 var lps = iterations / timer.Elapsed.TotalSeconds;
                 samples.Add(lps);
 
-                var avg = samples.AsEnumerable().Reverse().Take(10).Average();
-                var sum = samples.Sum(d => Math.Pow(d - avg, 2));
-                var stdDev = Math.Sqrt(sum / (samples.Count - 1));
+                var c = 10;
+                var s = samples.AsEnumerable().Reverse().Take(c).ToArray();
+                var avg = s.Average();
+                var sum = s.Sum(d => Math.Pow(d - avg, 2));
+                var stdDev = Math.Sqrt(sum / (c - 1));
 
                 Console.WriteLine($"{lps:#,##0.00} l/s | {avg:#,##0.00} avg | {stdDev:#,##0.00} dev | z: {_internals[_internalsMap["z"]]}");
             }

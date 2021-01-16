@@ -11,7 +11,7 @@ namespace Yolol.IL.Compiler
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool NumberToBool(Number num)
         {
-            return num != 0;
+            return num != Number.Zero;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -23,6 +23,7 @@ namespace Yolol.IL.Compiler
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Value ErrorToValue(StaticError err)
         {
+            // Casting a `StaticError` to a `Value` like this throws an ExecutionException 
             return err;
         }
         #endregion
@@ -41,20 +42,6 @@ namespace Yolol.IL.Compiler
         public static int GotoNumber(Number value, int maxLineNumber)
         {
             return Math.Min(maxLineNumber, Math.Max(1, (int)value));
-        }
-        #endregion
-
-        #region memory access
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void SetArraySegmentIndex(Value v, ArraySegment<Value> segment, int index)
-        {
-            segment[index] = v;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Value GetArraySegmentIndex(ArraySegment<Value> segment, int index)
-        {
-            return segment[index];
         }
         #endregion
 
