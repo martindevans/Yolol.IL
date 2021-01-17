@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
-using System.Runtime.Intrinsics;
 using Yolol.Execution;
 
 namespace Yolol.IL.Compiler
@@ -45,17 +44,7 @@ namespace Yolol.IL.Compiler
         }
         #endregion
 
-        #region vectors
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void ExtractVectorNumbers(Vector256<long> values, ArraySegment<Value> destination, int index0, int index1, int index2, int index3)
-        {
-            destination[index0] = Number.FromRaw(values.GetElement(0));
-            destination[index1] = Number.FromRaw(values.GetElement(1));
-            destination[index2] = Number.FromRaw(values.GetElement(2));
-            destination[index3] = Number.FromRaw(values.GetElement(3));
-        }
-        #endregion
-
+        #region bool
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool LogicalNot(bool value)
         {
@@ -67,5 +56,6 @@ namespace Yolol.IL.Compiler
         {
             return -(Number)value;
         }
+        #endregion
     }
 }
