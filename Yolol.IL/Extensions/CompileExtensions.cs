@@ -21,7 +21,7 @@ namespace Yolol.IL.Extensions
         private static Local StoreMemorySegments<T>(Emit<T> emitter, ushort arg)
         {
             emitter.LoadArgument(arg);
-            var local = emitter.DeclareLocal(typeof(ArraySegment<Value>));
+            var local = emitter.DeclareLocal<ArraySegment<Value>>();
             emitter.StoreLocal(local);
 
             return local;
@@ -104,7 +104,7 @@ namespace Yolol.IL.Extensions
             using var externals = StoreMemorySegments(emitter, 1);
 
             // Create a local to store the return address from inside the try/catch block
-            var retAddr = emitter.DeclareLocal<int>();
+            var retAddr = emitter.DeclareLocal<int>("ret_addr");
 
             // Create a label which any `goto` statements can use. They drop their destination PC on the stack and then jump to this label
             var gotoLabel = emitter.DefineLabel("encountered_goto");
