@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Sigil;
+using Yolol.Analysis.ControlFlowGraph;
+using Yolol.Analysis.ControlFlowGraph.Extensions;
+using Yolol.Analysis.Types;
 using Yolol.Execution;
 using Yolol.Grammar;
 using Yolol.Grammar.AST;
@@ -18,10 +22,10 @@ namespace Yolol.IL.Extensions
         /// <param name="emitter"></param>
         /// <param name="arg"></param>
         /// <returns></returns>
-        private static Local StoreMemorySegments<T>(Emit<T> emitter, ushort arg)
+        private static Local StoreMemorySegments<T>(Emit<T> emitter, ushort arg, string name)
         {
             emitter.LoadArgument(arg);
-            var local = emitter.DeclareLocal<ArraySegment<Value>>();
+            var local = emitter.DeclareLocal<ArraySegment<Value>>(name);
             emitter.StoreLocal(local);
 
             return local;
@@ -52,6 +56,9 @@ namespace Yolol.IL.Extensions
             // Compile code into the emitter
             line.Compile(emitter, lineNumber, maxLines, internalVariableMap, externalVariableMap, staticTypes);
 
+            //Console.WriteLine(emitter.Instructions());
+            //Console.WriteLine("-----------------------------");
+
             // Finally convert the IL into a runnable C# method for this line
             return emitter.CreateDelegate();
         }
@@ -62,18 +69,23 @@ namespace Yolol.IL.Extensions
         /// <param name="ast"></param>
         /// <param name="internals"></param>
         /// <param name="externals"></param>
+        /// <param name="maxLines"></param>
         /// <param name="staticTypes"></param>
         /// <returns></returns>
         public static Func<ArraySegment<Value>, ArraySegment<Value>, int>[] Compile(
             this Program ast,
             InternalsMap internals,
             ExternalsMap externals,
+            int maxLines = 20,
             IReadOnlyDictionary<VariableName, Type>? staticTypes = null
         )
         {
+            if (maxLines < ast.Lines.Count)
+                throw new ArgumentOutOfRangeException(nameof(maxLines), "ast has more than `maxLines` lines");
+
             var compiledLines = new Func<ArraySegment<Value>, ArraySegment<Value>, int>[ast.Lines.Count];
             for (var i = 0; i < ast.Lines.Count; i++)
-                compiledLines[i] = ast.Lines[i].Compile(i + 1, 20, internals, externals, staticTypes);
+                compiledLines[i] = ast.Lines[i].Compile(i + 1, maxLines, internals, externals, staticTypes);
             return compiledLines;
         }
 
@@ -100,8 +112,8 @@ namespace Yolol.IL.Extensions
             // Begin an exception block to catch Yolol runtime errors
             var exBlock = emitter.BeginExceptionBlock();
 
-            using var internals = StoreMemorySegments(emitter, 0);
-            using var externals = StoreMemorySegments(emitter, 1);
+            using var internals = StoreMemorySegments(emitter, 0, "Internals_Memory");
+            using var externals = StoreMemorySegments(emitter, 1, "Externals_Memory");
 
             // Create a local to store the return address from inside the try/catch block
             var retAddr = emitter.DeclareLocal<int>("ret_addr");
@@ -131,7 +143,7 @@ namespace Yolol.IL.Extensions
                 accessor.Initialise(line);
 
                 // Convert the entire line into IL
-                var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, accessor, gotoLabel, runtimeErrorLabel, staticTypes);
+                var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, accessor, gotoLabel, runtimeErrorLabel);
                 converter.Visit(line);
                 emitter.Branch(eolLabel);
 

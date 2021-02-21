@@ -5,6 +5,7 @@ using Yolol.Execution;
 using Yolol.Grammar;
 using Yolol.IL.Compiler;
 using Yolol.IL.Extensions;
+using Type = Yolol.Execution.Type;
 
 namespace Yolol.IL.Tests
 {
@@ -19,7 +20,7 @@ namespace Yolol.IL.Tests
             return result.Ok;
         }
 
-        public static (EasyMachineState, int) Test(string line, int lineNumber = 1)
+        public static (EasyMachineState, int) Test(string line, int lineNumber = 1, IReadOnlyDictionary<VariableName, Type>? staticTypes = null)
         {
             var internals = new InternalsMap();
             var externals = new ExternalsMap();
@@ -27,7 +28,7 @@ namespace Yolol.IL.Tests
             //try
             //{
                 var ast = Parse(line);
-                var compiled = ast.Lines[0].Compile(lineNumber, 20, internals, externals);
+                var compiled = ast.Lines[0].Compile(lineNumber, 20, internals, externals, staticTypes);
 
                 var i = new Value[internals.Count];
                 Array.Fill(i, new Value((Number)0));

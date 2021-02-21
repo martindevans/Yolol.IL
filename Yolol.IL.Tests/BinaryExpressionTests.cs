@@ -1,6 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Yolol.Execution;
-
 using static Yolol.IL.Tests.TestHelpers;
 
 namespace Yolol.IL.Tests
@@ -33,6 +32,14 @@ namespace Yolol.IL.Tests
             var (st, _) = Test("a = 3 + 2");
 
             Assert.AreEqual(5, st.GetVariable("a"));
+        }
+
+        [TestMethod]
+        public void AddBools()
+        {
+            var (st, _) = Test("x=4 a=(x!=x)+(x==x)");
+
+            Assert.AreEqual(1, st.GetVariable("a"));
         }
 
         [TestMethod]

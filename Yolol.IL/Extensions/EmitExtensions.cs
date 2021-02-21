@@ -13,14 +13,26 @@ namespace Yolol.IL.Extensions
         /// Call a method, taking a given set of arguments
         /// </summary>
         /// <typeparam name="TEmit"></typeparam>
+        /// <param name="emitter"></param>
+        /// <param name="methodName"></param>
+        /// <param name="args"></param>
+        public static void CallRuntimeN<TEmit>(this Emit<TEmit> emitter, Type tcallee, string methodName, params Type[] args)
+        {
+            var method = tcallee.GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, args, null);
+            emitter.Call(method);
+        }
+
+        /// <summary>
+        /// Call a method, taking a given set of arguments
+        /// </summary>
+        /// <typeparam name="TEmit"></typeparam>
         /// <typeparam name="TCallee"></typeparam>
         /// <param name="emitter"></param>
         /// <param name="methodName"></param>
         /// <param name="args"></param>
         public static void CallRuntimeN<TEmit, TCallee>(this Emit<TEmit> emitter, string methodName, params Type[] args)
         {
-            var method = typeof(TCallee).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, args, null);
-            emitter.Call(method);
+            CallRuntimeN(emitter, typeof(TCallee), methodName, args);
         }
 
         /// <summary>
@@ -45,7 +57,7 @@ namespace Yolol.IL.Extensions
         /// <param name="methodName"></param>
         public static void CallRuntimeThis0<TEmit, TCallee>(this Emit<TEmit> emitter, string methodName)
         {
-            using (var local = emitter.DeclareLocal(typeof(TCallee)))
+            using (var local = emitter.DeclareLocal(typeof(TCallee), "CallRuntimeThis0_Callee", false))
             {
                 emitter.StoreLocal(local);
                 emitter.LoadLocalAddress(local);
@@ -104,7 +116,7 @@ namespace Yolol.IL.Extensions
             // ReSharper disable once PossibleNullReferenceException
             var method = typeof(TType).GetProperty(propertyName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static)!.GetMethod;
 
-            using (var local = emitter.DeclareLocal(typeof(TType)))
+            using (var local = emitter.DeclareLocal(typeof(TType), "GetRuntimePropertyValue_Callee", false))
             {
                 emitter.StoreLocal(local);
                 emitter.LoadLocalAddress(local);
@@ -123,7 +135,7 @@ namespace Yolol.IL.Extensions
         {
             var field = typeof(TType).GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static);
             
-            using (var local = emitter.DeclareLocal(typeof(TType)))
+            using (var local = emitter.DeclareLocal(typeof(TType), "GetRuntimeFieldValue_Callee", false))
             {
                 emitter.StoreLocal(local);
                 emitter.LoadLocalAddress(local);
@@ -195,7 +207,7 @@ namespace Yolol.IL.Extensions
 
                 #region YololValue source
                 case (StackType.YololValue, StackType.Bool): {
-                    using (var conditional = emitter.DeclareLocal(typeof(Value)))
+                    using (var conditional = emitter.DeclareLocal(typeof(Value), "EmitCoerce_ValueToBool_Conditional", false))
                     {
                         emitter.StoreLocal(conditional);
                         emitter.LoadLocalAddress(conditional);

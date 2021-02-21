@@ -50,7 +50,6 @@ namespace Yolol.IL.Compiler
             // Find every variable that is loaded anywhere in the line
             var loadFinder = new FindReadVariables();
             loadFinder.Visit(line);
-            var loaded = new HashSet<VariableName>(loadFinder.Names);
 
             // Find every variable that is written to anywhere in the line
             var storeFinder = new FindAssignedVariables();
@@ -58,12 +57,21 @@ namespace Yolol.IL.Compiler
             var stored = new HashSet<VariableName>(storeFinder.Names);
             _mutated.UnionWith(stored);
 
+            // Find all the variables to cache (in this case, all variables access or mutated at all) and cache those variables in a local.
+            // This could filter down to a narrower set of variables to cache (all the infra is in place for that to work).
+            var accessCounts = loadFinder
+                .Counts
+                .Join(storeFinder.Counts, a => a.Key, a => a.Key, (a, b) => new KeyValuePair<VariableName, uint>(a.Key, a.Value + b.Value))
+                .Where(a => a.Value > 0)
+                .Select(a => a.Key)
+                .ToArray();
+
             // All stored things will be written out at the end. That means we need to load
             // everything that's loaded _or_ stored so that the write later is valid.
-            foreach (var variable in loaded.Concat(stored).Distinct())
+            foreach (var variable in accessCounts)
             {
                 var type = _knownTypes.TryGetValue(variable, out var t) ? t.ToStackType() : StackType.YololValue;
-                var local = _emitter.DeclareLocal(type.ToType(), $"CacheFor{variable.Name}");
+                var local = _emitter.DeclareLocal(type.ToType(), $"CacheFor_{variable.Name}", false);
 
                 EmitLoadValue(variable);
                 StaticUnbox(type);
@@ -95,15 +103,27 @@ namespace Yolol.IL.Compiler
         /// <param name="types"></param>
         public void Store(VariableName name, TypeStack<TEmit> types)
         {
-            var local = _cache[name];
+            if (_cache.ContainsKey(name))
+            {
+                var local = _cache[name];
 
-            // Convert to the correct type for this local
-            var inType = types.Peek;
-            ConvertType(inType, local.Type);
-            types.Pop(inType);
+                // Convert to the correct type for this local
+                var inType = types.Peek;
+                ConvertType(inType, local.Type);
+                types.Pop(inType);
 
-            // Store in appropriate local
-            _emitter.StoreLocal(local.Local);
+                // Store in appropriate local
+                _emitter.StoreLocal(local.Local);
+            }
+            else
+            {
+                // Immediately convert type to YololValue
+                ConvertType(types.Peek, StackType.YololValue);
+                types.Pop(types.Peek);
+                
+                // Write directly to backing store
+                EmitStoreValue(name);
+            }
         }
 
         /// <summary>
@@ -113,9 +133,26 @@ namespace Yolol.IL.Compiler
         /// <param name="types"></param>
         public void Load(VariableName name, TypeStack<TEmit> types)
         {
-            var local = _cache[name];
-            _emitter.LoadLocal(local.Local);
-            types.Push(local.Type);
+            if (_cache.ContainsKey(name))
+            {
+                var local = _cache[name];
+                _emitter.LoadLocal(local.Local);
+                types.Push(local.Type);
+            }
+            else
+            {
+                // Load fro backing store
+                EmitLoadValue(name);
+
+                // Check if we know what type this variable is
+                var type = StackType.YololValue;
+                if (_knownTypes.TryGetValue(name, out var kType))
+                    type = kType.ToStackType();
+
+                // Unbox it to that type (bypassing dynamic type checking)
+                StaticUnbox(type);
+                types.Push(type);
+            }
         }
 
         #region conversions
@@ -203,7 +240,7 @@ namespace Yolol.IL.Compiler
 
         private void EmitStoreValue(VariableName name)
         {
-            using (var l = _emitter.DeclareLocal(typeof(Value)))
+            using (var l = _emitter.DeclareLocal(typeof(Value), "EmitStoreValueTmp", false))
             {
                 _emitter.StoreLocal(l);
 

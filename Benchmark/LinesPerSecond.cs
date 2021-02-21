@@ -13,12 +13,12 @@ namespace Benchmark
     public class LinesPerSecond
     {
         // a=1 b=2 c=3 d=4 e=5 f=6 g=7 h=8
-        // z=a*b*c*d y=e*f*g*h
+        // z=a*c-b*d y=e*f-g*h z=x+y z/=0
         // a+=1 b++ c+=1 d++
         // goto 2
         private readonly string[] _program = {
             "a=1 b=2 c=3 d=4 e=5 f=6 g=7 h=8",
-            "x=a*c-b*d y=e*f-g*h z=x+y",
+            "x=a*c-b*d y=e*f-g*h z=x+y z/=0",
             "a++ b++ c++ d++ e++ f++ g++ h++ a++ b++ c++ d++ e++ f++ g++ h++ a++ b++ c++ d++ e++ f++ g++ h++ a++ b++ c++ d++ e++ f++ g++ h++",
             "goto2"
         };
@@ -48,7 +48,7 @@ namespace Benchmark
 
             _internalsMap = new InternalsMap();
             _externalsMap = new ExternalsMap();
-            _compiledLines = ast.Compile(_internalsMap, _externalsMap, staticTypes);
+            _compiledLines = ast.Compile(_internalsMap, _externalsMap, 20, staticTypes);
 
             _internals = new Value[_internalsMap.Count];
             Array.Fill(_internals, new Value((Number)0));

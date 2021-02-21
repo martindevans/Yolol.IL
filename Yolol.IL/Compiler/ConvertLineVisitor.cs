@@ -6,7 +6,6 @@ using Sigil;
 using Yolol.Analysis.ControlFlowGraph.AST;
 using Yolol.Analysis.TreeVisitor;
 using Yolol.Execution;
-using Yolol.Grammar;
 using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
 using Yolol.Grammar.AST.Expressions.Unary;
@@ -25,7 +24,6 @@ namespace Yolol.IL.Compiler
         private readonly MemoryAccessor<TEmit> _memory;
         private readonly Label _gotoLabel;
         private readonly Label _runtimeErrorLabel;
-        private readonly IReadOnlyDictionary<VariableName, Execution.Type> _staticTypes;
 
         private readonly TypeStack<TEmit> _types;
 
@@ -36,8 +34,7 @@ namespace Yolol.IL.Compiler
             int maxLineNumber,
             MemoryAccessor<TEmit> memory,
             Label gotoLabel,
-            Label runtimeErrorLabel,
-            IReadOnlyDictionary<VariableName, Execution.Type>? staticTypes
+            Label runtimeErrorLabel
         )
         {
             _emitter = emitter;
@@ -45,7 +42,6 @@ namespace Yolol.IL.Compiler
             _memory = memory;
             _gotoLabel = gotoLabel;
             _runtimeErrorLabel = runtimeErrorLabel;
-            _staticTypes = staticTypes ?? new Dictionary<VariableName, Execution.Type>();
 
             _types = new TypeStack<TEmit>(_emitter);
         }
@@ -343,7 +339,7 @@ namespace Yolol.IL.Compiler
             // Emit code
             _types.Pop(right);
             _types.Pop(left);
-            var emitType = (left, right) switch {
+            var (emitType, fallible) = (left, right) switch {
 
                 (StackType.Bool, StackType.Bool) => emitBoolBool.ConvertBinary(_emitter, errorLabel),
                 (StackType.Bool, StackType.YololNumber) => emitBoolNum.ConvertBinary(_emitter, errorLabel),
@@ -369,21 +365,24 @@ namespace Yolol.IL.Compiler
             };
             _types.Push(emitType!.ToStackType());
 
-            // Jump past the error handler
-            _emitter.Branch(noErrorLabel);
+            if (fallible)
+            {
+                // Jump past the error handler
+                _emitter.Branch(noErrorLabel);
 
-            // Create the error handler which empties the stack
-            _emitter.MarkLabel(errorLabel);
+                // Create the error handler which empties the stack
+                _emitter.MarkLabel(errorLabel);
 
-            // If execution arrives here a runtime error has occured. Empty the stack and jump to the global error handler.
-            // There is one less item on the stack than you'd think, because the result of this operation was pushed onto the
-            // type tracking stack (but isn't really there in the error case)
-            for (var i = 0; i < _types.Count - 1; i++)
-                _emitter.Pop();
-            _emitter.Branch(_runtimeErrorLabel);
+                // If execution arrives here a runtime error has occured. Empty the stack and jump to the global error handler.
+                // There is one less item on the stack than you'd think, because the result of this operation was pushed onto the
+                // type tracking stack (but isn't really there in the error case)
+                for (var i = 0; i < _types.Count - 1; i++)
+                    _emitter.Pop();
+                _emitter.Branch(_runtimeErrorLabel);
 
-            // Mark label to jump past error handler
-            _emitter.MarkLabel(noErrorLabel);
+                // Mark label to jump past error handler
+                _emitter.MarkLabel(noErrorLabel);
+            }
 
             return expr;
         }
@@ -643,7 +642,7 @@ namespace Yolol.IL.Compiler
             // Emit code
             var p = _types.Peek;
             _types.Pop(p);
-            var emitType = p switch {
+            var (emitType, fallible) = p switch {
                 StackType.Bool => emitBool.ConvertUnary(_emitter, errorLabel),
                 StackType.YololNumber => emitNum.ConvertUnary(_emitter, errorLabel),
                 StackType.YololString => emitStr.ConvertUnary(_emitter, errorLabel),
@@ -652,21 +651,24 @@ namespace Yolol.IL.Compiler
             };
             _types.Push(emitType!.ToStackType());
 
-            // Jump past the error handler
-            _emitter.Branch(noErrorLabel);
+            if (fallible)
+            {
+                // Jump past the error handler
+                _emitter.Branch(noErrorLabel);
 
-            // Create the error handler which empties the stack
-            _emitter.MarkLabel(errorLabel);
+                // Create the error handler which empties the stack
+                _emitter.MarkLabel(errorLabel);
 
-            // If execution arrives here a runtime error has occured. Empty the stack and jump to the global error handler.
-            // There is one less item on the stack than you'd think, because the result of this operation was pushed onto the
-            // type tracking stack (but isn't really there in the error case)
-            for (var i = 0; i < _types.Count - 1; i++)
-                _emitter.Pop();
-            _emitter.Branch(_runtimeErrorLabel);
+                // If execution arrives here a runtime error has occured. Empty the stack and jump to the global error handler.
+                // There is one less item on the stack than you'd think, because the result of this operation was pushed onto the
+                // type tracking stack (but isn't really there in the error case)
+                for (var i = 0; i < _types.Count - 1; i++)
+                    _emitter.Pop();
+                _emitter.Branch(_runtimeErrorLabel);
 
-            // Mark label to jump past error handler
-            _emitter.MarkLabel(noErrorLabel);
+                // Mark label to jump past error handler
+                _emitter.MarkLabel(noErrorLabel);
+            }
 
             return expr;
         }
@@ -781,10 +783,12 @@ namespace Yolol.IL.Compiler
             if (willThrow != null)
             {
                 // Duplicate the item on the top of the stack
-                using var dup = _emitter.DeclareLocal(peek);
-                _emitter.StoreLocal(dup);
-                _emitter.LoadLocal(dup);
-                _emitter.LoadLocal(dup);
+                using (var dup = _emitter.DeclareLocal(peek, "StackPeek", false))
+                {
+                    _emitter.StoreLocal(dup);
+                    _emitter.LoadLocal(dup);
+                    _emitter.LoadLocal(dup);
+                }
 
                 // Call the "will throw" method
                 _emitter.Call(willThrow);
@@ -875,7 +879,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseStatement Visit(ExpressionWrapper expr)
         {
-            void Inc(BaseIncrement inc)
+            bool Inc(BaseIncrement inc)
             {
                 // Put the value to increment on the stack
                 Visit(new Grammar.AST.Expressions.Variable(inc.Name));
@@ -883,6 +887,8 @@ namespace Yolol.IL.Compiler
                 // Find the increment method on whatever type it is
                 var peek = _types.Peek.ToType();
                 var method = peek.GetMethod("op_Increment", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { peek }, null);
+                if (method == null)
+                    return false;
 
                 // Do the work
                 _emitter.Call(method);
@@ -891,6 +897,8 @@ namespace Yolol.IL.Compiler
 
                 // Save the result
                 _memory.Store(inc.Name, _types);
+
+                return true;
             }
 
             // Special case increment here. Since we know the return value isn't going to be used it doesn't matter if it's a pre/post inc
@@ -899,7 +907,9 @@ namespace Yolol.IL.Compiler
             switch (expr.Expression)
             {
                 case BaseIncrement inc:
-                    Inc(inc);
+                    // If special case failed, fall back to default handling
+                    if (!Inc(inc))
+                        goto default;
                     return expr;
 
                 default:
