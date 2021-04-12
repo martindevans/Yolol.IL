@@ -45,6 +45,32 @@ namespace Yolol.IL.Tests
             //    throw;
             //}
         }
+
+        public static (EasyMachineState, int) Test(string[] lines, int iterations, IReadOnlyDictionary<VariableName, Type>? staticTypes = null)
+        {
+            var internals = new InternalsMap();
+            var externals = new ExternalsMap();
+
+            var i = new Value[internals.Count];
+            Array.Fill(i, new Value((Number)0));
+            var e = new Value[externals.Count];
+            Array.Fill(e, new Value((Number)0));
+
+            var prog = Parser.ParseProgram(string.Join("\n", lines)).Ok;
+            var compiled = prog.Compile(internals, externals);
+
+            var pc = 0;
+            for (var j = 0; j < iterations; j++)
+            {
+                pc = compiled[pc](i, e) - 1;
+
+                if (externals.TryGetValue("done", out var doneIndex))
+                    if (e[doneIndex].ToBool())
+                        break;
+            }
+
+            return (new EasyMachineState(i, e, internals, externals), pc);
+        }
     }
 
     public class EasyMachineState

@@ -12,15 +12,13 @@ namespace Benchmark
 {
     public class LinesPerSecond
     {
-        // a=1 b=2 c=3 d=4 e=5 f=6 g=7 h=8
-        // z=a*c-b*d y=e*f-g*h z=x+y z/=0
-        // a+=1 b++ c+=1 d++
-        // goto 2
+        // a="abcdefghijklmnopqrstuvwxyz" b=0
+        // c=a---a b++ goto2
+        // z=b goto1
         private readonly string[] _program = {
-            "a=1 b=2 c=3 d=4 e=5 f=6 g=7 h=8",
-            "x=a*c-b*d y=e*f-g*h z=x+y z/=0",
-            "a++ b++ c++ d++ e++ f++ g++ h++ a++ b++ c++ d++ e++ f++ g++ h++ a++ b++ c++ d++ e++ f++ g++ h++ a++ b++ c++ d++ e++ f++ g++ h++",
-            "goto2"
+            "a=\"abcdefghijklmnopqrstuvwxyz\" b=0",
+            "c=a---a b++ goto2",
+            "z=b goto1",
         };
 
         private readonly Func<ArraySegment<Value>, ArraySegment<Value>, int>[] _compiledLines;
@@ -35,15 +33,10 @@ namespace Benchmark
             var ast = Parse(_program);
 
             var staticTypes = new Dictionary<VariableName, Yolol.Execution.Type> {
-                { new VariableName("a"), Yolol.Execution.Type.Number },
-                { new VariableName("b"), Yolol.Execution.Type.Number },
-                { new VariableName("c"), Yolol.Execution.Type.Number },
-                { new VariableName("d"), Yolol.Execution.Type.Number },
-                { new VariableName("e"), Yolol.Execution.Type.Number },
-                { new VariableName("f"), Yolol.Execution.Type.Number },
-                { new VariableName("g"), Yolol.Execution.Type.Number },
-                { new VariableName("h"), Yolol.Execution.Type.Number },
-                { new VariableName("z"), Yolol.Execution.Type.Number },
+                //{ new VariableName("a"), Yolol.Execution.Type.String },
+                //{ new VariableName("b"), Yolol.Execution.Type.Number },
+                //{ new VariableName("c"), Yolol.Execution.Type.String },
+                //{ new VariableName("z"), Yolol.Execution.Type.Number },
             };
 
             _internalsMap = new InternalsMap();

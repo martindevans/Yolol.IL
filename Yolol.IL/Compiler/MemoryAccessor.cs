@@ -8,12 +8,13 @@ using Yolol.Grammar;
 using Yolol.Grammar.AST;
 using Yolol.IL.Extensions;
 using Yolol.Analysis.TreeVisitor.Inspection;
+using Yolol.Analysis.Types;
 using Type = Yolol.Execution.Type;
 
 namespace Yolol.IL.Compiler
 {
     internal class MemoryAccessor<TEmit>
-        : IDisposable
+        : IDisposable, ITypeAssignments
     {
         private readonly Emit<TEmit> _emitter;
         private readonly Local _externalArraySegmentLocal;
@@ -279,6 +280,13 @@ namespace Yolol.IL.Compiler
                 Type = type;
                 Local = local;
             }
+        }
+
+        Type? ITypeAssignments.TypeOf(VariableName name)
+        {
+            if (_knownTypes.TryGetValue(name, out var type))
+                return type;
+            return default;
         }
     }
 }

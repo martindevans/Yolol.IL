@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Sigil;
 using Yolol.Analysis.ControlFlowGraph.AST;
 using Yolol.Analysis.TreeVisitor;
+using Yolol.Analysis.Types;
 using Yolol.Execution;
+using Yolol.Execution.Attributes;
 using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
 using Yolol.Grammar.AST.Expressions.Unary;
@@ -406,24 +409,145 @@ namespace Yolol.IL.Compiler
             (a, b) => a + b
         );
 
-        protected override BaseExpression Visit(Subtract sub) => ConvertBinaryExpr(sub,
-            (a, b) => (Number)a - b,
-            (a, b) => (Number)a - b,
-            (a, b) => (Number)a - b,
-            (a, b) => (Number)a - b,
-            (a, b) => a - b,
-            (a, b) => a - b,
-            (a, b) => a - b,
-            (a, b) => a - b,
-            (a, b) => a - b,
-            (a, b) => a - b,
-            (a, b) => a - b,
-            (a, b) => a - b,
-            (a, b) => a - b,
-            (a, b) => a - b,
-            (a, b) => a - b,
-            (a, b) => a - b
-        );
+        protected override BaseExpression Visit(Subtract sub)
+        {
+            if (sub.Left is PostDecrement pd && sub.Right is Grammar.AST.Expressions.Variable var && pd.Name.Equals(var.Name))
+                return UnaryTripleSubtract(var);
+
+            return ConvertBinaryExpr(sub,
+                (a, b) => (Number)a - b,
+                (a, b) => (Number)a - b,
+                (a, b) => (Number)a - b,
+                (a, b) => (Number)a - b,
+                (a, b) => a - b,
+                (a, b) => a - b,
+                (a, b) => a - b,
+                (a, b) => a - b,
+                (a, b) => a - b,
+                (a, b) => a - b,
+                (a, b) => a - b,
+                (a, b) => a - b,
+                (a, b) => a - b,
+                (a, b) => a - b,
+                (a, b) => a - b,
+                (a, b) => a - b
+            );
+        }
+
+        /// <summary>
+        /// Special case handling for `a---a`
+        /// </summary>
+        /// <param name="variable"></param>
+        /// <returns></returns>
+        private BaseExpression UnaryTripleSubtract(Grammar.AST.Expressions.Variable variable) => EmitUnaryExpr(new Bracketed(variable), errorLabel =>
+        {
+            void EmitNum()
+            {
+                // Pop value off stack, it'll be reloaded later
+                // This isn't ideal - we've already done a runtime type check to get here and this forces the `add` method to do it again!
+                _emitter.Pop();
+
+                // Rewrite `a-- - a` into `a-- + -a` to avoid this optimisation being detected again and causing an infinite loop
+                Visit(new Add(new PostDecrement(variable.Name), new Negate(variable)));
+            }
+
+            void EmitStr()
+            {
+                // Get the "will throw" method to check if the decrement throws
+                var dec = typeof(YString).GetMethod("op_Decrement", BindingFlags.Public | BindingFlags.Static)!;
+                var willThrow = dec.TryGetWillThrowMethod(typeof(YString))!;
+
+                // Jump to error handling if necessary
+                using (var willThrowLocal = _emitter.DeclareLocal(typeof(YString), "will_throw_tmp"))
+                {
+                    _emitter.StoreLocal(willThrowLocal);
+                    _emitter.LoadLocal(willThrowLocal);
+                    _emitter.Call(willThrow);
+                    _emitter.BranchIfTrue(errorLabel);
+
+                    // Decrement string and save changed value
+                    _emitter.LoadLocal(willThrowLocal);
+                    _emitter.CallRuntimeN<TEmit, YString>("op_Decrement", typeof(YString));
+                    _types.Push(StackType.YololString);
+                    _memory.Store(variable.Name, _types);
+
+                    // Get last character from string
+                    _emitter.LoadLocal(willThrowLocal);
+                    _emitter.CallRuntimeThis0<TEmit, YString>(nameof(YString.LastCharacter));
+                    _types.Push(StackType.YololString);
+                }
+            }
+
+            void EmitVal()
+            {
+                var numLabel = _emitter.DefineLabel();
+                var endLabel = _emitter.DefineLabel();
+
+                using (var valueLocal = _emitter.DeclareLocal(typeof(Value), "TripleSubtractTemp"))
+                {
+                    _emitter.StoreLocal(valueLocal);
+
+                    // Check type and jump to branch for string
+                    _emitter.LoadLocal(valueLocal);
+                    _emitter.GetRuntimePropertyValue<TEmit, Value>(nameof(Value.Type));
+                    _emitter.LoadConstant((int)Execution.Type.Number);
+                    _emitter.BranchIfEqual(numLabel);
+
+                    // Fallthrough to here means it's a string
+                    _emitter.LoadLocal(valueLocal);
+                    _emitter.GetRuntimePropertyValue<TEmit, Value>(nameof(Value.String));
+                    EmitStr();
+                    _types.Pop(StackType.YololString);
+                    _emitter.EmitCoerce(StackType.YololString, StackType.YololValue);
+                    _emitter.Branch(endLabel);
+
+                    // Jump here means it's a number
+                    _emitter.MarkLabel(numLabel);
+                    _emitter.LoadLocal(valueLocal);
+                    _emitter.GetRuntimePropertyValue<TEmit, Value>(nameof(Value.Number));
+                    EmitNum();
+                    _types.Pop(StackType.YololValue);
+                }
+
+                // However we got here, there's a value left on the stack
+                _emitter.MarkLabel(endLabel);
+                _types.Push(StackType.YololValue);
+            }
+
+            // Discover what type we're working with
+            var p = _types.Peek;
+            _types.Pop(p);
+
+            bool fallible;
+            switch (p)
+            {
+                case StackType.Bool:
+                    fallible = false;
+                    _emitter.EmitCoerce(StackType.Bool, StackType.YololNumber);
+                    EmitNum();
+                    break;
+
+                case StackType.YololNumber:
+                    fallible = false;
+                    EmitNum();
+                    break;
+
+                case StackType.YololString:
+                    fallible = true;
+                    EmitStr();
+                    break;
+
+                case StackType.YololValue:
+                    fallible = true;
+                    EmitVal();
+                    break;
+
+                default:
+                    throw new InvalidProgramException($"Cannot triple subtract `StackType.{p}`");
+            }
+
+            return fallible;
+        });
 
         protected override BaseExpression Visit(Multiply mul) => ConvertBinaryExpr(mul,
             (a, b) => (Number)a * b,
@@ -625,52 +749,63 @@ namespace Yolol.IL.Compiler
         #endregion
 
         #region unary expressions
+        private BaseExpression EmitUnaryExpr<T>(T expr, Func<Label, bool> emit)
+            where T : BaseUnaryExpression
+        {
+             if (TryStaticEvaluate(expr, out var runtimeError))
+                return runtimeError ? new ErrorExpression() : (BaseExpression)expr;
+
+             // Visit the inner expression of the unary
+             if (Visit(expr.Parameter) is ErrorExpression)
+                 return new ErrorExpression();
+
+             // Create some labels for error handling stuff
+             var errorLabel = _emitter.DefineLabel();
+             var noErrorLabel = _emitter.DefineLabel();
+
+             // Emit code
+             var fallible = emit(errorLabel);
+
+             if (fallible)
+             {
+                 // Jump past the error handler
+                 _emitter.Branch(noErrorLabel);
+
+                 // Create the error handler which empties the stack
+                 _emitter.MarkLabel(errorLabel);
+
+                 // If execution arrives here a runtime error has occured. Empty the stack and jump to the global error handler.
+                 // There is one less item on the stack than you'd think, because the result of this operation was pushed onto the
+                 // type tracking stack (but isn't really there in the error case)
+                 for (var i = 0; i < _types.Count - 1; i++)
+                     _emitter.Pop();
+                 _emitter.Branch(_runtimeErrorLabel);
+
+                 // Mark label to jump past error handler
+                 _emitter.MarkLabel(noErrorLabel);
+             }
+
+             return expr;
+        }
+
         private BaseExpression ConvertUnaryExpr<T, TB, TN, TS, TV>(T expr, Expression<Func<bool, TB>> emitBool, Expression<Func<Number, TN>> emitNum, Expression<Func<YString, TS>> emitStr, Expression<Func<Value, TV>> emitVal)
             where T : BaseUnaryExpression
         {
-            if (TryStaticEvaluate(expr, out var runtimeError))
-                return runtimeError ? new ErrorExpression() : (BaseExpression)expr;
+            return EmitUnaryExpr(expr, errorLabel => {
+                // Emit code
+                var p = _types.Peek;
+                _types.Pop(p);
+                var (emitType, fallible) = p switch {
+                    StackType.Bool => emitBool.ConvertUnary(_emitter, errorLabel),
+                    StackType.YololNumber => emitNum.ConvertUnary(_emitter, errorLabel),
+                    StackType.YololString => emitStr.ConvertUnary(_emitter, errorLabel),
+                    StackType.YololValue => emitVal.ConvertUnary(_emitter, errorLabel),
+                    _ => throw new InvalidOperationException($"{expr.GetType().Name}({p})")
+                };
+                _types.Push(emitType!.ToStackType());
 
-            // Visit the inner expression of the unary
-            if (Visit(expr.Parameter) is ErrorExpression)
-                return new ErrorExpression();
-
-            // Create some labels for error handling stuff
-            var errorLabel = _emitter.DefineLabel();
-            var noErrorLabel = _emitter.DefineLabel();
-
-            // Emit code
-            var p = _types.Peek;
-            _types.Pop(p);
-            var (emitType, fallible) = p switch {
-                StackType.Bool => emitBool.ConvertUnary(_emitter, errorLabel),
-                StackType.YololNumber => emitNum.ConvertUnary(_emitter, errorLabel),
-                StackType.YololString => emitStr.ConvertUnary(_emitter, errorLabel),
-                StackType.YololValue => emitVal.ConvertUnary(_emitter, errorLabel),
-                _ => throw new InvalidOperationException($"{expr.GetType().Name}({p})")
-            };
-            _types.Push(emitType!.ToStackType());
-
-            if (fallible)
-            {
-                // Jump past the error handler
-                _emitter.Branch(noErrorLabel);
-
-                // Create the error handler which empties the stack
-                _emitter.MarkLabel(errorLabel);
-
-                // If execution arrives here a runtime error has occured. Empty the stack and jump to the global error handler.
-                // There is one less item on the stack than you'd think, because the result of this operation was pushed onto the
-                // type tracking stack (but isn't really there in the error case)
-                for (var i = 0; i < _types.Count - 1; i++)
-                    _emitter.Pop();
-                _emitter.Branch(_runtimeErrorLabel);
-
-                // Mark label to jump past error handler
-                _emitter.MarkLabel(noErrorLabel);
-            }
-
-            return expr;
+                return fallible;
+            });
         }
 
         protected override BaseExpression Visit(Factorial fac) => ConvertUnaryExpr(fac,

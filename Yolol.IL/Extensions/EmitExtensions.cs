@@ -14,6 +14,7 @@ namespace Yolol.IL.Extensions
         /// </summary>
         /// <typeparam name="TEmit"></typeparam>
         /// <param name="emitter"></param>
+        /// <param name="tcallee"></param>
         /// <param name="methodName"></param>
         /// <param name="args"></param>
         public static void CallRuntimeN<TEmit>(this Emit<TEmit> emitter, Type tcallee, string methodName, params Type[] args)
