@@ -16,6 +16,7 @@ namespace Benchmark
         private readonly MachineState _state;
 
         private readonly Func<ArraySegment<Value>, ArraySegment<Value>, int>[] _compiledLines;
+        private readonly Func<ArraySegment<Value>, ArraySegment<Value>, int>[] _compiledProgramLine;
         private readonly Value[] _internals;
         private readonly Value[] _externals;
 
@@ -48,6 +49,10 @@ namespace Benchmark
 
             _internals = new Value[internalsPerLine.Count];
             _externals = new Value[externalsPerLine.Count];
+
+            var internalsProgram = new InternalsMap();
+            var externalsProgram = new ExternalsMap();
+            _compiledProgramLine = _ast.Compile(internalsProgram, externalsProgram, 20, types);
         }
 
         private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
@@ -106,6 +111,19 @@ namespace Benchmark
             return (_internals, _externals);
         }
 
+        [Benchmark]
+        public (Value[] _internals, Value[] _externals) CompileProgram()
+        {
+            Array.Fill(_externals, new Value((Number)0));
+            Array.Fill(_internals, new Value((Number)0));
+
+            var pc = 0;
+            for (var i = 0; i < 5; i++)
+                pc = _compiledProgramLine[pc](_internals, _externals) - 1;
+
+            return (_internals, _externals);
+        }
+
         [Params(0)]
         public Value ExternalA { get; set; }
 
@@ -113,21 +131,25 @@ namespace Benchmark
         public Value ExternalB { get; set; }
 
         [Benchmark]
-        public Value Rewrite()
+        public (Value[] _internals, Value[] _externals) Rewrite()
         {
+            Array.Fill(_externals, new Value((Number)0));
+            Array.Fill(_internals, new Value((Number)0));
+
             var a = ExternalA;
             var b = ExternalB;
             var c = a * b;
 
             var d = c * c;
-            var e = (Value)(Number)Math.Sqrt((double)(c + c + d));
+            var e = (Value)(Number)Math.Sqrt((float)(c + c + d));
 
             e++;
 
             var f = e / 2;
 
-            var g = f;
-            return g;
+            _externals[0] = f;
+
+            return (_internals, _externals);
         }
     }
 }

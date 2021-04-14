@@ -40,3 +40,18 @@
 |        Rewrite |         0 |         0 |   142.3 ns |  0.35 ns |  0.28 ns |
 
 5,051,793.27 avg | 222,339.31 dev
+
+# V4.2.2
+ - YString
+ - Eliminated type checks
+ - Caching memory accesses
+ - Eliminated runtime error exceptions
+ - dotnet5.0
+ - Reduced emitted code size (eliminating unnecessary error handling)
+
+|         Method | ExternalA | ExternalB |       Mean |    Error |   StdDev |
+|--------------- |---------- |---------- |-----------:|---------:|---------:|
+|      Interpret |         0 |         0 | 2,648.3 ns | 28.26 ns | 25.05 ns |
+|   CompileLines |         0 |         0 |   244.7 ns |  0.74 ns |  0.66 ns |
+| CompileProgram |         0 |         0 |   248.5 ns |  0.77 ns |  0.64 ns |
+|        Rewrite |         0 |         0 |   134.1 ns |  0.37 ns |  0.34 ns |

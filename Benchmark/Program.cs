@@ -7,11 +7,11 @@ namespace Benchmark
     {
         public static void Main(string[] args)
         {
-            //var config = DefaultConfig.Instance;
-            //var summary = BenchmarkRunner.Run<CompareInterpreter>(config);
+            var config = DefaultConfig.Instance;
+            var summary = BenchmarkRunner.Run<CompareInterpreter>(config);
 
-            var lps = new LinesPerSecond();
-            lps.Run();
+            //var lps = new LinesPerSecond();
+            //lps.Run();
 
             //new Yolol.IL.Serializer().Save("foo");
         }

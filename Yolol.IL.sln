@@ -9,7 +9,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Yolol.IL.Tests", "Yolol.IL.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Benchmark", "Benchmark\Benchmark.csproj", "{5CE5FFF8-24C5-4A91-8548-A5BB659FD739}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Compiler", "Compiler\Compiler.csproj", "{78F8B070-3A1D-4E40-8985-67B9039D4563}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Compiler", "Compiler\Compiler.csproj", "{78F8B070-3A1D-4E40-8985-67B9039D4563}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8C9C4F51-B85D-4AC9-8E5C-4879B4F871B7}"
+	ProjectSection(SolutionItems) = preProject
+		Benchmarks.txt = Benchmarks.txt
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
