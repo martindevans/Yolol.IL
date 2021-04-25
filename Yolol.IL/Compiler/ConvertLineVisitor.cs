@@ -1,14 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Sigil;
 using Yolol.Analysis.ControlFlowGraph.AST;
 using Yolol.Analysis.TreeVisitor;
-using Yolol.Analysis.Types;
 using Yolol.Execution;
-using Yolol.Execution.Attributes;
 using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
 using Yolol.Grammar.AST.Expressions.Unary;
@@ -259,7 +256,13 @@ namespace Yolol.IL.Compiler
         private bool TryStaticEvaluate<T>(T expr, out bool runtimeError)
             where T : BaseExpression
         {
-#if !DEBUG
+            runtimeError = false;
+
+            // Never statically evaluate expressions in DEBUG mode
+            #if DEBUG
+            return false;
+            #endif
+
             if (expr.IsConstant)
             {
                 var v = Execution.Extensions.BaseExpressionExtensions.TryStaticEvaluate(expr, out runtimeError);
@@ -269,8 +272,7 @@ namespace Yolol.IL.Compiler
                     return true;
                 }
             }
-#endif
-            runtimeError = false;
+
             return false;
         }
         #endregion
@@ -550,7 +552,7 @@ namespace Yolol.IL.Compiler
         });
 
         protected override BaseExpression Visit(Multiply mul) => ConvertBinaryExpr(mul,
-            (a, b) => (Number)a * b,
+            (a, b) => Runtime.And(a, b),
             (a, b) => (Number)a * b,
             (a, b) => (Number)a * b,
             (a, b) => (Number)a * b,

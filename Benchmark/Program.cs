@@ -1,17 +1,14 @@
-﻿using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Running;
-
-namespace Benchmark
+﻿namespace Benchmark
 {
     public class Program
     {
         public static void Main(string[] args)
         {
-            var config = DefaultConfig.Instance;
-            var summary = BenchmarkRunner.Run<CompareInterpreter>(config);
+            //var config = DefaultConfig.Instance;
+            //var summary = BenchmarkRunner.Run<CompareInterpreter>(config);
 
-            //var lps = new LinesPerSecond();
-            //lps.Run();
+            var lps = new LinesPerSecond();
+            lps.Run();
 
             //new Yolol.IL.Serializer().Save("foo");
         }

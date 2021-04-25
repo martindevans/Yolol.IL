@@ -197,7 +197,8 @@ namespace Yolol.IL.Extensions
 
                     var (t, e) = ConvertBinaryWithErrorHandling(lt, rt, binary, emitter, errorLabel, stackSize + 2);
 
-                    return (t, e | el | er);
+                    var err = e | el | er;
+                    return (t, err);
                 }
 
                 default:

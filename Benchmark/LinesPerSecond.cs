@@ -16,8 +16,9 @@ namespace Benchmark
         // c=a---a b++ goto2
         // z=b goto1
         private readonly string[] _program = {
-            "a=\"abcdefghijklmnopqrstuvwxyz\" b=0",
-            "c=a---a b++ goto2",
+            "a=\"abcdefghijklmnopqrstuvwxyz\" b=0 d=0",
+            "c=a---a d+=c b++ goto2",
+            "x=1/0",
             "z=b goto1",
         };
 

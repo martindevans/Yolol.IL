@@ -67,6 +67,14 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
+        public void MultiplyBools()
+        {
+            var (st, _) = Test("a=1*1");
+
+            Assert.AreEqual(1, st.GetVariable("a"));
+        }
+
+        [TestMethod]
         public void MultiplyNumbers()
         {
             var (st, _) = Test("a = 3 * 2");

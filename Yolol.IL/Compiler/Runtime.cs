@@ -54,7 +54,13 @@ namespace Yolol.IL.Compiler
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Number BoolNegate(bool value)
         {
-            return -(Number)value;
+            return value ? -Number.One : Number.Zero;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool And(bool a, bool b)
+        {
+            return a & b;
         }
         #endregion
     }
