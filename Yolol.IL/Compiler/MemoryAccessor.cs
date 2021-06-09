@@ -58,14 +58,14 @@ namespace Yolol.IL.Compiler
             var stored = new HashSet<VariableName>(storeFinder.Names);
             _mutated.UnionWith(stored);
 
-            // Find all the variables to cache (in this case, all variables access or mutated at all) and cache those variables in a local.
+            // Find all the variables to cache (in this case, all variables accessed or mutated at all) and cache those variables in a local.
             // This could filter down to a narrower set of variables to cache (all the infra is in place for that to work).
             var accessCounts = loadFinder
                 .Counts
-                .Join(storeFinder.Counts, a => a.Key, a => a.Key, (a, b) => new KeyValuePair<VariableName, uint>(a.Key, a.Value + b.Value))
-                .Where(a => a.Value > 0)
+                .Concat(storeFinder.Counts)
                 .Select(a => a.Key)
-                .ToArray();
+                .Distinct()
+                .ToList();
 
             // All stored things will be written out at the end. That means we need to load
             // everything that's loaded _or_ stored so that the write later is valid.

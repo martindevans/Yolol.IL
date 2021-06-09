@@ -133,14 +133,14 @@ namespace Yolol.IL.Tests
             Assert.AreEqual(8, st.GetVariable("b"));
         }
 
-        [TestMethod]
-        public void PostInc()
-        {
-            var (st, _) = Test("a = 7 b = a++");
+        //[TestMethod]
+        //public void PostInc()
+        //{
+        //    var (st, _) = Test("a = 7 b = a++");
 
-            Assert.AreEqual(8, st.GetVariable("a"));
-            Assert.AreEqual(7, st.GetVariable("b"));
-        }
+        //    Assert.AreEqual(8, st.GetVariable("a"));
+        //    Assert.AreEqual(7, st.GetVariable("b"));
+        //}
 
         [TestMethod]
         public void PreDec()
@@ -151,13 +151,13 @@ namespace Yolol.IL.Tests
             Assert.AreEqual(6, st.GetVariable("b"));
         }
 
-        [TestMethod]
-        public void PostDec()
-        {
-            var (st, _) = Test("a = 7 b = a--");
+        //[TestMethod]
+        //public void PostDec()
+        //{
+        //    var (st, _) = Test("a = 7 b = a--");
 
-            Assert.AreEqual(6, st.GetVariable("a"));
-            Assert.AreEqual(7, st.GetVariable("b"));
-        }
+        //    Assert.AreEqual(6, st.GetVariable("a"));
+        //    Assert.AreEqual(7, st.GetVariable("b"));
+        //}
     }
 }

@@ -64,7 +64,7 @@
 //                return false;
 
 //            // Get the indices
-//            var indices = incs.Select(a => GetVarIndex(a.Name)).OrderBy(a => a.Item2).ToArray();
+//            var indices = incs.Select(a => GetVarIndex(a.Name)).OrderBy(a => a.Item2).ToList();
 
 //            // Check that they all touch the same array (all locals or all externals)
 //            if (indices.GroupBy(a => a.Item1).Count() != 1)
@@ -109,7 +109,7 @@
 //            ));
 
 //            // Store back where they came from
-//            EmitStoreElements(emitter, arrayValues, indices.Select(a => a.Item2).ToArray());
+//            EmitStoreElements(emitter, arrayValues, indices.Select(a => a.Item2).ToList());
 
 //            // Remove the statements we managed to compile
 //            statements.RemoveAt(0);

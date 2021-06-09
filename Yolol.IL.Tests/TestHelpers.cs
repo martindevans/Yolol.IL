@@ -51,18 +51,19 @@ namespace Yolol.IL.Tests
             var internals = new InternalsMap();
             var externals = new ExternalsMap();
 
+            var prog = Parser.ParseProgram(string.Join("\n", lines)).Ok;
+            var compiled = prog.Compile(internals, externals);
+
             var i = new Value[internals.Count];
             Array.Fill(i, new Value((Number)0));
             var e = new Value[externals.Count];
             Array.Fill(e, new Value((Number)0));
 
-            var prog = Parser.ParseProgram(string.Join("\n", lines)).Ok;
-            var compiled = prog.Compile(internals, externals);
-
             var pc = 0;
             for (var j = 0; j < iterations; j++)
             {
-                pc = compiled[pc](i, e) - 1;
+                var line = compiled[pc];
+                pc = line(i, e) - 1;
 
                 if (externals.TryGetValue("done", out var doneIndex))
                     if (e[doneIndex].ToBool())
@@ -91,6 +92,8 @@ namespace Yolol.IL.Tests
 
         internal Value GetVariable(string v)
         {
+            v = v.ToLowerInvariant();
+
             var n = new VariableName(v);
             var (a, m) = n.IsExternal ? (Externals, ExternalMap) : (Internals, InternalMap);
             return a[m[v]];

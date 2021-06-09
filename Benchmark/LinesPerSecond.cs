@@ -12,14 +12,8 @@ namespace Benchmark
 {
     public class LinesPerSecond
     {
-        // a="abcdefghijklmnopqrstuvwxyz" b=0
-        // c=a---a b++ goto2
-        // z=b goto1
         private readonly string[] _program = {
-            "a=\"abcdefghijklmnopqrstuvwxyz\" b=0 d=0",
-            "c=a---a d+=c b++ goto2",
-            "x=1/0",
-            "z=b goto1",
+            "z = 1 - 2 goto1",
         };
 
         private readonly Func<ArraySegment<Value>, ArraySegment<Value>, int>[] _compiledLines;
@@ -43,7 +37,7 @@ namespace Benchmark
             _internalsMap = new InternalsMap();
             _externalsMap = new ExternalsMap();
             _compiledLines = ast.Compile(_internalsMap, _externalsMap, 20, staticTypes);
-
+            
             _internals = new Value[_internalsMap.Count];
             Array.Fill(_internals, new Value((Number)0));
             _externals = new Value[_externalsMap.Count];
@@ -78,7 +72,7 @@ namespace Benchmark
                 samples.Add(lps);
 
                 var c = 10;
-                var s = samples.AsEnumerable().Reverse().Take(c).ToArray();
+                var s = samples.AsEnumerable().Reverse().Take(c).ToList();
                 var avg = s.Average();
                 var sum = s.Sum(d => Math.Pow(d - avg, 2));
                 var stdDev = Math.Sqrt(sum / (c - 1));

@@ -183,7 +183,7 @@ namespace Yolol.IL.Extensions
                 #region string source
                 case (StackType.YololString, StackType.Bool):
                     emitter.Pop();
-                    emitter.LoadConstant(true);
+                    emitter.LoadConstant(false);
                     break;
 
                 case (StackType.YololString, StackType.YololValue):
