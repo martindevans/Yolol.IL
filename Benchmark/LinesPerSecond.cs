@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using Yolol.Execution;
 using Yolol.Grammar;
-using Yolol.IL.Compiler;
+using Yolol.IL;
 using Yolol.IL.Extensions;
 
 namespace Benchmark
@@ -13,15 +12,10 @@ namespace Benchmark
     public class LinesPerSecond
     {
         private readonly string[] _program = {
-            "z = 1 - 2 goto1",
+            "z=1-2 :z=2 goto1",
         };
 
-        private readonly Func<ArraySegment<Value>, ArraySegment<Value>, int>[] _compiledLines;
-        private readonly Value[] _internals;
-        private readonly Value[] _externals;
-
-        private readonly InternalsMap _internalsMap;
-        private readonly ExternalsMap _externalsMap;
+        private readonly CompiledProgram _compiled;
 
         public LinesPerSecond()
         {
@@ -34,14 +28,7 @@ namespace Benchmark
                 //{ new VariableName("z"), Yolol.Execution.Type.Number },
             };
 
-            _internalsMap = new InternalsMap();
-            _externalsMap = new ExternalsMap();
-            _compiledLines = ast.Compile(_internalsMap, _externalsMap, 20, staticTypes);
-            
-            _internals = new Value[_internalsMap.Count];
-            Array.Fill(_internals, new Value((Number)0));
-            _externals = new Value[_externalsMap.Count];
-            Array.Fill(_externals, new Value((Number)0));
+            _compiled = ast.Compile(20, staticTypes);
         }
 
         private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
@@ -71,21 +58,24 @@ namespace Benchmark
                 var lps = iterations / timer.Elapsed.TotalSeconds;
                 samples.Add(lps);
 
-                var c = 10;
+                const int c = 10;
                 var s = samples.AsEnumerable().Reverse().Take(c).ToList();
                 var avg = s.Average();
                 var sum = s.Sum(d => Math.Pow(d - avg, 2));
                 var stdDev = Math.Sqrt(sum / (c - 1));
 
-                Console.WriteLine($"{lps:#,##0.00} l/s | {avg:#,##0.00} avg | {stdDev:#,##0.00} dev | z: {_internals[_internalsMap["z"]]}");
+                Console.WriteLine($"{lps:#,##0.00} l/s | {avg:#,##0.00} avg | {stdDev:#,##0.00} dev | z: {_compiled["z"]}");
             }
         }
 
         public void RunCompiled(int iterations)
         {
-            var pc = 0;
             for (var i = 0; i < iterations; i++)
-                pc = _compiledLines[pc](_internals, _externals) - 1;
+                _compiled.Tick();
+
+            //var pc = 0;
+            //for (var i = 0; i < iterations; i++)
+            //    pc = _compiledLines[pc](_internals, _externals) - 1;
         }
 
         //public void RunRewritten(int iterations)

@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using Sigil;
-using Yolol.Analysis.ControlFlowGraph;
-using Yolol.Analysis.ControlFlowGraph.Extensions;
-using Yolol.Analysis.Types;
 using Yolol.Execution;
 using Yolol.Grammar;
 using Yolol.Grammar.AST;
@@ -41,7 +37,7 @@ namespace Yolol.IL.Extensions
         /// <param name="externalVariableMap">A dictionary used for mapping externals to integers in all lines in this script</param>
         /// <param name="staticTypes">Statically known types for variables</param>
         /// <returns>A function which runs this line of code. Accepts two sections of memory, internal variables and external variables. Returns the line number to go to next</returns>
-        public static Func<ArraySegment<Value>, ArraySegment<Value>, int> Compile(
+        public static CompiledLine Compile(
             this Line line,
             int lineNumber,
             int maxLines,
@@ -60,22 +56,18 @@ namespace Yolol.IL.Extensions
             //Console.WriteLine("-----------------------------");
 
             // Finally convert the IL into a runnable C# method for this line
-            return emitter.CreateDelegate();
+            return new CompiledLine(emitter.CreateDelegate());
         }
 
         /// <summary>
         /// Compile all the lines of a Yolol program into runnable C# functions (one per line)
         /// </summary>
         /// <param name="ast"></param>
-        /// <param name="internals"></param>
-        /// <param name="externals"></param>
         /// <param name="maxLines"></param>
         /// <param name="staticTypes"></param>
         /// <returns></returns>
-        public static Func<ArraySegment<Value>, ArraySegment<Value>, int>[] Compile(
+        public static CompiledProgram Compile(
             this Program ast,
-            InternalsMap internals,
-            ExternalsMap externals,
             int maxLines = 20,
             IReadOnlyDictionary<VariableName, Type>? staticTypes = null
         )
@@ -83,10 +75,14 @@ namespace Yolol.IL.Extensions
             if (maxLines < ast.Lines.Count)
                 throw new ArgumentOutOfRangeException(nameof(maxLines), "ast has more than `maxLines` lines");
 
-            var compiledLines = new Func<ArraySegment<Value>, ArraySegment<Value>, int>[ast.Lines.Count];
+            var internals = new InternalsMap();
+            var externals = new ExternalsMap();
+
+            var compiledLines = new CompiledLine[ast.Lines.Count];
             for (var i = 0; i < ast.Lines.Count; i++)
                 compiledLines[i] = ast.Lines[i].Compile(i + 1, maxLines, internals, externals, staticTypes);
-            return compiledLines;
+
+            return new CompiledProgram(internals, externals, compiledLines);
         }
 
         /// <summary>
