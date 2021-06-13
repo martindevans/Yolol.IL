@@ -16,7 +16,7 @@ namespace Benchmark
         private readonly Network _network;
         private readonly MachineState _state;
 
-        private readonly CompiledLine[] _compiledLines;
+        private readonly Func<ArraySegment<Value>, ArraySegment<Value>, int>[] _compiledLines;
         private readonly CompiledProgram _compiledProgramLine;
         private readonly Value[] _internals;
         private readonly Value[] _externals;
@@ -44,14 +44,14 @@ namespace Benchmark
             };
             var internalsPerLine = new InternalsMap();
             var externalsPerLine = new ExternalsMap();
-            _compiledLines = new CompiledLine[_ast.Lines.Count];
+            _compiledLines = new Func<ArraySegment<Value>, ArraySegment<Value>, int>[_ast.Lines.Count];
             for (var i = 0; i < _ast.Lines.Count; i++)
                 _compiledLines[i] = _ast.Lines[i].Compile(i + 1, 20, internalsPerLine, externalsPerLine, types);
 
             _internals = new Value[internalsPerLine.Count];
             _externals = new Value[externalsPerLine.Count];
 
-            _compiledProgramLine = _ast.Compile(20, types);
+            _compiledProgramLine = _ast.Compile(new ExternalsMap(), 20, types);
         }
 
         private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
@@ -105,7 +105,7 @@ namespace Benchmark
 
             var pc = 0;
             for (var i = 0; i < 5; i++)
-                pc = _compiledLines[pc].Run(_internals, _externals) - 1;
+                pc = _compiledLines[pc].Invoke(_internals, _externals) - 1;
 
             return (_internals, _externals);
         }

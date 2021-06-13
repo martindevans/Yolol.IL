@@ -19,8 +19,8 @@ namespace Yolol.IL.Compiler
         private readonly Emit<TEmit> _emitter;
         private readonly Local _externalArraySegmentLocal;
         private readonly Local _internalArraySegmentLocal;
-        private readonly InternalsMap _internals;
-        private readonly ExternalsMap _externals;
+        private readonly IReadonlyInternalsMap _internals;
+        private readonly IReadonlyExternalsMap _externals;
 
         private readonly IReadOnlyDictionary<VariableName, Type> _knownTypes;
 
@@ -31,8 +31,8 @@ namespace Yolol.IL.Compiler
             Emit<TEmit> emitter,
             Local externalArraySegmentLocal,
             Local internalArraySegmentLocal,
-            InternalsMap internals,
-            ExternalsMap externals,
+            IReadonlyInternalsMap internals,
+            IReadonlyExternalsMap externals,
             IReadOnlyDictionary<VariableName, Type>? staticTypes)
         {
             _emitter = emitter;
@@ -230,12 +230,8 @@ namespace Yolol.IL.Compiler
         /// <param name="name"></param>
         private void EmitLoadIndex(VariableName name)
         {
-            var map = (name.IsExternal ? (Dictionary<string, int>)_externals : _internals);
-            if (!map.TryGetValue(name.Name, out var idx))
-            {
-                idx = map.Count;
-                map[name.Name] = idx;
-            }
+            var map = name.IsExternal ? (IReadOnlyDictionary<string, int>)_externals : _internals;
+            var idx = map[name.Name];
             _emitter.LoadConstant(idx);
         }
 

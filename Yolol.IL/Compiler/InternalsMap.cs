@@ -2,8 +2,13 @@
 
 namespace Yolol.IL.Compiler
 {
-    public class ExternalsMap
-        : Dictionary<string, int>
+    public class InternalsMap
+        : Dictionary<string, int>, IReadonlyInternalsMap
+    {
+    }
+
+    public interface IReadonlyInternalsMap
+        : IReadOnlyDictionary<string, int>
     {
     }
 }

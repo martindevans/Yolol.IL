@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Yolol.Grammar;
 using Yolol.IL;
+using Yolol.IL.Compiler;
 using Yolol.IL.Extensions;
 
 namespace Benchmark
@@ -12,7 +13,26 @@ namespace Benchmark
     public class LinesPerSecond
     {
         private readonly string[] _program = {
-            "z=1-2 :z=2 goto1",
+            "n=1 x=sqrt 24 y=4.899 if x!=y then goto19 end n++ ",
+            "x=(sqrt 2) y=1.414 if x!=y then goto19 end n++ ",
+            "x=(sqrt 7) y=2.645 if x!=y then goto19 end n++ ",
+            "x=(sqrt 32199) y=179.440 if x!=y then goto19 end n++ ",
+            "x=(sqrt 1000001) y=1000 if x!=y then goto19 end n++ ",
+            "x=(sqrt 1000002) y=1000.001 if x!=y then goto19 end n++ ",
+            "x=sqrt 9223372036854775.807 y=-9223372036854775.808 n++ goto19/(x!=y)",
+            "x=(sqrt -3) y=-9223372036854775.808 if x!=y then goto19 end n++ ",
+            "x=sqrt 9223372036854775 y=-9223372036854775.808 n++ goto19/(x!=y) ",
+            "x=sqrt 9223372036854774.999 y=96038388.349 n++ goto19/(x!=y)",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "if n != 11 then OUTPUT=\"Skipped: \"+(11-n)+\" tests\" goto 20 end",
+            "OUTPUT=\"ok\" goto20",
+            "OUTPUT=\"Failed test #\"+n+\" got: \"+x+\" but wanted: \"+y",
+            "z=OUTPUT"
         };
 
         private readonly CompiledProgram _compiled;
@@ -22,13 +42,13 @@ namespace Benchmark
             var ast = Parse(_program);
 
             var staticTypes = new Dictionary<VariableName, Yolol.Execution.Type> {
-                //{ new VariableName("a"), Yolol.Execution.Type.String },
-                //{ new VariableName("b"), Yolol.Execution.Type.Number },
-                //{ new VariableName("c"), Yolol.Execution.Type.String },
-                //{ new VariableName("z"), Yolol.Execution.Type.Number },
+                //{ new VariableName("n"), Yolol.Execution.Type.Number },
+                //{ new VariableName("x"), Yolol.Execution.Type.Number },
+                //{ new VariableName("y"), Yolol.Execution.Type.Number },
+                //{ new VariableName("OUTPUT"), Yolol.Execution.Type.String },
             };
 
-            _compiled = ast.Compile(20, staticTypes);
+            _compiled = ast.Compile(new ExternalsMap(), 20, staticTypes);
         }
 
         private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
@@ -72,10 +92,6 @@ namespace Benchmark
         {
             for (var i = 0; i < iterations; i++)
                 _compiled.Tick();
-
-            //var pc = 0;
-            //for (var i = 0; i < iterations; i++)
-            //    pc = _compiledLines[pc](_internals, _externals) - 1;
         }
 
         //public void RunRewritten(int iterations)

@@ -9,11 +9,12 @@ namespace Yolol.IL
     {
         private readonly InternalsMap _internalsMap;
         private readonly ExternalsMap _externalsMap;
-        private readonly CompiledLine[] _lines;
+        private readonly JitLine[] _lines;
 
-        private int _pc;
         private readonly Value[] _internals;
         private readonly Value[] _externals;
+
+        public int ProgramCounter { get; private set; }
 
         public Value this[string identifier]
         {
@@ -24,7 +25,7 @@ namespace Yolol.IL
                 if (_externalsMap.TryGetValue(identifier, out var idxe))
                     return _externals[idxe];
 
-                throw new KeyNotFoundException(identifier);
+                return Number.Zero;
             }
             set
             {
@@ -32,15 +33,13 @@ namespace Yolol.IL
                     _internals[idxi] = value;
                 else if (_externalsMap.TryGetValue(identifier, out var idxe))
                     _externals[idxe] = value;
-                else
-                    throw new KeyNotFoundException(identifier);
             }
         }
 
-        internal CompiledProgram(InternalsMap internalsMap, ExternalsMap externalsMap, CompiledLine[] lines)
+        internal CompiledProgram(InternalsMap internalsMap, ExternalsMap externalsMap, JitLine[] lines)
         {
             _lines = lines;
-            _pc = 0;
+            ProgramCounter = 0;
 
             _internalsMap = internalsMap;
             _internals = new Value[_internalsMap.Count];
@@ -53,7 +52,7 @@ namespace Yolol.IL
 
         public void Tick()
         {
-            _pc = _lines[_pc].Run(_internals, _externals) - 1;
+            ProgramCounter = _lines[ProgramCounter].Run(_internals, _externals) - 1;
         }
     }
 }
