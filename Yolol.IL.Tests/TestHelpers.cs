@@ -43,20 +43,24 @@ namespace Yolol.IL.Tests
             var ext = new ExternalsMap();
             var prog = Parser.ParseProgram(string.Join("\n", lines)).Ok;
             var compiled = prog.Compile(ext, staticTypes: staticTypes);
+            var doneIndex = compiled.InternalsMap.GetValueOrDefault("done", -1);
+
+            var i = new Value[compiled.InternalsMap.Count];
+            Array.Fill(i, new Value((Number)0));
 
             var e = new Value[ext.Count];
             Array.Fill(e, new Value((Number)0));
 
             for (var j = 0; j < iterations; j++)
             {
-                compiled.Tick(e);
+                compiled.Tick(i, e);
 
-                var done = compiled["done"];
+                var done = doneIndex < 0 ? Number.Zero : i[doneIndex];
                 if (done.ToBool())
                     break;
             }
 
-            return (new CompiledMachineState(compiled), compiled.ProgramCounter);
+            return (new CompiledMachineState(compiled, ext, i, e), compiled.ProgramCounter);
         }
     }
 
@@ -96,17 +100,32 @@ namespace Yolol.IL.Tests
         : IMachineState
     {
         private readonly CompiledProgram _program;
+        private readonly IReadonlyExternalsMap _externalsMap;
+        private readonly Value[] _internals;
+        private readonly Value[] _externals;
 
-        public CompiledMachineState(CompiledProgram program)
+        public CompiledMachineState(CompiledProgram program, IReadonlyExternalsMap externalsMap, Value[] internals, Value[] externals)
         {
             _program = program;
+            _externalsMap = externalsMap;
+            _internals = internals;
+            _externals = externals;
         }
 
         public Value GetVariable(string v)
         {
-            v = v.ToLowerInvariant();
+            var vn = new VariableName(v);
 
-            return _program[v];
+            if (vn.IsExternal)
+            {
+                if (!_externalsMap.TryGetValue(vn.Name, out var idxe))
+                    return Number.Zero;
+                return _externals[idxe];
+            }
+
+            if (!_program.InternalsMap.TryGetValue(vn.Name, out var idxi))
+                return Number.Zero;
+            return _externals[idxi];
         }
     }
 }

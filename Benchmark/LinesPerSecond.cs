@@ -37,11 +37,12 @@ namespace Benchmark
         //};
 
         private readonly string[] _program = {
-            "n++",
+            "z++",
         };
 
         private readonly CompiledProgram _compiled;
         private readonly Value[] _externals;
+        private readonly Value[] _internals;
 
         public LinesPerSecond()
         {
@@ -55,10 +56,13 @@ namespace Benchmark
             };
 
             var externals = new ExternalsMap();
-            _compiled = ast.Compile(externals, 20, staticTypes);
+            _compiled = ast.Compile(externals, 10, staticTypes);
 
             _externals = new Value[externals.Count];
             Array.Fill(_externals, Number.Zero);
+
+            _internals = new Value[_compiled.InternalsMap.Count];
+            Array.Fill(_internals, Number.Zero);
         }
 
         private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
@@ -72,7 +76,9 @@ namespace Benchmark
 
         public void Run()
         {
-            const int iterations = 5000000;
+            var zidx = _compiled.InternalsMap["z"];
+
+            const int iterations = 50000000;
 
             var samples = new List<double>();
             var timer = new Stopwatch();
@@ -80,7 +86,7 @@ namespace Benchmark
             {
                 timer.Restart();
 
-                RunCompiled(iterations, _externals);
+                RunCompiled(iterations);
                 //RunRewritten(iterations);
 
                 timer.Stop();
@@ -94,14 +100,14 @@ namespace Benchmark
                 var sum = s.Sum(d => Math.Pow(d - avg, 2));
                 var stdDev = Math.Sqrt(sum / (c - 1));
 
-                Console.WriteLine($"{lps:#,##0.00} l/s | {avg:#,##0.00} avg | {stdDev:#,##0.00} dev | z: {_compiled["z"]}");
+                Console.WriteLine($"{lps:#,##0.00} l/s | {avg:#,##0.00} avg | {stdDev:#,##0.00} dev | z: {_internals[zidx]}");
             }
         }
 
-        public void RunCompiled(int iterations, Value[] externals)
+        public void RunCompiled(int iterations)
         {
             for (var i = 0; i < iterations; i++)
-                _compiled.Tick(externals);
+                _compiled.Tick(_internals, _externals);
         }
 
         //public void RunRewritten(int iterations)

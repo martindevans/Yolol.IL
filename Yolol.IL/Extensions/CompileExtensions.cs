@@ -148,6 +148,18 @@ namespace Yolol.IL.Extensions
             IReadOnlyDictionary<VariableName, Type>? staticTypes = null
         )
         {
+            // Special case for totally empty lines
+            if (line.Statements.Statements.Count == 0)
+            {
+                if (lineNumber == maxLines)
+                    emitter.LoadConstant(1);
+                else
+                    emitter.LoadConstant(lineNumber + 1);
+                emitter.Return();
+
+                return;
+            }
+
             // Begin an exception block to catch Yolol runtime errors
             var exBlock = emitter.BeginExceptionBlock();
 

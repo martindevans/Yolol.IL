@@ -12,7 +12,7 @@ namespace Yolol.IL
             _compiled = compiled;
         }
 
-        public int Run(Value[] internals, Value[] externals)
+        public int Run(ArraySegment<Value> internals, ArraySegment<Value> externals)
         {
             return _compiled(internals, externals);
         }

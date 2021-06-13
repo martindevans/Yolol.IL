@@ -114,9 +114,10 @@ namespace Benchmark
         public Value[] CompileProgram()
         {
             Array.Fill(_externals, new Value((Number)0));
+            Array.Fill(_internals, new Value((Number)0));
 
             for (var i = 0; i < 5; i++)
-                _compiledProgramLine.Tick(_externals);
+                _compiledProgramLine.Tick(_internals, _externals);
 
             return _externals;
         }
