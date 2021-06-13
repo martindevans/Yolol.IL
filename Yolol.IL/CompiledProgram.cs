@@ -52,6 +52,9 @@ namespace Yolol.IL
 
         public void Tick()
         {
+            if (_lines.Length == 0)
+                return;
+
             ProgramCounter = _lines[ProgramCounter].Run(_internals, _externals) - 1;
         }
     }
