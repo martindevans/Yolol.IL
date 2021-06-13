@@ -6,6 +6,7 @@ using Yolol.Analysis.TreeVisitor.Inspection;
 using Yolol.Execution;
 using Yolol.Grammar;
 using Yolol.Grammar.AST;
+using Yolol.Grammar.AST.Statements;
 using Yolol.IL.Compiler;
 using Type = Yolol.Execution.Type;
 
@@ -116,14 +117,15 @@ namespace Yolol.IL.Extensions
 
             var internals = new InternalsMap();
 
-            var compiledLines = new JitLine[ast.Lines.Count];
-            for (var i = 0; i < ast.Lines.Count; i++)
+            var compiledLines = new JitLine[maxLines];
+            for (var i = 0; i < maxLines; i++)
             {
                 var lineNum = i + 1;
-                compiledLines[i] = new JitLine(ast.Lines[i].Compile(lineNum, maxLines, internals, externals, staticTypes));
+                var line = ast.Lines.ElementAtOrDefault(i) ?? new Line(new StatementList());
+                compiledLines[i] = new JitLine(line.Compile(lineNum, maxLines, internals, externals, staticTypes));
             }
 
-            return new CompiledProgram(internals, externals, compiledLines);
+            return new CompiledProgram(internals, compiledLines);
         }
 
         /// <summary>

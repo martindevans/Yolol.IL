@@ -111,15 +111,14 @@ namespace Benchmark
         }
 
         [Benchmark]
-        public (Value[] _internals, Value[] _externals) CompileProgram()
+        public Value[] CompileProgram()
         {
             Array.Fill(_externals, new Value((Number)0));
-            Array.Fill(_internals, new Value((Number)0));
 
             for (var i = 0; i < 5; i++)
-                _compiledProgramLine.Tick();
+                _compiledProgramLine.Tick(_externals);
 
-            return (_internals, _externals);
+            return _externals;
         }
 
         [Params(0)]

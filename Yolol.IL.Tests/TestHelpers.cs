@@ -44,9 +44,12 @@ namespace Yolol.IL.Tests
             var prog = Parser.ParseProgram(string.Join("\n", lines)).Ok;
             var compiled = prog.Compile(ext, staticTypes: staticTypes);
 
+            var e = new Value[ext.Count];
+            Array.Fill(e, new Value((Number)0));
+
             for (var j = 0; j < iterations; j++)
             {
-                compiled.Tick();
+                compiled.Tick(e);
 
                 var done = compiled["done"];
                 if (done.ToBool())

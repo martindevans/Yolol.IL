@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using Yolol.Execution;
 using Yolol.IL.Compiler;
 
@@ -8,11 +7,9 @@ namespace Yolol.IL
     public class CompiledProgram
     {
         private readonly InternalsMap _internalsMap;
-        private readonly ExternalsMap _externalsMap;
         private readonly JitLine[] _lines;
 
         private readonly Value[] _internals;
-        private readonly Value[] _externals;
 
         public int ProgramCounter { get; private set; }
 
@@ -22,8 +19,6 @@ namespace Yolol.IL
             {
                 if (_internalsMap.TryGetValue(identifier, out var idxi))
                     return _internals[idxi];
-                if (_externalsMap.TryGetValue(identifier, out var idxe))
-                    return _externals[idxe];
 
                 return Number.Zero;
             }
@@ -31,31 +26,25 @@ namespace Yolol.IL
             {
                 if (_internalsMap.TryGetValue(identifier, out var idxi))
                     _internals[idxi] = value;
-                else if (_externalsMap.TryGetValue(identifier, out var idxe))
-                    _externals[idxe] = value;
             }
         }
 
-        internal CompiledProgram(InternalsMap internalsMap, ExternalsMap externalsMap, JitLine[] lines)
+        internal CompiledProgram(InternalsMap internalsMap, JitLine[] lines)
         {
+            if (lines.Length < 1)
+                throw new ArgumentException("Cannot create a program with no lines", nameof(lines));
+
             _lines = lines;
             ProgramCounter = 0;
 
             _internalsMap = internalsMap;
             _internals = new Value[_internalsMap.Count];
             Array.Fill(_internals, new Value(Number.Zero));
-
-            _externalsMap = externalsMap;
-            _externals = new Value[_externalsMap.Count];
-            Array.Fill(_externals, new Value(Number.Zero));
         }
 
-        public void Tick()
+        public void Tick(Value[] externals)
         {
-            if (_lines.Length == 0)
-                return;
-
-            ProgramCounter = _lines[ProgramCounter].Run(_internals, _externals) - 1;
+            ProgramCounter = _lines[ProgramCounter].Run(_internals, externals) - 1;
         }
     }
 }
