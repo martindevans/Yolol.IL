@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Yolol.Execution;
 using static Yolol.IL.Tests.TestHelpers;
 
@@ -13,8 +12,8 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = not 3 b = not 0");
 
-            Assert.AreEqual(0, st.GetVariable("a"));
-            Assert.AreEqual(1, st.GetVariable("b"));
+            Assert.AreEqual((Value)0, st.GetVariable("a"));
+            Assert.AreEqual((Value)1, st.GetVariable("b"));
         }
 
         [TestMethod]
@@ -22,8 +21,8 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = not \"\" b = not \"0\"");
 
-            Assert.AreEqual(0, st.GetVariable("a"));
-            Assert.AreEqual(0, st.GetVariable("b"));
+            Assert.AreEqual((Value)0, st.GetVariable("a"));
+            Assert.AreEqual((Value)0, st.GetVariable("b"));
         }
 
         [TestMethod]
@@ -31,8 +30,8 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = not 1 b = not 0");
 
-            Assert.AreEqual(0, st.GetVariable("a"));
-            Assert.AreEqual(1, st.GetVariable("b"));
+            Assert.AreEqual((Value)0, st.GetVariable("a"));
+            Assert.AreEqual((Value)1, st.GetVariable("b"));
         }
 
         [TestMethod]
@@ -40,8 +39,8 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("aa=1 bb=0 a = not aa b = not bb");
 
-            Assert.AreEqual(0, st.GetVariable("a"));
-            Assert.AreEqual(1, st.GetVariable("b"));
+            Assert.AreEqual((Value)0, st.GetVariable("a"));
+            Assert.AreEqual((Value)1, st.GetVariable("b"));
         }
 
         [TestMethod]
@@ -49,7 +48,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = 3 b = -a");
 
-            Assert.AreEqual(-3, st.GetVariable("b"));
+            Assert.AreEqual((Value)(-3), st.GetVariable("b"));
         }
 
         [TestMethod]
@@ -57,7 +56,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = 3 + (2 * 4)");
 
-            Assert.AreEqual(11, st.GetVariable("a"));
+            Assert.AreEqual((Value)11, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -65,7 +64,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = sqrt(9)");
 
-            Assert.AreEqual(3, st.GetVariable("a"));
+            Assert.AreEqual((Value)3, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -73,7 +72,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = sqrt(1)");
 
-            Assert.AreEqual(1, st.GetVariable("a"));
+            Assert.AreEqual((Value)1, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -81,7 +80,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a=1 a=sqrt(\"9\") a=2");
 
-            Assert.AreEqual(1, st.GetVariable("a"));
+            Assert.AreEqual((Value)1, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -89,7 +88,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("b=9 a=sqrt(b)");
 
-            Assert.AreEqual(3, st.GetVariable("a"));
+            Assert.AreEqual((Value)3, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -97,7 +96,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = sin(90)");
 
-            Assert.AreEqual(1, st.GetVariable("a"));
+            Assert.AreEqual((Value)1, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -105,7 +104,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = cos(90)");
 
-            Assert.AreEqual(0, st.GetVariable("a"));
+            Assert.AreEqual((Value)0, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -113,7 +112,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = cos(0)");
 
-            Assert.AreEqual(1, st.GetVariable("a"));
+            Assert.AreEqual((Value)1, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -121,7 +120,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = tan(45)");
 
-            Assert.AreEqual(1, st.GetVariable("a"));
+            Assert.AreEqual((Value)1, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -129,8 +128,8 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = 7 b = ++a");
 
-            Assert.AreEqual(8, st.GetVariable("a"));
-            Assert.AreEqual(8, st.GetVariable("b"));
+            Assert.AreEqual((Value)8, st.GetVariable("a"));
+            Assert.AreEqual((Value)8, st.GetVariable("b"));
         }
 
         //[TestMethod]
@@ -147,8 +146,8 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = 7 b = --a");
 
-            Assert.AreEqual(6, st.GetVariable("a"));
-            Assert.AreEqual(6, st.GetVariable("b"));
+            Assert.AreEqual((Value)6, st.GetVariable("a"));
+            Assert.AreEqual((Value)6, st.GetVariable("b"));
         }
 
         //[TestMethod]

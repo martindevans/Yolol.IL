@@ -13,6 +13,20 @@ namespace Benchmark
 {
     public class LinesPerSecond
     {
+        private readonly string[] _program = {
+            ":done++ b=97 c=89",
+            ":o++ :done++",
+            ":done++",
+            "i=127-1 _=(i/3%1==0)*i/3>1+(i/5%1==0)*i/5>1+(i/7%1==0)*i/7>1 a=i/11%1==0",
+            "_+=a*i/11>1+(i/13%1==0)*i/13>1+(i/17%1==0)*i/17>1+(i/19%1==0)*i/19>1",
+            "_+=(i/23%1==0)*i/23>1+(i/29%1==0)*i/29>1+(i/31%1==0)*i/31>1a=i/37%1==0",
+            "_+=a*i/37>1+(i/41%1==0)*i/41>1+(i/43%1==0)*i/43>1+(i/47%1==0)*i/47>1",
+            "_+=(i/53%1==0)*i/53>1+(i/59%1==0)*i/59>1+(i/61%1==0)*i/61>1a=i/67%1==0",
+            "_+=a*i/67>1+(i/71%1==0)*i/71>1+(i/73%1==0)*i/73>1+(i/79%1==0)*i/79>1",
+            "_+=(i/83%1==0)*i/83>1+(i/c%1==0)*i/c>1+(i/b%1==0)*i/b>1:o+=_<1:done++",
+            "z=:o :done++goto4",
+        };
+
         //private readonly string[] _program = {
         //    "n=1 x=sqrt 24 y=4.899 if x!=y then goto19 end n++ ",
         //    "x=(sqrt 2) y=1.414 if x!=y then goto19 end n++ ",
@@ -36,9 +50,9 @@ namespace Benchmark
         //    "z=OUTPUT"
         //};
 
-        private readonly string[] _program = {
-            "z++",
-        };
+        //private readonly string[] _program = {
+        //    "z++",
+        //};
 
         private readonly CompiledProgram _compiled;
         private readonly Value[] _externals;
@@ -49,14 +63,16 @@ namespace Benchmark
             var ast = Parse(_program);
 
             var staticTypes = new Dictionary<VariableName, Yolol.Execution.Type> {
-                //{ new VariableName("n"), Yolol.Execution.Type.Number },
-                //{ new VariableName("x"), Yolol.Execution.Type.Number },
-                //{ new VariableName("y"), Yolol.Execution.Type.Number },
+                { new VariableName("b"), Yolol.Execution.Type.Number },
+                { new VariableName("c"), Yolol.Execution.Type.Number },
+                { new VariableName("o"), Yolol.Execution.Type.Number },
+                { new VariableName("i"), Yolol.Execution.Type.Number },
+                { new VariableName("z"), Yolol.Execution.Type.Number },
                 //{ new VariableName("OUTPUT"), Yolol.Execution.Type.String },
             };
 
             var externals = new ExternalsMap();
-            _compiled = ast.Compile(externals, 10, staticTypes);
+            _compiled = ast.Compile(externals, 20, staticTypes);
 
             _externals = new Value[externals.Count];
             Array.Fill(_externals, Number.Zero);
@@ -78,7 +94,7 @@ namespace Benchmark
         {
             var zidx = _compiled.InternalsMap["z"];
 
-            const int iterations = 50000000;
+            const int iterations = 5000000;
 
             var samples = new List<double>();
             var timer = new Stopwatch();

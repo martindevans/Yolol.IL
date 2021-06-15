@@ -1,4 +1,7 @@
-﻿namespace Benchmark
+﻿using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Running;
+
+namespace Benchmark
 {
     public class Program
     {

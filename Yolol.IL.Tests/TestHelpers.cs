@@ -125,7 +125,7 @@ namespace Yolol.IL.Tests
 
             if (!_program.InternalsMap.TryGetValue(vn.Name, out var idxi))
                 return Number.Zero;
-            return _externals[idxi];
+            return _internals[idxi];
         }
     }
 }

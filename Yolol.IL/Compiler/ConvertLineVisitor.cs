@@ -913,12 +913,15 @@ namespace Yolol.IL.Compiler
                 throw new InvalidOperationException($"Cannot find method `op_Decrement` on type {peek}");
 
             // Find the `will throw` method
-            var willThrow = method.TryGetWillThrowMethod(peek);
+            var errorMetadata = method.TryGetErrorMetadata(peek);
 
             // Emit code to check if the decrement will throw
             var noErrorLabel = _emitter.DefineLabel();
-            if (willThrow != null)
+            if (errorMetadata != null)
             {
+                if (errorMetadata.Value.WillThrow == null)
+                    throw new NotImplementedException("null `WillThrow` method for decrement op");
+
                 // Duplicate the item on the top of the stack
                 using (var dup = _emitter.DeclareLocal(peek, "StackPeek", false))
                 {
@@ -928,7 +931,7 @@ namespace Yolol.IL.Compiler
                 }
 
                 // Call the "will throw" method
-                _emitter.Call(willThrow);
+                _emitter.Call(errorMetadata.Value.WillThrow);
 
                 // Jump past the error handler if "will throw" returned false
                 _emitter.BranchIfFalse(noErrorLabel);

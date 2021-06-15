@@ -218,10 +218,13 @@ namespace Yolol.IL.Extensions
             if (binary.Method.DeclaringType == null)
                 throw new InvalidOperationException("Cannot convert binary method with null `DeclaringType`");
 
-            var willThrow = binary.Method.TryGetWillThrowMethod(leftType, rightType);
+            var errorData = binary.Method.TryGetErrorMetadata(leftType, rightType);
 
-            if (willThrow != null)
+            if (errorData != null)
             {
+                if (errorData.Value.WillThrow == null)
+                    throw new NotImplementedException("Null `WillThrow` method");
+
                 // Save the left and right parameters into locals
                 using var rl = emitter.DeclareLocal(rightType, "ConvertBinaryWithErrorHandling_Right", false);
                 emitter.StoreLocal(rl);
@@ -233,7 +236,7 @@ namespace Yolol.IL.Extensions
                 emitter.LoadLocal(rl);
 
                 // Invoke the `will throw` method to discover if this invocation would trigger a runtime error
-                emitter.Call(willThrow);
+                emitter.Call(errorData.Value.WillThrow);
 
                 // Create a label to jump past the error handling for the normal case
                 var noThrowLabel = emitter.DefineLabel();
@@ -254,8 +257,14 @@ namespace Yolol.IL.Extensions
                 emitter.LoadLocal(rl);
             }
 
-            emitter.Call(binary.Method);
-            return (binary.Method!.ReturnType, willThrow != null);
+            // If the error metadata specifies an alternative implementation to use (which does not include runtime checks
+            // for the case already checked by `WillThrow`) use that alternative instead.
+            if (errorData != null && errorData.Value.UnsafeAlternative != null)
+                emitter.Call(errorData.Value.UnsafeAlternative);
+            else
+                emitter.Call(binary.Method);
+
+            return (binary.Method!.ReturnType, errorData != null);
         }
 
         private static (Type, bool)? TryConvertBinaryFastPath<TInLeft, TInRight, TOut, TEmit>(this Expression<Func<TInLeft, TInRight, TOut>> expr, Emit<TEmit> emitter, Label errorLabel)

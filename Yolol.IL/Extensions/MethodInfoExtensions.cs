@@ -6,7 +6,19 @@ namespace Yolol.IL.Extensions
 {
     internal static class MethodInfoExtensions
     {
-        public static MethodInfo? TryGetWillThrowMethod(this MethodInfo method, params Type[] parameters)
+        public readonly struct ErrorMetadata
+        {
+            public readonly MethodInfo? WillThrow;
+            public readonly MethodInfo? UnsafeAlternative;
+
+            public ErrorMetadata(MethodInfo? willThrow, MethodInfo? unsafeAlternative)
+            {
+                WillThrow = willThrow;
+                UnsafeAlternative = unsafeAlternative;
+            }
+        }
+
+        public static ErrorMetadata? TryGetErrorMetadata(this MethodInfo method, params Type[] parameters)
         {
             if (method == null)
                 throw new ArgumentNullException(nameof(method));
@@ -23,17 +35,38 @@ namespace Yolol.IL.Extensions
                 return null;
             
             var attr = (ErrorMetadataAttribute)attrs[0];
-            if (attr.IsInfallible || attr.WillThrow == null)
-                return null;
 
             // Get the `will throw` method which tells us if a given pair of values would cause a runtime error
-            var willThrow = method.DeclaringType.GetMethod(attr.WillThrow, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, parameters, null);
-            if (willThrow == null)
-                throw new InvalidOperationException($"ErrorMetadataAttribute references an invalid method: `{attr.WillThrow}`");
-            if (willThrow.ReturnType != typeof(bool))
-                throw new InvalidOperationException($"ErrorMetadataAttribute references an method which does not return bool: `{attr.WillThrow}`");
+            var willThrow = attr.WillThrow == null ? null : GetMethod(method.DeclaringType, attr.WillThrow, typeof(bool), parameters);
 
-            return willThrow;
+            // Get the `unsafe alternative` method which implements the same behaviour but without runtime checks
+            var alternativeImpl = attr.UnsafeAlternative == null ? null : GetMethod(method.DeclaringType, attr.UnsafeAlternative, method.ReturnType, parameters);
+
+            // If both are null there's nothing useful to return
+            if (willThrow == null && alternativeImpl == null)
+                return null;
+
+            if (attr.IsInfallible)
+            {
+                // There's no point returning will throw since it's infallible
+                return new ErrorMetadata(null, alternativeImpl);
+            }
+            else
+            {
+                // Method is not infallible, so return both
+                return new ErrorMetadata(willThrow, alternativeImpl);
+            }
+        }
+
+        private static MethodInfo GetMethod(Type declaringType, string name, Type requiredReturnType, Type[] parameters)
+        {
+            var method = declaringType.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, parameters, null);
+            if (method == null)
+                throw new InvalidOperationException($"ErrorMetadataAttribute references an invalid method: `{name}`");
+            if (method.ReturnType != requiredReturnType)
+                throw new InvalidOperationException($"ErrorMetadataAttribute references an method which does not return {requiredReturnType.Name}: `name`");
+
+            return method;
         }
     }
 }

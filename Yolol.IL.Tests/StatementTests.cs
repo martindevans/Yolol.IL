@@ -12,7 +12,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = 2");
 
-            Assert.AreEqual(2, st.GetVariable("a"));
+            Assert.AreEqual((Value)2, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -20,7 +20,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("if 1 then a = 1 else a = 2 end");
 
-            Assert.AreEqual(1, st.GetVariable("a"));
+            Assert.AreEqual((Value)1, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -28,7 +28,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("if 0 then a = 1 else a = 2 end");
 
-            Assert.AreEqual(2, st.GetVariable("a"));
+            Assert.AreEqual((Value)2, st.GetVariable("a"));
         }
 
         [TestMethod]
@@ -36,7 +36,7 @@ namespace Yolol.IL.Tests
         {
             var (_, l) = Test("goto 10");
 
-            Assert.AreEqual(10, l);
+            Assert.AreEqual((Value)10, l);
         }
 
         [TestMethod]
@@ -44,7 +44,7 @@ namespace Yolol.IL.Tests
         {
             var (_, l) = Test("goto -10");
 
-            Assert.AreEqual(1, l);
+            Assert.AreEqual((Value)1, l);
         }
 
         [TestMethod]
@@ -52,7 +52,7 @@ namespace Yolol.IL.Tests
         {
             var (_, l) = Test("goto 21");
 
-            Assert.AreEqual(20, l);
+            Assert.AreEqual((Value)20, l);
         }
 
         //[TestMethod]
@@ -87,8 +87,8 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a = 1 b = ++a");
 
-            Assert.AreEqual(2, st.GetVariable("a"));
-            Assert.AreEqual(2, st.GetVariable("b"));
+            Assert.AreEqual((Value)2, st.GetVariable("a"));
+            Assert.AreEqual((Value)2, st.GetVariable("b"));
         }
 
         [TestMethod]
@@ -96,7 +96,7 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test("a=1 ++a");
 
-            Assert.AreEqual(2, st.GetVariable("a"));
+            Assert.AreEqual((Value)2, st.GetVariable("a"));
         }
 
         [TestMethod]
