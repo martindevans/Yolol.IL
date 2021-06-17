@@ -716,7 +716,7 @@ namespace Yolol.IL.Compiler
             (a, b) => a % b,
             (a, b) => a % b,
             (a, b) => a % b,
-            (a, b) => a % (Number)b,
+            (a, b) => a % b,
             (a, b) => a % b,
             (a, b) => a % b,
             (a, b) => a % b
@@ -920,7 +920,7 @@ namespace Yolol.IL.Compiler
             if (errorMetadata != null)
             {
                 if (errorMetadata.Value.WillThrow == null)
-                    throw new NotImplementedException("null `WillThrow` method for decrement op");
+                    throw new InvalidOperationException("null `WillThrow` method for decrement op");
 
                 // Duplicate the item on the top of the stack
                 using (var dup = _emitter.DeclareLocal(peek, "StackPeek", false))

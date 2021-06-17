@@ -40,7 +40,7 @@ namespace Yolol.IL.Extensions
             var willThrow = attr.WillThrow == null ? null : GetMethod(method.DeclaringType, attr.WillThrow, typeof(bool), parameters);
 
             // Get the `unsafe alternative` method which implements the same behaviour but without runtime checks
-            var alternativeImpl = attr.UnsafeAlternative == null ? null : GetMethod(method.DeclaringType, attr.UnsafeAlternative, method.ReturnType, parameters);
+            var alternativeImpl = attr.UnsafeAlternative == null ? null : GetMethod(method.DeclaringType, attr.UnsafeAlternative, null, parameters);
 
             // If both are null there's nothing useful to return
             if (willThrow == null && alternativeImpl == null)
@@ -58,13 +58,13 @@ namespace Yolol.IL.Extensions
             }
         }
 
-        private static MethodInfo GetMethod(Type declaringType, string name, Type requiredReturnType, Type[] parameters)
+        private static MethodInfo GetMethod(Type declaringType, string name, Type? requiredReturnType, Type[] parameters)
         {
             var method = declaringType.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, parameters, null);
             if (method == null)
                 throw new InvalidOperationException($"ErrorMetadataAttribute references an invalid method: `{name}`");
-            if (method.ReturnType != requiredReturnType)
-                throw new InvalidOperationException($"ErrorMetadataAttribute references an method which does not return {requiredReturnType.Name}: `name`");
+            if (requiredReturnType != null && method.ReturnType != requiredReturnType)
+                throw new InvalidOperationException($"ErrorMetadataAttribute references an method which does not return {requiredReturnType.Name}: `{name}`");
 
             return method;
         }

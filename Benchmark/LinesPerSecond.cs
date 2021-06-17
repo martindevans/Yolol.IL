@@ -68,6 +68,7 @@ namespace Benchmark
                 { new VariableName("o"), Yolol.Execution.Type.Number },
                 { new VariableName("i"), Yolol.Execution.Type.Number },
                 { new VariableName("z"), Yolol.Execution.Type.Number },
+                { new VariableName("_"), Yolol.Execution.Type.Number },
                 //{ new VariableName("OUTPUT"), Yolol.Execution.Type.String },
             };
 

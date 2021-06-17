@@ -260,11 +260,17 @@ namespace Yolol.IL.Extensions
             // If the error metadata specifies an alternative implementation to use (which does not include runtime checks
             // for the case already checked by `WillThrow`) use that alternative instead.
             if (errorData != null && errorData.Value.UnsafeAlternative != null)
+            {
                 emitter.Call(errorData.Value.UnsafeAlternative);
+                return (errorData.Value.UnsafeAlternative!.ReturnType, true);
+            }
             else
+            {
                 emitter.Call(binary.Method);
+                return (binary.Method!.ReturnType, errorData != null);
+            }
 
-            return (binary.Method!.ReturnType, errorData != null);
+
         }
 
         private static (Type, bool)? TryConvertBinaryFastPath<TInLeft, TInRight, TOut, TEmit>(this Expression<Func<TInLeft, TInRight, TOut>> expr, Emit<TEmit> emitter, Label errorLabel)
