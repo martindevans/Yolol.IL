@@ -46,7 +46,7 @@ namespace Yolol.IL.Compiler
             _mutated = new HashSet<VariableName>();
         }
         
-        public void Initialise(Line line)
+        public void EmitLoad(Line line)
         {
             // Find every variable that is loaded anywhere in the line
             var loadFinder = new FindReadVariables();

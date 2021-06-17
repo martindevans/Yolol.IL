@@ -36,7 +36,7 @@ namespace Yolol.IL.Tests
         {
             var (_, l) = Test("goto 10");
 
-            Assert.AreEqual((Value)10, l);
+            Assert.AreEqual(10, l);
         }
 
         [TestMethod]
@@ -44,7 +44,7 @@ namespace Yolol.IL.Tests
         {
             var (_, l) = Test("goto -10");
 
-            Assert.AreEqual((Value)1, l);
+            Assert.AreEqual(1, l);
         }
 
         [TestMethod]
@@ -52,7 +52,7 @@ namespace Yolol.IL.Tests
         {
             var (_, l) = Test("goto 21");
 
-            Assert.AreEqual((Value)20, l);
+            Assert.AreEqual(20, l);
         }
 
         //[TestMethod]

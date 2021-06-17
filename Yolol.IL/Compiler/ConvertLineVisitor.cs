@@ -22,8 +22,8 @@ namespace Yolol.IL.Compiler
 
         private readonly int _maxLineNumber;
         private readonly MemoryAccessor<TEmit> _memory;
+        private readonly StackUnwinder<TEmit> _unwinder;
         private readonly Label _gotoLabel;
-        private readonly Label _runtimeErrorLabel;
 
         private readonly TypeStack<TEmit> _types;
 
@@ -33,15 +33,15 @@ namespace Yolol.IL.Compiler
             Emit<TEmit> emitter,
             int maxLineNumber,
             MemoryAccessor<TEmit> memory,
-            Label gotoLabel,
-            Label runtimeErrorLabel
+            StackUnwinder<TEmit> unwinder,
+            Label gotoLabel
         )
         {
             _emitter = emitter;
             _maxLineNumber = maxLineNumber;
             _memory = memory;
+            _unwinder = unwinder;
             _gotoLabel = gotoLabel;
-            _runtimeErrorLabel = runtimeErrorLabel;
 
             _types = new TypeStack<TEmit>(_emitter);
         }
@@ -194,15 +194,7 @@ namespace Yolol.IL.Compiler
             // If so jump to the runtime error handler
             if (_types.Peek == StackType.StaticError || result is ErrorExpression)
             {
-                // Empty out all items on the stack
-                while (!_types.IsEmpty)
-                {
-                    _types.Pop(_types.Peek);
-                    _emitter.Pop();
-                }
-
-                // Jump away to the error handler
-                _emitter.Branch(_runtimeErrorLabel);
+                _emitter.Branch(_unwinder.GetUnwinder(_types.Count));
 
                 // Some dead code will be emitted after this point. Drop down a label to satisfy sigil that this is ok
                 _emitter.MarkLabel(_emitter.DefineLabel());
@@ -337,10 +329,9 @@ namespace Yolol.IL.Compiler
                 return new ErrorExpression();
             var right = _types.Peek;
 
-            // Create some labels for error handling stuff
-            var errorLabel = _emitter.DefineLabel();
-            var noErrorLabel = _emitter.DefineLabel();
-            
+            // Get a label which will unwind the current stack in the event of an error
+            var errorLabel = _unwinder.GetUnwinder(_types.Count - 2);
+
             // Emit code
             _types.Pop(right);
             _types.Pop(left);
@@ -370,24 +361,8 @@ namespace Yolol.IL.Compiler
             };
             _types.Push(emitType!.ToStackType());
 
-            if (fallible)
-            {
-                // Jump past the error handler
-                _emitter.Branch(noErrorLabel);
-
-                // Create the error handler which empties the stack
-                _emitter.MarkLabel(errorLabel);
-
-                // If execution arrives here a runtime error has occured. Empty the stack and jump to the global error handler.
-                // There is one less item on the stack than you'd think, because the result of this operation was pushed onto the
-                // type tracking stack (but isn't really there in the error case)
-                for (var i = 0; i < _types.Count - 1; i++)
-                    _emitter.Pop();
-                _emitter.Branch(_runtimeErrorLabel);
-
-                // Mark label to jump past error handler
-                _emitter.MarkLabel(noErrorLabel);
-            }
+            if (!fallible)
+                _unwinder.ReturnUnwinder(errorLabel);
 
             return expr;
         }
@@ -761,31 +736,14 @@ namespace Yolol.IL.Compiler
              if (Visit(expr.Parameter) is ErrorExpression)
                  return new ErrorExpression();
 
-             // Create some labels for error handling stuff
-             var errorLabel = _emitter.DefineLabel();
-             var noErrorLabel = _emitter.DefineLabel();
+             // Get a label which will unwind the current stack in the event of an error
+             var errorLabel = _unwinder.GetUnwinder(_types.Count - 1);
 
              // Emit code
              var fallible = emit(errorLabel);
 
-             if (fallible)
-             {
-                 // Jump past the error handler
-                 _emitter.Branch(noErrorLabel);
-
-                 // Create the error handler which empties the stack
-                 _emitter.MarkLabel(errorLabel);
-
-                 // If execution arrives here a runtime error has occured. Empty the stack and jump to the global error handler.
-                 // There is one less item on the stack than you'd think, because the result of this operation was pushed onto the
-                 // type tracking stack (but isn't really there in the error case)
-                 for (var i = 0; i < _types.Count - 1; i++)
-                     _emitter.Pop();
-                 _emitter.Branch(_runtimeErrorLabel);
-
-                 // Mark label to jump past error handler
-                 _emitter.MarkLabel(noErrorLabel);
-             }
+             if (!fallible)
+                 _unwinder.ReturnUnwinder(errorLabel);
 
              return expr;
         }
@@ -912,38 +870,25 @@ namespace Yolol.IL.Compiler
             if (method == null)
                 throw new InvalidOperationException($"Cannot find method `op_Decrement` on type {peek}");
 
+            // Get a label which will unwind the current stack in the event of an error
+            var errorLabel = _unwinder.GetUnwinder(_types.Count);
+
             // Find the `will throw` method
             var errorMetadata = method.TryGetErrorMetadata(peek);
 
             // Emit code to check if the decrement will throw
-            var noErrorLabel = _emitter.DefineLabel();
             if (errorMetadata != null)
             {
                 if (errorMetadata.Value.WillThrow == null)
                     throw new InvalidOperationException("null `WillThrow` method for decrement op");
 
-                // Duplicate the item on the top of the stack
-                using (var dup = _emitter.DeclareLocal(peek, "StackPeek", false))
-                {
-                    _emitter.StoreLocal(dup);
-                    _emitter.LoadLocal(dup);
-                    _emitter.LoadLocal(dup);
-                }
-
-                // Call the "will throw" method
+                // Call the "will throw" method (consuming the duplicated value)
+                _emitter.Duplicate();
                 _emitter.Call(errorMetadata.Value.WillThrow);
 
-                // Jump past the error handler if "will throw" returned false
-                _emitter.BranchIfFalse(noErrorLabel);
-
-                // If execution arrives here a runtime error has occured. Empty the stack and jump to the global error handler.
-                for (var i = 0; i < _types.Count; i++)
-                    _emitter.Pop();
-                _emitter.Branch(_runtimeErrorLabel);
+                // Jump away to unwinder if this would throw
+                _emitter.BranchIfTrue(errorLabel);
             }
-
-            // Mark label to jump past error handler
-            _emitter.MarkLabel(noErrorLabel);
 
             // Do the actual work
             _emitter.Call(method);

@@ -172,9 +172,6 @@ namespace Yolol.IL.Extensions
             // Create a label which any `goto` statements can use. They drop their destination PC on the stack and then jump to this label
             var gotoLabel = emitter.DefineLabel("encountered_goto");
 
-            // Create a label which any runtime errors can use. They jump here after emptying the stack
-            var runtimeErrorLabel = emitter.DefineLabel("encountered_runtime_error");
-
             // Create a label which marks the end of the line, code reaching here falls through to the next line
             var eolLabel = emitter.DefineLabel("encountered_eol");
 
@@ -191,23 +188,23 @@ namespace Yolol.IL.Extensions
                 staticTypes
             ))
             {
-                accessor.Initialise(line);
+                accessor.EmitLoad(line);
 
-                // Convert the entire line into IL
-                var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, accessor, gotoLabel, runtimeErrorLabel);
-                converter.Visit(line);
-                emitter.Branch(eolLabel);
+                using (var unwinder = new StackUnwinder<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter))
+                {
+                    // Convert the entire line into IL
+                    var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, accessor, unwinder, gotoLabel);
+                    converter.Visit(line);
+                    emitter.Branch(eolLabel);
 
-                // Sanity check before returning result
-                if (!converter.IsTypeStackEmpty)
-                    throw new InvalidOperationException("Type stack is not empty after conversion");
+                    // Sanity check before returning result
+                    if (!converter.IsTypeStackEmpty)
+                        throw new InvalidOperationException("Type stack is not empty after conversion");
+                }
 
-                // If an error occurs control flow will jump to here. Just act as if control flow fell off the end of the line
-                emitter.MarkLabel(runtimeErrorLabel);
-                emitter.Branch(eolLabel);
+                // Control flow will reach here if an error occurs (via the unwinder). Just act as if control flow fell off the end of the line
 
-                // When a line finishes (with no gotos in the line) call flow eventually reaches here.
-                // go to the next line.
+                // When a line finishes (with no gotos in the line) call flow eventually reaches here. Go to the next line.
                 emitter.MarkLabel(eolLabel);
                 if (lineNumber == maxLines)
                     emitter.LoadConstant(1);
