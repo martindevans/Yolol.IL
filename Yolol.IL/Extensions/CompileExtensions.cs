@@ -196,10 +196,6 @@ namespace Yolol.IL.Extensions
                     var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, accessor, unwinder, gotoLabel);
                     converter.Visit(line);
                     emitter.Branch(eolLabel);
-
-                    // Sanity check before returning result
-                    if (!converter.IsTypeStackEmpty)
-                        throw new InvalidOperationException("Type stack is not empty after conversion");
                 }
 
                 // Control flow will reach here if an error occurs (via the unwinder). Just act as if control flow fell off the end of the line

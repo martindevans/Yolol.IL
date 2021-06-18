@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using System.Reflection;
 using Sigil;
 using Yolol.IL.Compiler;
 using Type = System.Type;
@@ -145,16 +146,20 @@ namespace Yolol.IL.Extensions
                     var c = (MethodCallExpression)expr;
                     if (c.Method.IsStatic)
                     {
+                        var idx = 0;
+                        var types = new Type[c.Arguments.Count];
                         var fallible = false;
                         foreach (var arg in c.Arguments)
                         {
-                            var (_, e) = ConvertExpression(arg, emitter, parameters, errorLabel, stackSize);
+                            var (t, e) = ConvertExpression(arg, emitter, parameters, errorLabel, stackSize);
+                            types[idx] = t;
+                            idx++;
                             fallible |= e;
                             stackSize++;
                         }
 
-                        emitter.Call(c.Method);
-                        return (c.Method.ReturnType, fallible);
+                        var (tc, ec) = ConvertCallWithErrorHandling(types, c.Method, emitter, errorLabel, stackSize);
+                        return (tc, ec | fallible);
                     }
                     else
                     {
@@ -195,7 +200,7 @@ namespace Yolol.IL.Extensions
                     var (lt, el) = ConvertExpression(binary.Left, emitter, parameters, errorLabel, stackSize);
                     var (rt, er) = ConvertExpression(binary.Right, emitter, parameters, errorLabel, stackSize + 1);
 
-                    var (t, e) = ConvertBinaryWithErrorHandling(lt, rt, binary, emitter, errorLabel, stackSize + 2);
+                    var (t, e) = ConvertCallWithErrorHandling(new[] { lt, rt }, binary.Method!, emitter, errorLabel, stackSize);
 
                     var err = e | el | er;
                     return (t, err);
@@ -206,34 +211,29 @@ namespace Yolol.IL.Extensions
             }
         }
 
-        /// <summary>
-        /// Convert a binary method, assuming the two inputs are already on the stack
-        /// </summary>
-        /// <returns></returns>
-        private static (Type, bool) ConvertBinaryWithErrorHandling<TEmit, TExpr>(Type leftType, Type rightType, TExpr binary, Emit<TEmit> emitter, Label errorLabel, int stackSize)
-            where TExpr : BinaryExpression
+        private static (Type, bool) ConvertCallWithErrorHandling<TEmit>(Type[] parameterTypes, MethodInfo method, Emit<TEmit> emitter, Label errorLabel, int stackSize)
         {
-            if (binary.Method == null)
-                throw new InvalidOperationException("Cannot convert binary method with null `Method`");
-            if (binary.Method.DeclaringType == null)
-                throw new InvalidOperationException("Cannot convert binary method with null `DeclaringType`");
+            if (method.DeclaringType == null)
+                throw new InvalidOperationException("Cannot convert call with null `DeclaringType`");
 
-            var errorData = binary.Method.TryGetErrorMetadata(leftType, rightType);
-
+            var errorData = method.TryGetErrorMetadata(parameterTypes);
             if (errorData != null)
             {
                 if (errorData.Value.WillThrow == null)
                     throw new NotImplementedException("Null `WillThrow` method");
 
-                // Save the left and right parameters into locals
-                using var rl = emitter.DeclareLocal(rightType, "ConvertBinaryWithErrorHandling_Right", false);
-                emitter.StoreLocal(rl);
-                using var ll = emitter.DeclareLocal(leftType, "ConvertBinaryWithErrorHandling_Left", false);
-                emitter.StoreLocal(ll);
+                // Save the parameters into locals
+                var parameterLocals = new List<Local>();
+                for (int i = parameterTypes.Length - 1; i >= 0; i--)
+                {
+                    var local = emitter.DeclareLocal(parameterTypes[i], $"ConvertCallWithErrorHandling_{parameterLocals.Count}", false);
+                    emitter.StoreLocal(local);
+                    parameterLocals.Add(local);
+                }
 
-                // Put left and right parameters back onto stack
-                emitter.LoadLocal(ll);
-                emitter.LoadLocal(rl);
+                // Load parameters back onto stack
+                for (var i = parameterLocals.Count - 1; i >= 0; i--)
+                    emitter.LoadLocal(parameterLocals[i]);
 
                 // Invoke the `will throw` method to discover if this invocation would trigger a runtime error
                 emitter.Call(errorData.Value.WillThrow);
@@ -246,15 +246,19 @@ namespace Yolol.IL.Extensions
 
                 // If execution reaches here it means an error would occur in this operation. First empty out the stack and then jump
                 // to the error handling label for this expression.
-                // There are two less things on the stack than indicated by stackSize because the two parameter to this method have already been taken off the stack.
-                for (var i = 0; i < stackSize - 2; i++)
+                // There are N less things on the stack than indicated by stackSize because the N parameters to this method have already been taken off the stack.
+                for (var i = 0; i < stackSize - parameterTypes.Length; i++)
                     emitter.Pop();
                 emitter.Branch(errorLabel);
 
-                // Put the left and right sides back onto the stack
+                // Put the parameters back onto the stack
                 emitter.MarkLabel(noThrowLabel);
-                emitter.LoadLocal(ll);
-                emitter.LoadLocal(rl);
+                for (var i = parameterLocals.Count - 1; i >= 0; i--)
+                    emitter.LoadLocal(parameterLocals[i]);
+
+                // Dispose locals used for holding parameters
+                foreach (var parameterLocal in parameterLocals)
+                    parameterLocal.Dispose();
             }
 
             // If the error metadata specifies an alternative implementation to use (which does not include runtime checks
@@ -266,11 +270,9 @@ namespace Yolol.IL.Extensions
             }
             else
             {
-                emitter.Call(binary.Method);
-                return (binary.Method!.ReturnType, errorData != null);
+                emitter.Call(method);
+                return (method.ReturnType, errorData != null);
             }
-
-
         }
 
         private static (Type, bool)? TryConvertBinaryFastPath<TInLeft, TInRight, TOut, TEmit>(this Expression<Func<TInLeft, TInRight, TOut>> expr, Emit<TEmit> emitter, Label errorLabel)
@@ -298,7 +300,7 @@ namespace Yolol.IL.Extensions
                     if (!(binary.Right is ParameterExpression pr) || pr.Name != expr.Parameters[1].Name)
                         return null;
 
-                    return ConvertBinaryWithErrorHandling(expr.Parameters[0].Type, expr.Parameters[1].Type, binary, emitter, errorLabel, 2);
+                    return ConvertCallWithErrorHandling(new[] { expr.Parameters[0].Type, expr.Parameters[1].Type }, binary.Method!, emitter, errorLabel, 2);
 
                 default:
                     return null;
