@@ -237,21 +237,9 @@ namespace Yolol.IL.Compiler
 
         private void EmitStoreValue(VariableName name)
         {
-            using (var l = _emitter.DeclareLocal(typeof(Value), "EmitStoreValueTmp", false))
-            {
-                _emitter.StoreLocal(l);
-
-                // Put the array segment and index of this variable onto the stack
-                EmitLoadArraySegmentAddr(name);
-                EmitLoadIndex(name);
-
-                // Put the value back on the stack
-                _emitter.LoadLocal(l);
-            }
-
-            // Find the indexer for array segments
-            var set = typeof(ArraySegment<Value>).GetProperty("Item", BindingFlags.Instance | BindingFlags.Public)!.GetSetMethod(false);
-            _emitter.Call(set);
+            EmitLoadArraySegmentAddr(name);
+            EmitLoadIndex(name);
+            _emitter.CallRuntimeN(nameof(Runtime.Store), typeof(Value), typeof(ArraySegment<Value>).MakeByRefType(), typeof(int));
         }
 
         private void EmitLoadValue(VariableName name)

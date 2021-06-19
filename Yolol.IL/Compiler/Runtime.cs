@@ -63,5 +63,13 @@ namespace Yolol.IL.Compiler
             return a & b;
         }
         #endregion
+
+        #region memory access
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Store(Value value, ref ArraySegment<Value> segment, int index)
+        {
+            segment[index] = value;
+        }
+        #endregion
     }
 }

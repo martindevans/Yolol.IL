@@ -148,15 +148,19 @@ namespace Yolol.IL.Extensions
             IReadOnlyDictionary<VariableName, Type>? staticTypes = null
         )
         {
-            // Special case for totally empty lines
-            if (line.Statements.Statements.Count == 0)
+            void EmitFallthroughCalc()
             {
                 if (lineNumber == maxLines)
                     emitter.LoadConstant(1);
                 else
                     emitter.LoadConstant(lineNumber + 1);
-                emitter.Return();
+            }
 
+            // Special case for totally empty lines
+            if (line.Statements.Statements.Count == 0)
+            {
+                EmitFallthroughCalc();
+                emitter.Return();
                 return;
             }
 
@@ -202,10 +206,7 @@ namespace Yolol.IL.Extensions
 
                 // When a line finishes (with no gotos in the line) call flow eventually reaches here. Go to the next line.
                 emitter.MarkLabel(eolLabel);
-                if (lineNumber == maxLines)
-                    emitter.LoadConstant(1);
-                else
-                    emitter.LoadConstant(lineNumber + 1);
+                EmitFallthroughCalc();
                 emitter.StoreLocal(retAddr);
                 emitter.Branch(exitTry);
 
@@ -219,11 +220,16 @@ namespace Yolol.IL.Extensions
 
                 // Catch all execution exceptions and return the appropriate next line number to fall through to
                 var catchBlock = emitter.BeginCatchBlock<ExecutionException>(exBlock);
+#if DEBUG
+                using (var ex = emitter.DeclareLocal(typeof(ExecutionException)))
+                {
+                    emitter.StoreLocal(ex);
+                    emitter.WriteLine("execution exception: {0}", ex);
+                }
+#else
                 emitter.Pop();
-                if (lineNumber == maxLines)
-                    emitter.LoadConstant(1);
-                else
-                    emitter.LoadConstant(lineNumber + 1);
+#endif
+                EmitFallthroughCalc();
                 emitter.StoreLocal(retAddr);
 
                 // Close the exception block which was wrapping the entire method
