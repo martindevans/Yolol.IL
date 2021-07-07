@@ -55,21 +55,20 @@ namespace Yolol.IL.Compiler
             // Find every variable that is written to anywhere in the line
             var storeFinder = new FindAssignedVariables();
             storeFinder.Visit(line);
-            var stored = new HashSet<VariableName>(storeFinder.Names);
-            _mutated.UnionWith(stored);
+            _mutated.UnionWith(storeFinder.Names);
 
-            // Find all the variables to cache (in this case, all variables accessed or mutated at all) and cache those variables in a local.
-            // This could filter down to a narrower set of variables to cache (all the infra is in place for that to work).
-            var accessCounts = loadFinder
-                .Counts
-                .Concat(storeFinder.Counts)
-                .Select(a => a.Key)
-                .Distinct()
-                .ToList();
+            // Only cache things which read or written more than once in the line
+            var toCache = new HashSet<VariableName>();
+            foreach (var (name, count) in loadFinder.Counts)
+                if (count > 1)
+                    toCache.Add(name);
+            foreach (var (name, count) in storeFinder.Counts)
+                if (count > 1)
+                    toCache.Add(name);
 
             // All stored things will be written out at the end. That means we need to load
             // everything that's loaded _or_ stored so that the write later is valid.
-            foreach (var variable in accessCounts)
+            foreach (var variable in toCache)
             {
                 var type = _knownTypes.TryGetValue(variable, out var t) ? t.ToStackType() : StackType.YololValue;
                 var local = _emitter.DeclareLocal(type.ToType(), $"CacheFor_{variable.Name}", false);
@@ -84,7 +83,7 @@ namespace Yolol.IL.Compiler
         public void Dispose()
         {
             // Write the cache back out to backing storage
-            foreach (var (name, local) in _cache)
+            foreach (var (name, local) in _cache.OrderByDescending(a => SegmentIndex(a.Key)))
             {
                 if (_mutated.Contains(name))
                 {
@@ -211,6 +210,13 @@ namespace Yolol.IL.Compiler
         #endregion
 
         #region direct memory access
+        private int SegmentIndex(VariableName name)
+        {
+            var map = name.IsExternal ? (IReadOnlyDictionary<string, int>)_externals : _internals;
+            var idx = map[name.Name];
+            return idx;
+        }
+
         /// <summary>
         /// Load the array segment for this type of variable name onto the stack
         /// </summary>
@@ -230,8 +236,7 @@ namespace Yolol.IL.Compiler
         /// <param name="name"></param>
         private void EmitLoadIndex(VariableName name)
         {
-            var map = name.IsExternal ? (IReadOnlyDictionary<string, int>)_externals : _internals;
-            var idx = map[name.Name];
+            var idx = SegmentIndex(name);
             _emitter.LoadConstant(idx);
         }
 

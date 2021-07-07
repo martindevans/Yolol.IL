@@ -32,7 +32,7 @@
   <ItemGroup>
     <PackageReference Include="Lokad.ILPack" Version="0.1.6" />
     <PackageReference Include="Sigil.NetStandard" Version="4.8.0" />
-    <PackageReference Include="Yolol" Version="14.2.5" />
+    <PackageReference Include="Yolol" Version="14.3.0" />
     <PackageReference Include="Yolol.Analysis" Version="6.2.4" />
   </ItemGroup>
 

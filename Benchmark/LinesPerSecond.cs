@@ -17,7 +17,7 @@ namespace Benchmark
             ":done++ b=97 c=89",
             ":o++ :done++",
             ":done++ x-- x=\"abc\" x=atan x",
-            "i=(127-1)/x _=(i/3%1==0)*i/3>1+(i/5%1==0)*i/5>1+(i/7%1==0)*i/7>1 a=i/11%1==0 x=atan x",
+            "i=(127-1) _=(i/3%1==0)*i/3>1+(i/5%1==0)*i/5>1+(i/7%1==0)*i/7>1 a=i/11%1==0 x=atan x",
             "_+=a*i/11>1+(i/13%1==0)*i/13>1+(i/17%1==0)*i/17>1+(i/19%1==0)*i/19>1 x=atan x",
             "_+=(i/23%1==0)*i/23>1+(i/29%1==0)*i/29>1+(i/31%1==0)*i/31>1a=i/37%1==0 x=atan x",
             "_+=a*i/37>1+(i/41%1==0)*i/41>1+(i/43%1==0)*i/43>1+(i/47%1==0)*i/47>1 x=atan x",
@@ -60,6 +60,12 @@ namespace Benchmark
 
         public LinesPerSecond()
         {
+            // Pin to one core, to reduce noise as it migrates from core to core
+            var proc = Process.GetCurrentProcess();
+            const int affinity = 1 << 5;
+            proc.ProcessorAffinity = (IntPtr)affinity;
+            proc.PriorityClass = ProcessPriorityClass.High;
+
             var ast = Parse(_program);
 
             var staticTypes = new Dictionary<VariableName, Yolol.Execution.Type> {
@@ -67,6 +73,7 @@ namespace Benchmark
                 //{ new VariableName("c"), Yolol.Execution.Type.Number },
                 //{ new VariableName("o"), Yolol.Execution.Type.Number },
                 //{ new VariableName("i"), Yolol.Execution.Type.Number },
+
                 //{ new VariableName("z"), Yolol.Execution.Type.Number },
                 //{ new VariableName("_"), Yolol.Execution.Type.Number },
                 //{ new VariableName("OUTPUT"), Yolol.Execution.Type.String },

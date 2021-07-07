@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using Sigil;
@@ -10,7 +9,6 @@ using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
 using Yolol.Grammar.AST.Expressions.Unary;
 using Yolol.Grammar.AST.Statements;
-using Yolol.IL.Compiler.Vectorisation;
 using Yolol.IL.Extensions;
 
 namespace Yolol.IL.Compiler
@@ -47,36 +45,6 @@ namespace Yolol.IL.Compiler
         }
 
         #region statements
-        protected override StatementList Visit(StatementList list)
-        {
-            var strategies = new BaseVectorisationStrategy<TEmit>[] {
-                new NoStrategy<TEmit>()
-            };
-
-            var q = new List<BaseStatement>(list.Statements);
-            while (q.Count > 0)
-            {
-                var success = false;
-                foreach (var strat in strategies)
-                {
-                    if (strat.Try(q, _emitter))
-                    {
-                        success = true;
-                        break;
-                    }
-                }
-
-                // if no vectorisation strategies succeeded remove one item from the queue and try again
-                if (!success)
-                {
-                    Visit(q[0]);
-                    q.RemoveAt(0);
-                }
-            }
-
-            return list;
-        }
-
         protected override BaseStatement Visit(Assignment ass)
         {
             // Place the value to put into this variable on the stack
@@ -249,12 +217,6 @@ namespace Yolol.IL.Compiler
             where T : BaseExpression
         {
             runtimeError = false;
-
-            // Never statically evaluate expressions in DEBUG mode
-            #if DEBUG
-            return false;
-            #endif
-
             if (expr.IsConstant)
             {
                 var v = Execution.Extensions.BaseExpressionExtensions.TryStaticEvaluate(expr, out runtimeError);
@@ -324,45 +286,49 @@ namespace Yolol.IL.Compiler
             // Convert the two sides of the expression
             if (Visit(expr.Left) is ErrorExpression)
                 return new ErrorExpression();
-            var left = _types.Peek;
+            var leftType = _types.Peek;
             if (Visit(expr.Right) is ErrorExpression)
                 return new ErrorExpression();
-            var right = _types.Peek;
+            var rightType = _types.Peek;
 
             // Get a label which will unwind the current stack in the event of an error
             var errorLabel = _unwinder.GetUnwinder(_types.Count - 2);
 
+            // Try to calculate static values for the two sides
+            var constLeft = expr.Left.IsConstant ? Execution.Extensions.BaseExpressionExtensions.TryStaticEvaluate(expr.Left, out _) : null;
+            var constRight = expr.Right.IsConstant ? Execution.Extensions.BaseExpressionExtensions.TryStaticEvaluate(expr.Right, out _) : null;
+
             // Emit code
-            _types.Pop(right);
-            _types.Pop(left);
-            var (emitType, fallible) = (left, right) switch {
+            _types.Pop(rightType);
+            _types.Pop(leftType);
+            var (emitType, fallible) = (left: leftType, right: rightType) switch {
 
-                (StackType.Bool, StackType.Bool) => emitBoolBool.ConvertBinary(_emitter, errorLabel),
-                (StackType.Bool, StackType.YololNumber) => emitBoolNum.ConvertBinary(_emitter, errorLabel),
-                (StackType.Bool, StackType.YololString) => emitBoolStr.ConvertBinary(_emitter, errorLabel),
-                (StackType.Bool, StackType.YololValue) => emitBoolVal.ConvertBinary(_emitter, errorLabel),
+                (StackType.Bool, StackType.Bool) => emitBoolBool.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.Bool, StackType.YololNumber) => emitBoolNum.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.Bool, StackType.YololString) => emitBoolStr.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.Bool, StackType.YololValue) => emitBoolVal.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
 
-                (StackType.YololNumber, StackType.Bool) => emitNumBool.ConvertBinary(_emitter, errorLabel),
-                (StackType.YololNumber, StackType.YololNumber) => emitNumNum.ConvertBinary(_emitter, errorLabel),
-                (StackType.YololNumber, StackType.YololString) => emitNumStr.ConvertBinary(_emitter, errorLabel),
-                (StackType.YololNumber, StackType.YololValue) => emitNumVal.ConvertBinary(_emitter, errorLabel),
+                (StackType.YololNumber, StackType.Bool) => emitNumBool.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.YololNumber, StackType.YololNumber) => emitNumNum.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.YololNumber, StackType.YololString) => emitNumStr.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.YololNumber, StackType.YololValue) => emitNumVal.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
 
-                (StackType.YololString, StackType.Bool) => emitStrBool.ConvertBinary(_emitter, errorLabel),
-                (StackType.YololString, StackType.YololNumber) => emitStNum.ConvertBinary(_emitter, errorLabel),
-                (StackType.YololString, StackType.YololString) => emitStStr.ConvertBinary(_emitter, errorLabel),
-                (StackType.YololString, StackType.YololValue) => emitStVal.ConvertBinary(_emitter, errorLabel),
+                (StackType.YololString, StackType.Bool) => emitStrBool.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.YololString, StackType.YololNumber) => emitStNum.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.YololString, StackType.YololString) => emitStStr.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.YololString, StackType.YololValue) => emitStVal.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
 
-                (StackType.YololValue, StackType.Bool) => emitValBool.ConvertBinary(_emitter, errorLabel),
-                (StackType.YololValue, StackType.YololNumber) => emitValNum.ConvertBinary(_emitter, errorLabel),
-                (StackType.YololValue, StackType.YololString) => emitValStr.ConvertBinary(_emitter, errorLabel),
-                (StackType.YololValue, StackType.YololValue) => emitValVal.ConvertBinary(_emitter, errorLabel),
+                (StackType.YololValue, StackType.Bool) => emitValBool.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.YololValue, StackType.YololNumber) => emitValNum.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.YololValue, StackType.YololString) => emitValStr.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.YololValue, StackType.YololValue) => emitValVal.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
 
-                _ => throw new InvalidOperationException($"{expr.GetType().Name}({left},{right})")
+                _ => throw new InvalidOperationException($"{expr.GetType().Name}({leftType},{rightType})")
             };
             _types.Push(emitType!.ToStackType());
 
             if (!fallible)
-                _unwinder.ReturnUnwinder(errorLabel);
+                _unwinder.CancelUnwinder(errorLabel);
 
             return expr;
         }
@@ -603,7 +569,7 @@ namespace Yolol.IL.Compiler
         );
 
         protected override BaseExpression Visit(GreaterThan gt) => ConvertBinaryExpr(gt,
-            (a, b) => (Number)a > b,
+            (a, b) => a & !b,
             (a, b) => (Number)a > b,
             (a, b) => (Number)a > b,
             (a, b) => (Number)a > b,
@@ -743,7 +709,7 @@ namespace Yolol.IL.Compiler
              var fallible = emit(errorLabel);
 
              if (!fallible)
-                 _unwinder.ReturnUnwinder(errorLabel);
+                 _unwinder.CancelUnwinder(errorLabel);
 
              return expr;
         }

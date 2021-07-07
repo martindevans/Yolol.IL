@@ -29,7 +29,7 @@ namespace Yolol.IL.Compiler
             return l;
         }
 
-        public void ReturnUnwinder(Label label)
+        public void CancelUnwinder(Label label)
         {
             _labels.RemoveAll(a => a.Item2 == label);
         }
