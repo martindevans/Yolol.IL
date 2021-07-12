@@ -222,5 +222,76 @@ namespace Yolol.IL.Extensions
                     throw new InvalidOperationException($"Cannot coerce `{input}` -> `{output}`");
             }
         }
+
+        /// <summary>
+        /// Define a new label which may be marked later.
+        /// </summary>
+        /// <typeparam name="TEmit"></typeparam>
+        /// <param name="emitter"></param>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public static Label2<TEmit> DefineLabel2<TEmit>(this Emit<TEmit> emitter, string name)
+        {
+            return new Label2<TEmit>(emitter, name);
+        }
+
+        /// <summary>
+        /// Mark the destination of a previously defined label
+        /// </summary>
+        /// <typeparam name="TEmit"></typeparam>
+        /// <param name="_"></param>
+        /// <param name="label"></param>
+        public static void MarkLabel<TEmit>(this Emit<TEmit> _, Label2<TEmit> label)
+        {
+            label.Mark();
+        }
+
+        /// <summary>
+        /// Unconditionally branch to a given label
+        /// </summary>
+        /// <typeparam name="TEmit"></typeparam>
+        /// <param name="_"></param>
+        /// <param name="label"></param>
+        public static void Branch<TEmit>(this Emit<TEmit> _, Label2<TEmit> label)
+        {
+            label.Branch();
+        }
+    }
+
+    internal class Label2<TEmit>
+    {
+        private readonly Emit<TEmit> _emit;
+        private readonly Label _label;
+
+        public bool IsUsed { get; private set; }
+
+        public Label2(Emit<TEmit> emit, string name)
+        {
+            _emit = emit;
+            _label = emit.DefineLabel(name);
+        }
+
+        public void Mark()
+        {
+            _emit.MarkLabel(_label);
+        }
+
+        public void Branch()
+        {
+            _emit.Branch(_label);
+            IsUsed = true;
+        }
+    }
+
+    internal class TypedLocal
+    {
+        public StackType Type { get; }
+        public Local Local { get; }
+
+        public TypedLocal(StackType type, Local local)
+        {
+            Type = type;
+            Local = local;
+        }
     }
 }

@@ -67,7 +67,7 @@ namespace Yolol.IL.Compiler
                     toCache.Add(name);
 
             // All stored things will be written out at the end. That means we need to load
-            // everything that's loaded _or_ stored so that the write later is valid.
+            // everything that's loaded _or_ stored so that the write later is valid in all cases.
             foreach (var variable in toCache)
             {
                 var type = _knownTypes.TryGetValue(variable, out var t) ? t.ToStackType() : StackType.YololValue;
@@ -153,6 +153,17 @@ namespace Yolol.IL.Compiler
                 StaticUnbox(type);
                 types.Push(type);
             }
+        }
+
+        /// <summary>
+        /// Get the local which contains this value (or null, if it is not cached)
+        /// </summary>
+        /// <param name="name"></param>
+        public TypedLocal? TryLoadLocal(VariableName name)
+        {
+            if (_cache.ContainsKey(name))
+                return _cache[name];
+            return null;
         }
 
         #region conversions
@@ -258,18 +269,6 @@ namespace Yolol.IL.Compiler
             _emitter.Call(get);
         }
         #endregion
-
-        private class TypedLocal
-        {
-            public StackType Type { get; }
-            public Local Local { get; }
-
-            public TypedLocal(StackType type, Local local)
-            {
-                Type = type;
-                Local = local;
-            }
-        }
 
         Type? ITypeAssignments.TypeOf(VariableName name)
         {

@@ -21,7 +21,7 @@ namespace Yolol.IL.Compiler
         private readonly int _maxLineNumber;
         private readonly MemoryAccessor<TEmit> _memory;
         private readonly StackUnwinder<TEmit> _unwinder;
-        private readonly Label _gotoLabel;
+        private readonly Label2<TEmit> _gotoLabel;
 
         private readonly TypeStack<TEmit> _types;
 
@@ -32,7 +32,7 @@ namespace Yolol.IL.Compiler
             int maxLineNumber,
             MemoryAccessor<TEmit> memory,
             StackUnwinder<TEmit> unwinder,
-            Label gotoLabel
+            Label2<TEmit> gotoLabel
         )
         {
             _emitter = emitter;
@@ -128,10 +128,16 @@ namespace Yolol.IL.Compiler
                         _emitter.CallRuntimeN(nameof(Runtime.GotoNumber), typeof(Number), typeof(int));
                         break;
 
-                    case StackType.YololValue:
                     case StackType.YololString:
+                        _emitter.Branch(_unwinder.GetUnwinder(_types.Count));
+                        _emitter.MarkLabel(_emitter.DefineLabel());
+                        break;
+
+                    case StackType.YololValue:
                         _types.Coerce(StackType.YololValue);
-                        _types.Pop(StackType.YololValue);
+                        _emitter.Duplicate();
+                        _emitter.CallRuntimeN(nameof(Runtime.IsValueANumber), typeof(Value));
+                        _emitter.BranchIfFalse(_unwinder.GetUnwinder(_types.Count));
                         _emitter.LoadConstant(_maxLineNumber);
                         _emitter.CallRuntimeN(nameof(Runtime.GotoValue), typeof(Value), typeof(int));
                         break;
@@ -334,10 +340,10 @@ namespace Yolol.IL.Compiler
         }
 
         protected override BaseExpression Visit(Add add) => ConvertBinaryExpr(add,
-            (a, b) => (Number)a + b,
-            (a, b) => (Number)a + b,
-            (a, b) => (Number)a + b,
-            (a, b) => (Number)a + b,
+            (a, b) => Runtime.BoolAdd(a, b),
+            (a, b) => Runtime.BoolAdd(a, b),
+            (a, b) => Runtime.BoolAdd(a, b),
+            (a, b) => Runtime.BoolAdd(a, b),
             (a, b) => a + b,
             (a, b) => a + b,
             (a, b) => a + b,
@@ -494,7 +500,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(Multiply mul) => ConvertBinaryExpr(mul,
             (a, b) => Runtime.And(a, b),
-            (a, b) => (Number)a * b,
+            (a, b) => Runtime.BoolMul(a, b),
             (a, b) => (Number)a * b,
             (a, b) => (Number)a * b,
             (a, b) => a * b,

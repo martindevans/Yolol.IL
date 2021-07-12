@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Sigil;
@@ -272,32 +273,43 @@ namespace Yolol.IL.Extensions
 
             // Check for errors, early out if this is guaranteed to be an error
             var errorData = method.TryGetErrorMetadata(parameterTypes);
+            var infallible = (errorData?.IsInfallible ?? false);
             if (errorData != null)
-                CheckForRuntimeError(errorData.Value, parameterTypes, staticValues, emitter, errorLabel, stackSize);
+                infallible |= CheckForRuntimeError(errorData.Value, parameterTypes, staticValues, emitter, errorLabel, stackSize);
 
             // If the error metadata specifies an alternative implementation to use (which does not include runtime checks
             // for the case already checked by `WillThrow`) use that alternative instead.
-            var fallible = errorData is { IsInfallible: false };
             if (errorData != null && errorData.Value.UnsafeAlternative != null)
             {
                 emitter.Call(errorData.Value.UnsafeAlternative);
-                return new ConvertResult(errorData.Value.UnsafeAlternative!.ReturnType, fallible, null);
+                return new ConvertResult(errorData.Value.UnsafeAlternative!.ReturnType, !infallible, null);
             }
             else
             {
                 emitter.Call(method);
-                return new ConvertResult(method.ReturnType, fallible, null);
+                return new ConvertResult(method.ReturnType, !infallible, null);
             }
         }
 
-        private static void CheckForRuntimeError<TEmit>(MethodInfoExtensions.ErrorMetadata errorData, Type[] parameterTypes, Value?[]? staticValues, Emit<TEmit> emitter, Label errorLabel, int stackSize)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <typeparam name="TEmit"></typeparam>
+        /// <param name="errorData"></param>
+        /// <param name="parameterTypes"></param>
+        /// <param name="staticValues"></param>
+        /// <param name="emitter"></param>
+        /// <param name="errorLabel"></param>
+        /// <param name="stackSize"></param>
+        /// <returns>If the method is infallible (i.e. is statically known not to throw)</returns>
+        private static bool CheckForRuntimeError<TEmit>(MethodInfoExtensions.ErrorMetadata errorData, Type[] parameterTypes, Value?[]? staticValues, Emit<TEmit> emitter, Label errorLabel, int stackSize)
         {
             if (staticValues != null && staticValues.Length != parameterTypes.Length)
                 throw new ArgumentException("incorrect number of static values");
 
             // If it's infallible there's no point checking for errors!
             if (errorData.IsInfallible)
-                return;
+                return true;
 
             // Determine it we can statically determine whether this is an error
             if (staticValues != null)
@@ -307,7 +319,7 @@ namespace Yolol.IL.Extensions
                 {
                     // If we statically know it's not going to error return now, the rest of the error handling code is unnecessary.
                     if (!staticError.Value)
-                        return;
+                        return true;
 
                     // We statically know that this _will_ trigger an error. In principle this could clear up the stack and early exit
                     // but it's such a rare case it's not worth the extra complexity.
@@ -335,6 +347,8 @@ namespace Yolol.IL.Extensions
             // Dispose locals used for holding parameters
             foreach (var parameterLocal in parameterLocals)
                 parameterLocal.Dispose();
+
+            return false;
         }
 
         #region fast path
@@ -352,7 +366,7 @@ namespace Yolol.IL.Extensions
                 case ExpressionType.LessThan:
                 case ExpressionType.LessThanOrEqual:
                 case ExpressionType.GreaterThan:
-                case ExpressionType.GreaterThanOrEqual:
+                case ExpressionType.GreaterThanOrEqual: {
                     var binary = (BinaryExpression)expr.Body;
                     if (binary.Method == null)
                         return null;
@@ -365,12 +379,36 @@ namespace Yolol.IL.Extensions
 
                     return ConvertCallWithErrorHandling(
                         new[] { expr.Parameters[0].Type, expr.Parameters[1].Type },
-                        new Value?[] { leftConst, rightConst },
+                        new Value?[] {leftConst, rightConst},
                         binary.Method!,
                         emitter,
                         errorLabel,
                         2
                     );
+                }
+
+                case ExpressionType.Call: {
+                    var call = (MethodCallExpression)expr.Body;
+                    if (call.Method == null)
+                        return null;
+
+                    // Fast path conversion only works if the arguments are parameters, consumed in the order they were given
+                    for (var i = 0; i < call.Arguments.Count; i++)
+                    {
+                        var arg = call.Arguments[i];
+                        if (!(arg is ParameterExpression pl) || pl.Name != expr.Parameters[i].Name)
+                            return null;
+                    }
+
+                    return ConvertCallWithErrorHandling(
+                        call.Arguments.Select(a => a.Type).ToArray(),
+                        null,
+                        call.Method,
+                        emitter,
+                        errorLabel,
+                        call.Arguments.Count
+                    );
+                }
 
                 default:
                     return null;

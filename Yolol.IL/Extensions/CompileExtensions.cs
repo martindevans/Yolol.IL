@@ -85,13 +85,16 @@ namespace Yolol.IL.Extensions
         )
         {
             // Create an emitter for a dynamic method
-            var emitter = Emit<Func<ArraySegment<Value>, ArraySegment<Value>, int>>.NewDynamicMethod();
+            var emitter = Emit<Func<ArraySegment<Value>, ArraySegment<Value>, int>>.NewDynamicMethod(strictBranchVerification: true);
 
             // Compile code into the emitter
             line.Compile(emitter, lineNumber, maxLines, internalVariableMap, externalVariableMap, staticTypes);
 
-            //Console.WriteLine(emitter.Instructions());
-            //Console.WriteLine("-----------------------------");
+#if DEBUG
+            Console.WriteLine("// " + line);
+            Console.WriteLine(emitter.Instructions());
+            Console.WriteLine("-----------------------------");
+#endif
 
             // Finally convert the IL into a runnable C# method for this line
             return emitter.CreateDelegate();
@@ -174,7 +177,7 @@ namespace Yolol.IL.Extensions
             var retAddr = emitter.DeclareLocal<int>("ret_addr");
 
             // Create a label which any `goto` statements can use. They drop their destination PC on the stack and then jump to this label
-            var gotoLabel = emitter.DefineLabel("encountered_goto");
+            var gotoLabel = emitter.DefineLabel2("encountered_goto");
 
             // Create a label which marks the end of the line, code reaching here falls through to the next line
             var eolLabel = emitter.DefineLabel("encountered_eol");
@@ -211,9 +214,12 @@ namespace Yolol.IL.Extensions
                 emitter.Branch(exitTry);
 
                 // Create a block to handle gotos. The destination will already be on the stack, so just return
-                emitter.MarkLabel(gotoLabel);
-                emitter.StoreLocal(retAddr);
-                emitter.Branch(exitTry);
+                if (gotoLabel.IsUsed)
+                {
+                    emitter.MarkLabel(gotoLabel);
+                    emitter.StoreLocal(retAddr);
+                    emitter.Branch(exitTry);
+                }
 
                 // Mark the end of the block for things that want to leave
                 emitter.MarkLabel(exitTry);
