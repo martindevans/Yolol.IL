@@ -388,26 +388,7 @@ namespace Yolol.IL.Extensions
                 }
 
                 case ExpressionType.Call: {
-                    var call = (MethodCallExpression)expr.Body;
-                    if (call.Method == null)
-                        return null;
-
-                    // Fast path conversion only works if the arguments are parameters, consumed in the order they were given
-                    for (var i = 0; i < call.Arguments.Count; i++)
-                    {
-                        var arg = call.Arguments[i];
-                        if (!(arg is ParameterExpression pl) || pl.Name != expr.Parameters[i].Name)
-                            return null;
-                    }
-
-                    return ConvertCallWithErrorHandling(
-                        call.Arguments.Select(a => a.Type).ToArray(),
-                        null,
-                        call.Method,
-                        emitter,
-                        errorLabel,
-                        call.Arguments.Count
-                    );
+                    return TryConvertCallFastPath(expr, emitter, errorLabel);
                 }
 
                 default:
@@ -427,9 +408,40 @@ namespace Yolol.IL.Extensions
                     emitter.Pop();
                     return ConvertExpression(expr.Body, emitter, new Dictionary<string, Parameter>(), errorLabel, 0);
 
+                case ExpressionType.Call: {
+                    return TryConvertCallFastPath(expr, emitter, errorLabel);
+                }
+
                 default:
                     return null;
             }
+        }
+
+        private static ConvertResult? TryConvertCallFastPath<TExpr, TEmit>(this Expression<TExpr> expr, Emit<TEmit> emitter, Label errorLabel)
+        {
+            if (expr.Body.NodeType != ExpressionType.Call)
+                return null;
+
+            var call = (MethodCallExpression)expr.Body;
+            if (call.Method == null)
+                return null;
+
+            // Fast path conversion only works if the arguments are parameters, consumed in the order they were given
+            for (var i = 0; i < call.Arguments.Count; i++)
+            {
+                var arg = call.Arguments[i];
+                if (!(arg is ParameterExpression pl) || pl.Name != expr.Parameters[i].Name)
+                    return null;
+            }
+
+            return ConvertCallWithErrorHandling(
+                call.Arguments.Select(a => a.Type).ToArray(),
+                null,
+                call.Method,
+                emitter,
+                errorLabel,
+                call.Arguments.Count
+            );
         }
         #endregion
     }
