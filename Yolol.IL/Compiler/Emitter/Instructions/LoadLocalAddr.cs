@@ -2,12 +2,12 @@
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
 {
-    internal class LoadLocalAddressOp
+    internal class LoadLocalAddress
         : BaseInstruction
     {
         private readonly Local _local;
 
-        public LoadLocalAddressOp(Local local)
+        public LoadLocalAddress(Local local)
         {
             _local = local;
         }
