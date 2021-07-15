@@ -10,6 +10,7 @@ using Yolol.Grammar.AST.Expressions.Binary;
 using Yolol.Grammar.AST.Expressions.Unary;
 using Yolol.Grammar.AST.Statements;
 using Yolol.IL.Compiler.Emitter;
+using Yolol.IL.Compiler.Memory;
 using Yolol.IL.Extensions;
 
 namespace Yolol.IL.Compiler
@@ -20,7 +21,7 @@ namespace Yolol.IL.Compiler
         private readonly OptimisingEmitter<TEmit> _emitter;
 
         private readonly int _maxLineNumber;
-        private readonly MemoryAccessor<TEmit> _memory;
+        private readonly IMemoryAccessor<TEmit> _memory;
         private readonly StackUnwinder<TEmit> _unwinder;
         private readonly Label2<TEmit> _gotoLabel;
 
@@ -31,7 +32,7 @@ namespace Yolol.IL.Compiler
         public ConvertLineVisitor(
             OptimisingEmitter<TEmit> emitter,
             int maxLineNumber,
-            MemoryAccessor<TEmit> memory,
+            IMemoryAccessor<TEmit> memory,
             StackUnwinder<TEmit> unwinder,
             Label2<TEmit> gotoLabel
         )
@@ -745,7 +746,7 @@ namespace Yolol.IL.Compiler
             b => (Number)1,
             n => n.Factorial(),
             s => new StaticError("Attempted to Factorial a string value"),
-            v => v.Factorial()
+            v => Value.Factorial(v)
         );
 
         protected override BaseExpression Visit(Not not) => ConvertUnaryExpr(not,
@@ -813,7 +814,7 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(Abs abs) => ConvertUnaryExpr(abs,
             b => b,
-            n => n.Abs(),
+            n => Runtime.Abs(n),
             s => new StaticError("Attempted to `ABS` a string value"),
             v => Value.Abs(v)
         );

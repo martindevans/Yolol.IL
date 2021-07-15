@@ -9,6 +9,7 @@ using Yolol.Grammar.AST;
 using Yolol.Grammar.AST.Statements;
 using Yolol.IL.Compiler;
 using Yolol.IL.Compiler.Emitter;
+using Yolol.IL.Compiler.Memory;
 using Type = Yolol.Execution.Type;
 
 namespace Yolol.IL.Extensions
@@ -181,7 +182,7 @@ namespace Yolol.IL.Extensions
                 var exitTry = emitter.DefineLabel("exit_try_catch");
 
                 // Create a memory accessor which manages reading and writing the memory arrays
-                using (var accessor = new MemoryAccessor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(
+                using (var accessor = new ArraySegmentMemoryAccessor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(
                     emitter,
                     1,
                     0,

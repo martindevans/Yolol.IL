@@ -27,6 +27,13 @@ namespace Yolol.IL.Compiler
         }
         #endregion
 
+        #region number
+        public static Number Abs(Number value)
+        {
+            return value.Abs();
+        }
+        #endregion
+
         #region goto
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsValueANumber(Value value)

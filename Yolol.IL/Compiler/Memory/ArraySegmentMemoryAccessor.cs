@@ -2,19 +2,19 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Yolol.Analysis.TreeVisitor.Inspection;
+using Yolol.Analysis.Types;
 using Yolol.Execution;
 using Yolol.Grammar;
 using Yolol.Grammar.AST;
-using Yolol.IL.Extensions;
-using Yolol.Analysis.TreeVisitor.Inspection;
-using Yolol.Analysis.Types;
 using Yolol.IL.Compiler.Emitter;
+using Yolol.IL.Extensions;
 using Type = Yolol.Execution.Type;
 
-namespace Yolol.IL.Compiler
+namespace Yolol.IL.Compiler.Memory
 {
-    internal class MemoryAccessor<TEmit>
-        : IDisposable, ITypeAssignments
+    internal class ArraySegmentMemoryAccessor<TEmit>
+        : IMemoryAccessor<TEmit>
     {
         private readonly OptimisingEmitter<TEmit> _emitter;
         private readonly ushort _externalArraySegmentArg;
@@ -27,7 +27,7 @@ namespace Yolol.IL.Compiler
         private readonly Dictionary<VariableName, TypedLocal> _cache;
         private readonly HashSet<VariableName> _mutated;
 
-        public MemoryAccessor(
+        public ArraySegmentMemoryAccessor(
             OptimisingEmitter<TEmit> emitter,
             ushort externalArraySegmentArg,
             ushort internalArraySegmentArg,
@@ -153,17 +153,6 @@ namespace Yolol.IL.Compiler
                 StaticUnbox(type);
                 types.Push(type);
             }
-        }
-
-        /// <summary>
-        /// Get the local which contains this value (or null, if it is not cached)
-        /// </summary>
-        /// <param name="name"></param>
-        public TypedLocal? TryLoadLocal(VariableName name)
-        {
-            if (_cache.ContainsKey(name))
-                return _cache[name];
-            return null;
         }
 
         #region conversions

@@ -32,6 +32,7 @@ namespace Yolol.IL.Compiler.Emitter
         {
             var optimisations = new List<BaseOptimisation> {
                 new StoreLoadChain(),
+                //new LoadStoreChain(),
             };
 
             for (var i = 0; i < 128; i++)
@@ -160,6 +161,16 @@ namespace Yolol.IL.Compiler.Emitter
         public void Pop()
         {
             _ops.Add(new Pop());
+        }
+
+        /// <summary>
+        /// Leave an exception or catch block, branching to the given label.
+        /// 
+        /// This instruction empties the stack.
+        /// </summary>
+        public void Leave(Label label)
+        {
+            _ops.Add(new Leave(label));
         }
         #endregion
 
@@ -369,5 +380,26 @@ namespace Yolol.IL.Compiler.Emitter
             }
         }
         #endregion
+
+        /// <summary>
+        /// Takes a destination pointer, a source pointer as arguments.  Pops both off the stack.
+        /// 
+        /// Copies the given value type from the source to the destination.
+        /// </summary>
+        public void CopyObject<TObject>()
+            where TObject : struct
+        {
+            _ops.Add(new CopyObject<TObject>());
+        }
+
+        /// <summary>
+        /// Takes a destination pointer, a source pointer as arguments.  Pops both off the stack.
+        /// 
+        /// Copies the given value type from the source to the destination.
+        /// </summary>
+        public void CopyObject(Type type)
+        {
+            _ops.Add(new CopyObject(type));
+        }
     }
 }
