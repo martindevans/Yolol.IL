@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Sigil;
 using Yolol.Execution;
 using Yolol.Grammar;
 using Yolol.Grammar.AST;
 using Yolol.IL.Extensions;
 using Yolol.Analysis.TreeVisitor.Inspection;
 using Yolol.Analysis.Types;
+using Yolol.IL.Compiler.Emitter;
 using Type = Yolol.Execution.Type;
 
 namespace Yolol.IL.Compiler
@@ -16,9 +16,9 @@ namespace Yolol.IL.Compiler
     internal class MemoryAccessor<TEmit>
         : IDisposable, ITypeAssignments
     {
-        private readonly Emit<TEmit> _emitter;
-        private readonly Local _externalArraySegmentLocal;
-        private readonly Local _internalArraySegmentLocal;
+        private readonly OptimisingEmitter<TEmit> _emitter;
+        private readonly ushort _externalArraySegmentArg;
+        private readonly ushort _internalArraySegmentArg;
         private readonly IReadonlyInternalsMap _internals;
         private readonly IReadonlyExternalsMap _externals;
 
@@ -28,16 +28,16 @@ namespace Yolol.IL.Compiler
         private readonly HashSet<VariableName> _mutated;
 
         public MemoryAccessor(
-            Emit<TEmit> emitter,
-            Local externalArraySegmentLocal,
-            Local internalArraySegmentLocal,
+            OptimisingEmitter<TEmit> emitter,
+            ushort externalArraySegmentArg,
+            ushort internalArraySegmentArg,
             IReadonlyInternalsMap internals,
             IReadonlyExternalsMap externals,
             IReadOnlyDictionary<VariableName, Type>? staticTypes)
         {
             _emitter = emitter;
-            _externalArraySegmentLocal = externalArraySegmentLocal;
-            _internalArraySegmentLocal = internalArraySegmentLocal;
+            _externalArraySegmentArg = externalArraySegmentArg;
+            _internalArraySegmentArg = internalArraySegmentArg;
             _internals = internals;
             _externals = externals;
 
@@ -236,9 +236,9 @@ namespace Yolol.IL.Compiler
         {
             // Load the correct array segment for whichever type of variable we're accessing
             if (name.IsExternal)
-                _emitter.LoadLocalAddress(_externalArraySegmentLocal);
+                _emitter.LoadArgumentAddress(_externalArraySegmentArg);
             else
-                _emitter.LoadLocalAddress(_internalArraySegmentLocal);
+                _emitter.LoadArgumentAddress(_internalArraySegmentArg);
         }
 
         /// <summary>

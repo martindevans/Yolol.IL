@@ -5,6 +5,7 @@ using System.Reflection;
 using Sigil;
 using Yolol.Execution;
 using Yolol.Execution.Attributes;
+using Yolol.IL.Compiler.Emitter;
 using Type = System.Type;
 
 namespace Yolol.IL.Extensions
@@ -48,8 +49,11 @@ namespace Yolol.IL.Extensions
             /// <param name="errorLabel"></param>
             /// <param name="stackSize"></param>
             /// <param name="parameters"></param>
-            public void EmitDynamicWillThrow<TEmit>(Emit<TEmit> emitter, Label errorLabel, int stackSize, IReadOnlyList<Local> parameters)
+            public void EmitDynamicWillThrow<TEmit>(OptimisingEmitter<TEmit> emitter, Label errorLabel, int stackSize, IReadOnlyList<Local> parameters)
             {
+                if (WillThrow == null)
+                    return;
+
                 // Load parameters back onto stack
                 for (var i = parameters.Count - 1; i >= 0; i--)
                     emitter.LoadLocal(parameters[i]);

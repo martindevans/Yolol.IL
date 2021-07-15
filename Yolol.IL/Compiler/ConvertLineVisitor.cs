@@ -9,6 +9,7 @@ using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
 using Yolol.Grammar.AST.Expressions.Unary;
 using Yolol.Grammar.AST.Statements;
+using Yolol.IL.Compiler.Emitter;
 using Yolol.IL.Extensions;
 
 namespace Yolol.IL.Compiler
@@ -16,7 +17,7 @@ namespace Yolol.IL.Compiler
     internal class ConvertLineVisitor<TEmit>
         : BaseTreeVisitor
     {
-        private readonly Emit<TEmit> _emitter;
+        private readonly OptimisingEmitter<TEmit> _emitter;
 
         private readonly int _maxLineNumber;
         private readonly MemoryAccessor<TEmit> _memory;
@@ -28,7 +29,7 @@ namespace Yolol.IL.Compiler
         public bool IsTypeStackEmpty => _types.IsEmpty;
 
         public ConvertLineVisitor(
-            Emit<TEmit> emitter,
+            OptimisingEmitter<TEmit> emitter,
             int maxLineNumber,
             MemoryAccessor<TEmit> memory,
             StackUnwinder<TEmit> unwinder,

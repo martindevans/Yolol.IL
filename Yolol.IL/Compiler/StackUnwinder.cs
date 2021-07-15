@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using Sigil;
-using Yolol.Execution;
+using Yolol.IL.Compiler.Emitter;
 
 namespace Yolol.IL.Compiler
 {
@@ -14,10 +13,10 @@ namespace Yolol.IL.Compiler
     internal class StackUnwinder<TEmit>
         : IDisposable
     {
-        private readonly Emit<TEmit> _emitter;
+        private readonly OptimisingEmitter<TEmit> _emitter;
         private readonly List<(int, Label)> _labels = new List<(int, Label)>();
 
-        public StackUnwinder(Emit<TEmit> emitter)
+        public StackUnwinder(OptimisingEmitter<TEmit> emitter)
         {
             _emitter = emitter;
         }

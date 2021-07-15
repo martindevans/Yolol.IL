@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using Sigil;
-using Yolol.Execution;
+using Yolol.IL.Compiler.Emitter;
 using Yolol.IL.Extensions;
 
 namespace Yolol.IL.Compiler
 {
     internal class TypeStack<TEmit>
     {
-        private readonly Emit<TEmit> _emitter;
+        private readonly OptimisingEmitter<TEmit> _emitter;
         private readonly Stack<StackType> _types = new Stack<StackType>();
 
         public bool IsEmpty => _types.Count == 0;
@@ -17,7 +16,7 @@ namespace Yolol.IL.Compiler
 
         public StackType Peek => _types.Peek();
 
-        public TypeStack(Emit<TEmit> emitter)
+        public TypeStack(OptimisingEmitter<TEmit> emitter)
         {
             _emitter = emitter;
         }

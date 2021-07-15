@@ -6,6 +6,7 @@ using System.Reflection;
 using Sigil;
 using Yolol.Execution;
 using Yolol.IL.Compiler;
+using Yolol.IL.Compiler.Emitter;
 using Type = System.Type;
 
 namespace Yolol.IL.Extensions
@@ -65,7 +66,7 @@ namespace Yolol.IL.Extensions
         /// <param name="leftConst">Indicates if the left parameter is a constant</param>
         /// <param name="rightConst">Indicates if the right parameter is a constant</param>
         /// <returns>A tuple, indicating the type left on the stack by this expression and if the expression **is** potentially fallible (i.e. errorLabel may be jumped to)</returns>
-        public static ConvertResult ConvertBinary<TInLeft, TInRight, TOut, TEmit>(this Expression<Func<TInLeft, TInRight, TOut>> expr, Emit<TEmit> emitter, Label errorLabel, Value? leftConst, Value? rightConst)
+        public static ConvertResult ConvertBinary<TInLeft, TInRight, TOut, TEmit>(this Expression<Func<TInLeft, TInRight, TOut>> expr, OptimisingEmitter<TEmit> emitter, Label errorLabel, Value? leftConst, Value? rightConst)
         {
             // Try to convert expression without putting things into locals. Only works with certain expressions.
             var fast = TryConvertBinaryFastPath(expr, emitter, errorLabel, leftConst, rightConst);
@@ -95,7 +96,7 @@ namespace Yolol.IL.Extensions
         /// <param name="emitter"></param>
         /// <param name="errorLabel"></param>
         /// <returns>A tuple, indicating the type left on the stack by this expression and if the expression **is** potentially fallible (i.e. errorLabel may be jumped to)</returns>
-        public static ConvertResult ConvertUnary<TIn, TOut, TEmit>(this Expression<Func<TIn, TOut>> expr, Emit<TEmit> emitter, Label errorLabel)
+        public static ConvertResult ConvertUnary<TIn, TOut, TEmit>(this Expression<Func<TIn, TOut>> expr, OptimisingEmitter<TEmit> emitter, Label errorLabel)
         {
             // Try to convert expression without putting things into locals. Only works with certain expressions.
             var fast = TryConvertUnaryFastPath(expr, emitter, errorLabel);
@@ -113,7 +114,7 @@ namespace Yolol.IL.Extensions
         }
         #endregion
 
-        private static ConvertResult ConvertExpression<TEmit>(Expression expr, Emit<TEmit> emitter, IReadOnlyDictionary<string, Parameter> parameters, Label errorLabel, int stackSize)
+        private static ConvertResult ConvertExpression<TEmit>(Expression expr, OptimisingEmitter<TEmit> emitter, IReadOnlyDictionary<string, Parameter> parameters, Label errorLabel, int stackSize)
         {
             switch (expr.NodeType)
             {
@@ -128,6 +129,7 @@ namespace Yolol.IL.Extensions
                     }
 
                     emitter.NewObject(n.Constructor);
+
                     return new ConvertResult(n.Type, fallible, null);
                 }
 
@@ -167,7 +169,7 @@ namespace Yolol.IL.Extensions
                     var m = unary.Operand.Type == typeof(bool)
                         ? typeof(Runtime).GetMethod(nameof(Runtime.LogicalNot))
                         : unary.Operand.Type.GetMethod("op_LogicalNot");
-                    emitter.Call(m);
+                    emitter.Call(m!);
                     return new ConvertResult(m!.ReturnType, result.IsFallible, null);
                 }
 
@@ -177,7 +179,7 @@ namespace Yolol.IL.Extensions
                     var m = unary.Operand.Type == typeof(bool)
                         ? typeof(Runtime).GetMethod(nameof(Runtime.BoolNegate))
                         : unary.Operand.Type.GetMethod("op_UnaryNegation");
-                    emitter.Call(m);
+                    emitter.Call(m!);
                     return new ConvertResult(m!.ReturnType, result.IsFallible, null);
                 }
 
@@ -266,7 +268,7 @@ namespace Yolol.IL.Extensions
             }
         }
 
-        private static ConvertResult ConvertCallWithErrorHandling<TEmit>(Type[] parameterTypes, Value?[]? staticValues, MethodInfo method, Emit<TEmit> emitter, Label errorLabel, int stackSize)
+        private static ConvertResult ConvertCallWithErrorHandling<TEmit>(Type[] parameterTypes, Value?[]? staticValues, MethodInfo method, OptimisingEmitter<TEmit> emitter, Label errorLabel, int stackSize)
         {
             if (method.DeclaringType == null)
                 throw new InvalidOperationException("Cannot convert call with null `DeclaringType`");
@@ -302,7 +304,7 @@ namespace Yolol.IL.Extensions
         /// <param name="errorLabel"></param>
         /// <param name="stackSize"></param>
         /// <returns>If the method is infallible (i.e. is statically known not to throw)</returns>
-        private static bool CheckForRuntimeError<TEmit>(MethodInfoExtensions.ErrorMetadata errorData, Type[] parameterTypes, Value?[]? staticValues, Emit<TEmit> emitter, Label errorLabel, int stackSize)
+        private static bool CheckForRuntimeError<TEmit>(MethodInfoExtensions.ErrorMetadata errorData, Type[] parameterTypes, Value?[]? staticValues, OptimisingEmitter<TEmit> emitter, Label errorLabel, int stackSize)
         {
             if (staticValues != null && staticValues.Length != parameterTypes.Length)
                 throw new ArgumentException("incorrect number of static values");
@@ -352,7 +354,7 @@ namespace Yolol.IL.Extensions
         }
 
         #region fast path
-        private static ConvertResult? TryConvertBinaryFastPath<TLeft, TRight, TOut, TEmit>(this Expression<Func<TLeft, TRight, TOut>> expr, Emit<TEmit> emitter, Label errorLabel, Value? leftConst, Value? rightConst)
+        private static ConvertResult? TryConvertBinaryFastPath<TLeft, TRight, TOut, TEmit>(this Expression<Func<TLeft, TRight, TOut>> expr, OptimisingEmitter<TEmit> emitter, Label errorLabel, Value? leftConst, Value? rightConst)
         {
             switch (expr.Body.NodeType)
             {
@@ -396,7 +398,7 @@ namespace Yolol.IL.Extensions
             }
         }
 
-        private static ConvertResult? TryConvertUnaryFastPath<TIn, TOut, TEmit>(this Expression<Func<TIn, TOut>> expr, Emit<TEmit> emitter, Label errorLabel)
+        private static ConvertResult? TryConvertUnaryFastPath<TIn, TOut, TEmit>(this Expression<Func<TIn, TOut>> expr, OptimisingEmitter<TEmit> emitter, Label errorLabel)
         {
             switch (expr.Body.NodeType)
             {
@@ -417,7 +419,7 @@ namespace Yolol.IL.Extensions
             }
         }
 
-        private static ConvertResult? TryConvertCallFastPath<TExpr, TEmit>(this Expression<TExpr> expr, Emit<TEmit> emitter, Label errorLabel)
+        private static ConvertResult? TryConvertCallFastPath<TExpr, TEmit>(this Expression<TExpr> expr, OptimisingEmitter<TEmit> emitter, Label errorLabel)
         {
             if (expr.Body.NodeType != ExpressionType.Call)
                 return null;

@@ -3,6 +3,7 @@ using System.Reflection;
 using Sigil;
 using Yolol.Execution;
 using Yolol.IL.Compiler;
+using Yolol.IL.Compiler.Emitter;
 using Type = System.Type;
 
 namespace Yolol.IL.Extensions
@@ -17,9 +18,9 @@ namespace Yolol.IL.Extensions
         /// <param name="tcallee"></param>
         /// <param name="methodName"></param>
         /// <param name="args"></param>
-        public static void CallRuntimeN<TEmit>(this Emit<TEmit> emitter, Type tcallee, string methodName, params Type[] args)
+        public static void CallRuntimeN<TEmit>(this OptimisingEmitter<TEmit> emitter, Type tcallee, string methodName, params Type[] args)
         {
-            var method = tcallee.GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, args, null);
+            var method = tcallee.GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, args, null)!;
             emitter.Call(method);
         }
 
@@ -31,7 +32,7 @@ namespace Yolol.IL.Extensions
         /// <param name="emitter"></param>
         /// <param name="methodName"></param>
         /// <param name="args"></param>
-        public static void CallRuntimeN<TEmit, TCallee>(this Emit<TEmit> emitter, string methodName, params Type[] args)
+        public static void CallRuntimeN<TEmit, TCallee>(this OptimisingEmitter<TEmit> emitter, string methodName, params Type[] args)
         {
             CallRuntimeN(emitter, typeof(TCallee), methodName, args);
         }
@@ -43,9 +44,9 @@ namespace Yolol.IL.Extensions
         /// <param name="emitter"></param>
         /// <param name="methodName"></param>
         /// <param name="args"></param>
-        public static void CallRuntimeN<TEmit>(this Emit<TEmit> emitter, string methodName, params Type[] args)
+        public static void CallRuntimeN<TEmit>(this OptimisingEmitter<TEmit> emitter, string methodName, params Type[] args)
         {
-            var method = typeof(Runtime).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, args, null);
+            var method = typeof(Runtime).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, args, null)!;
             emitter.Call(method);
         }
 
@@ -56,7 +57,7 @@ namespace Yolol.IL.Extensions
         /// <typeparam name="TCallee"></typeparam>
         /// <param name="emitter"></param>
         /// <param name="methodName"></param>
-        public static void CallRuntimeThis0<TEmit, TCallee>(this Emit<TEmit> emitter, string methodName)
+        public static void CallRuntimeThis0<TEmit, TCallee>(this OptimisingEmitter<TEmit> emitter, string methodName)
         {
             using (var local = emitter.DeclareLocal(typeof(TCallee), "CallRuntimeThis0_Callee", false))
             {
@@ -75,7 +76,7 @@ namespace Yolol.IL.Extensions
         /// <param name="methodName"></param>
         /// <param name="types"></param>
         /// <returns></returns>
-        public static void CallRuntime2<TEmit, TCallee>(this Emit<TEmit> emitter, string methodName, TypeStack<TEmit> types)
+        public static void CallRuntime2<TEmit, TCallee>(this OptimisingEmitter<TEmit> emitter, string methodName, TypeStack<TEmit> types)
         {
             // Get the left and right items from the type stack
             var r = types.Peek;
@@ -83,7 +84,7 @@ namespace Yolol.IL.Extensions
             var l = types.Peek;
             types.Push(r);
 
-            var method = typeof(TCallee).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, new[] { l.ToType(), r.ToType() }, null);
+            var method = typeof(TCallee).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, new[] { l.ToType(), r.ToType() }, null)!;
             emitter.Call(method);
         }
 
@@ -94,12 +95,12 @@ namespace Yolol.IL.Extensions
         /// <param name="methodName"></param>
         /// <param name="types"></param>
         /// <returns></returns>
-        public static Type CallRuntime1<TEmit, TCallee>(this Emit<TEmit> emitter, string methodName, TypeStack<TEmit> types)
+        public static Type CallRuntime1<TEmit, TCallee>(this OptimisingEmitter<TEmit> emitter, string methodName, TypeStack<TEmit> types)
         {
             // Get the parameter type
             var p = types.Peek;
 
-            var method = typeof(TCallee).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, new[] { p.ToType() }, null);
+            var method = typeof(TCallee).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static, null, new[] { p.ToType() }, null)!;
             emitter.Call(method);
 
             return method!.ReturnType;
@@ -112,7 +113,7 @@ namespace Yolol.IL.Extensions
         /// <typeparam name="TType"></typeparam>
         /// <param name="emitter"></param>
         /// <param name="propertyName"></param>
-        public static void GetRuntimePropertyValue<TEmit, TType>(this Emit<TEmit> emitter, string propertyName)
+        public static void GetRuntimePropertyValue<TEmit, TType>(this OptimisingEmitter<TEmit> emitter, string propertyName)
         {
             // ReSharper disable once PossibleNullReferenceException
             var method = typeof(TType).GetProperty(propertyName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static)!.GetMethod;
@@ -132,9 +133,9 @@ namespace Yolol.IL.Extensions
         /// <typeparam name="TType"></typeparam>
         /// <param name="emitter"></param>
         /// <param name="fieldName"></param>
-        public static void GetRuntimeFieldValue<TEmit, TType>(this Emit<TEmit> emitter, string fieldName)
+        public static void GetRuntimeFieldValue<TEmit, TType>(this OptimisingEmitter<TEmit> emitter, string fieldName)
         {
-            var field = typeof(TType).GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static);
+            var field = typeof(TType).GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static)!;
             
             using (var local = emitter.DeclareLocal(typeof(TType), "GetRuntimeFieldValue_Callee", false))
             {
@@ -151,7 +152,7 @@ namespace Yolol.IL.Extensions
         /// <param name="emitter"></param>
         /// <param name="input"></param>
         /// <param name="output"></param>
-        public static void EmitCoerce<TEmit>(this Emit<TEmit> emitter, StackType input, StackType output)
+        public static void EmitCoerce<TEmit>(this OptimisingEmitter<TEmit> emitter, StackType input, StackType output)
         {
             switch (input, output)
             {
@@ -212,7 +213,7 @@ namespace Yolol.IL.Extensions
                     {
                         emitter.StoreLocal(conditional);
                         emitter.LoadLocalAddress(conditional);
-                        emitter.Call(typeof(Value).GetMethod(nameof(Value.ToBool)));
+                        emitter.Call(typeof(Value).GetMethod(nameof(Value.ToBool))!);
                     }
                     break;
                 }
@@ -230,7 +231,7 @@ namespace Yolol.IL.Extensions
         /// <param name="emitter"></param>
         /// <param name="name"></param>
         /// <returns></returns>
-        public static Label2<TEmit> DefineLabel2<TEmit>(this Emit<TEmit> emitter, string name)
+        public static Label2<TEmit> DefineLabel2<TEmit>(this OptimisingEmitter<TEmit> emitter, string name)
         {
             return new Label2<TEmit>(emitter, name);
         }
@@ -241,7 +242,7 @@ namespace Yolol.IL.Extensions
         /// <typeparam name="TEmit"></typeparam>
         /// <param name="_"></param>
         /// <param name="label"></param>
-        public static void MarkLabel<TEmit>(this Emit<TEmit> _, Label2<TEmit> label)
+        public static void MarkLabel<TEmit>(this OptimisingEmitter<TEmit> _, Label2<TEmit> label)
         {
             label.Mark();
         }
@@ -252,20 +253,20 @@ namespace Yolol.IL.Extensions
         /// <typeparam name="TEmit"></typeparam>
         /// <param name="_"></param>
         /// <param name="label"></param>
-        public static void Branch<TEmit>(this Emit<TEmit> _, Label2<TEmit> label)
+        public static void Branch<TEmit>(this OptimisingEmitter<TEmit> _, Label2<TEmit> label)
         {
             label.Branch();
         }
     }
 
-    internal class Label2<TEmit>
+    public class Label2<TEmit>
     {
-        private readonly Emit<TEmit> _emit;
+        private readonly OptimisingEmitter<TEmit> _emit;
         private readonly Label _label;
 
         public bool IsUsed { get; private set; }
 
-        public Label2(Emit<TEmit> emit, string name)
+        public Label2(OptimisingEmitter<TEmit> emit, string name)
         {
             _emit = emit;
             _label = emit.DefineLabel(name);
