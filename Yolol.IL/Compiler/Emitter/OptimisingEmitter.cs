@@ -5,6 +5,8 @@ using System.Text;
 using Sigil;
 using Yolol.IL.Compiler.Emitter.Instructions;
 using Yolol.IL.Compiler.Emitter.Optimisations;
+using ExceptionBlock = Yolol.IL.Compiler.Emitter.Instructions.ExceptionBlock;
+using FinallyBlock = Yolol.IL.Compiler.Emitter.Instructions.FinallyBlock;
 
 namespace Yolol.IL.Compiler.Emitter
 {
@@ -32,7 +34,7 @@ namespace Yolol.IL.Compiler.Emitter
         {
             var optimisations = new List<BaseOptimisation> {
                 new StoreLoadChain(),
-                //new LoadStoreChain(),
+                new LoadStoreChain(),
             };
 
             for (var i = 0; i < 128; i++)
@@ -162,16 +164,6 @@ namespace Yolol.IL.Compiler.Emitter
         {
             _ops.Add(new Pop());
         }
-
-        /// <summary>
-        /// Leave an exception or catch block, branching to the given label.
-        /// 
-        /// This instruction empties the stack.
-        /// </summary>
-        public void Leave(Label label)
-        {
-            _ops.Add(new Leave(label));
-        }
         #endregion
 
         #region load constant
@@ -257,36 +249,21 @@ namespace Yolol.IL.Compiler.Emitter
         public ExceptionBlock BeginExceptionBlock()
         {
             var ret = new ExceptionBlock();
-            _ops.Add(new BeginExceptionBlockOp(ret));
+            _ops.Add(new BeginExceptionBlock(ret));
             return ret;
         }
 
-        private class BeginExceptionBlockOp
-            : BaseInstruction
+        public FinallyBlock BeginFinallyBlock(ExceptionBlock ex)
         {
-            private readonly ExceptionBlock _block;
-
-            public BeginExceptionBlockOp(ExceptionBlock block)
-            {
-                _block = block;
-            }
-
-            public override void Emit<T>(Emit<T> emitter)
-            {
-                _block.Block = emitter.BeginExceptionBlock();
-            }
-
-            public override string ToString()
-            {
-                return "BeginExceptionBlock";
-            }
+            var ret = new FinallyBlock();
+            _ops.Add(new BeginFinallyBlock(ex, ret));
+            return ret;
         }
 
-        public class ExceptionBlock
+        public void EndFinallyBlock(FinallyBlock fin)
         {
-            public Sigil.ExceptionBlock? Block { get; set; }
+            _ops.Add(new EndFinallyBlock(fin));
         }
-
 
         public CatchBlock BeginCatchBlock<Texception>(ExceptionBlock block)
         {
@@ -353,34 +330,40 @@ namespace Yolol.IL.Compiler.Emitter
 
         public void EndExceptionBlock(ExceptionBlock exBlock)
         {
-            _ops.Add(new EndExceptionBlockOp(exBlock));
+            _ops.Add(new EndExceptionBlock(exBlock));
         }
 
-        private class EndExceptionBlockOp
-            : BaseInstruction
+
+        /// <summary>
+        /// Leave an exception or catch block, branching to the given label.
+        /// 
+        /// This instruction empties the stack.
+        /// </summary>
+        public void Leave(ExceptionBlock block)
         {
-            private readonly ExceptionBlock _block;
+            _ops.Add(new Leave(block));
+        }
 
-            public EndExceptionBlockOp(ExceptionBlock block)
-            {
-                _block = block;
-            }
+        public void LeaveIfFalse(ExceptionBlock block)
+        {
+            var dontLeave = DefineLabel();
 
-            public override void Emit<T>(Emit<T> emitter)
-            {
-                if (_block.Block == null)
-                    throw new InvalidOperationException("Exception block has not been opened yet");
+            BranchIfTrue(dontLeave);
+            Leave(block);
+            MarkLabel(dontLeave);
+        }
 
-                emitter.EndExceptionBlock(_block.Block);
-            }
+        public void LeaveIfTrue(ExceptionBlock block)
+        {
+            var dontLeave = DefineLabel();
 
-            public override string ToString()
-            {
-                return "EndExceptionBlockOp";
-            }
+            BranchIfFalse(dontLeave);
+            Leave(block);
+            MarkLabel(dontLeave);
         }
         #endregion
 
+        #region copy
         /// <summary>
         /// Takes a destination pointer, a source pointer as arguments.  Pops both off the stack.
         /// 
@@ -401,5 +384,6 @@ namespace Yolol.IL.Compiler.Emitter
         {
             _ops.Add(new CopyObject(type));
         }
+        #endregion
     }
 }

@@ -1,25 +1,29 @@
-﻿using Sigil;
+﻿using System;
+using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
 {
     internal class Leave
         : BaseInstruction
     {
-        private readonly Label _label;
+        private readonly ExceptionBlock _block;
 
-        public Leave(Label label)
+        public Leave(ExceptionBlock block)
         {
-            _label = label;
+            _block = block;
         }
 
         public override void Emit<T>(Emit<T> emitter)
         {
-            emitter.Leave(_label);
+            if (_block.Block == null)
+                throw new InvalidOperationException("Cannot leave block that has not been opened yet");
+
+            emitter.Leave(_block.Block.Label);
         }
 
         public override string ToString()
         {
-            return $"Leave({_label.Name})";
+            return $"Leave()";
         }
     }
 }

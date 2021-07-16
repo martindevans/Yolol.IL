@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Linq.Expressions;
 using System.Reflection;
-using Sigil;
 using Yolol.Analysis.ControlFlowGraph.AST;
 using Yolol.Analysis.TreeVisitor;
 using Yolol.Execution;
@@ -10,6 +9,7 @@ using Yolol.Grammar.AST.Expressions.Binary;
 using Yolol.Grammar.AST.Expressions.Unary;
 using Yolol.Grammar.AST.Statements;
 using Yolol.IL.Compiler.Emitter;
+using Yolol.IL.Compiler.Emitter.Instructions;
 using Yolol.IL.Compiler.Memory;
 using Yolol.IL.Extensions;
 
@@ -22,7 +22,7 @@ namespace Yolol.IL.Compiler
 
         private readonly int _maxLineNumber;
         private readonly IMemoryAccessor<TEmit> _memory;
-        private readonly StackUnwinder<TEmit> _unwinder;
+        private readonly ExceptionBlock _unwinder;
         private readonly Label2<TEmit> _gotoLabel;
 
         private readonly TypeStack<TEmit> _types;
@@ -33,7 +33,7 @@ namespace Yolol.IL.Compiler
             OptimisingEmitter<TEmit> emitter,
             int maxLineNumber,
             IMemoryAccessor<TEmit> memory,
-            StackUnwinder<TEmit> unwinder,
+            ExceptionBlock unwinder,
             Label2<TEmit> gotoLabel
         )
         {
@@ -131,7 +131,7 @@ namespace Yolol.IL.Compiler
                         break;
 
                     case StackType.YololString:
-                        _emitter.Branch(_unwinder.GetUnwinder(_types.Count));
+                        _emitter.Leave(_unwinder);
                         _emitter.MarkLabel(_emitter.DefineLabel());
                         break;
 
@@ -139,7 +139,7 @@ namespace Yolol.IL.Compiler
                         _types.Coerce(StackType.YololValue);
                         _emitter.Duplicate();
                         _emitter.CallRuntimeN(nameof(Runtime.IsValueANumber), typeof(Value));
-                        _emitter.BranchIfFalse(_unwinder.GetUnwinder(_types.Count));
+                        _emitter.LeaveIfFalse(_unwinder);
                         _emitter.LoadConstant(_maxLineNumber);
                         _emitter.CallRuntimeN(nameof(Runtime.GotoValue), typeof(Value), typeof(int));
                         break;
@@ -170,7 +170,7 @@ namespace Yolol.IL.Compiler
             // If so jump to the runtime error handler
             if (_types.Peek == StackType.StaticError || result is ErrorExpression)
             {
-                _emitter.Branch(_unwinder.GetUnwinder(_types.Count));
+                _emitter.Leave(_unwinder);
 
                 // Some dead code will be emitted after this point. Drop down a label to satisfy sigil that this is ok
                 _emitter.MarkLabel(_emitter.DefineLabel());
@@ -299,9 +299,6 @@ namespace Yolol.IL.Compiler
                 return new ErrorExpression();
             var rightType = _types.Peek;
 
-            // Get a label which will unwind the current stack in the event of an error
-            var errorLabel = _unwinder.GetUnwinder(_types.Count - 2);
-
             // Try to calculate static values for the two sides
             var constLeft = expr.Left.IsConstant ? Execution.Extensions.BaseExpressionExtensions.TryStaticEvaluate(expr.Left, out _) : null;
             var constRight = expr.Right.IsConstant ? Execution.Extensions.BaseExpressionExtensions.TryStaticEvaluate(expr.Right, out _) : null;
@@ -309,34 +306,31 @@ namespace Yolol.IL.Compiler
             // Emit code
             _types.Pop(rightType);
             _types.Pop(leftType);
-            var (emitType, fallible) = (left: leftType, right: rightType) switch {
+            var (emitType, _) = (left: leftType, right: rightType) switch {
 
-                (StackType.Bool, StackType.Bool) => emitBoolBool.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
-                (StackType.Bool, StackType.YololNumber) => emitBoolNum.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
-                (StackType.Bool, StackType.YololString) => emitBoolStr.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
-                (StackType.Bool, StackType.YololValue) => emitBoolVal.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.Bool, StackType.Bool) => emitBoolBool.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
+                (StackType.Bool, StackType.YololNumber) => emitBoolNum.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
+                (StackType.Bool, StackType.YololString) => emitBoolStr.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
+                (StackType.Bool, StackType.YololValue) => emitBoolVal.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
 
-                (StackType.YololNumber, StackType.Bool) => emitNumBool.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
-                (StackType.YololNumber, StackType.YololNumber) => emitNumNum.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
-                (StackType.YololNumber, StackType.YololString) => emitNumStr.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
-                (StackType.YololNumber, StackType.YololValue) => emitNumVal.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.YololNumber, StackType.Bool) => emitNumBool.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
+                (StackType.YololNumber, StackType.YololNumber) => emitNumNum.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
+                (StackType.YololNumber, StackType.YololString) => emitNumStr.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
+                (StackType.YololNumber, StackType.YololValue) => emitNumVal.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
 
-                (StackType.YololString, StackType.Bool) => emitStrBool.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
-                (StackType.YololString, StackType.YololNumber) => emitStNum.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
-                (StackType.YololString, StackType.YololString) => emitStStr.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
-                (StackType.YololString, StackType.YololValue) => emitStVal.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.YololString, StackType.Bool) => emitStrBool.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
+                (StackType.YololString, StackType.YololNumber) => emitStNum.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
+                (StackType.YololString, StackType.YololString) => emitStStr.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
+                (StackType.YololString, StackType.YololValue) => emitStVal.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
 
-                (StackType.YololValue, StackType.Bool) => emitValBool.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
-                (StackType.YololValue, StackType.YololNumber) => emitValNum.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
-                (StackType.YololValue, StackType.YololString) => emitValStr.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
-                (StackType.YololValue, StackType.YololValue) => emitValVal.ConvertBinary(_emitter, errorLabel, constLeft, constRight),
+                (StackType.YololValue, StackType.Bool) => emitValBool.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
+                (StackType.YololValue, StackType.YololNumber) => emitValNum.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
+                (StackType.YololValue, StackType.YololString) => emitValStr.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
+                (StackType.YololValue, StackType.YololValue) => emitValVal.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
 
                 _ => throw new InvalidOperationException($"{expr.GetType().Name}({leftType},{rightType})")
             };
             _types.Push(emitType!.ToStackType());
-
-            if (!fallible)
-                _unwinder.CancelUnwinder(errorLabel);
 
             return expr;
         }
@@ -700,7 +694,7 @@ namespace Yolol.IL.Compiler
         #endregion
 
         #region unary expressions
-        private BaseExpression EmitUnaryExpr<T>(T expr, Func<Label, bool> emit)
+        private BaseExpression EmitUnaryExpr<T>(T expr, Func<ExceptionBlock, bool> emit)
             where T : BaseUnaryExpression
         {
              if (TryStaticEvaluate(expr, out var runtimeError))
@@ -710,14 +704,8 @@ namespace Yolol.IL.Compiler
              if (Visit(expr.Parameter) is ErrorExpression)
                  return new ErrorExpression();
 
-             // Get a label which will unwind the current stack in the event of an error
-             var errorLabel = _unwinder.GetUnwinder(_types.Count - 1);
-
              // Emit code
-             var fallible = emit(errorLabel);
-
-             if (!fallible)
-                 _unwinder.CancelUnwinder(errorLabel);
+             emit(_unwinder);
 
              return expr;
         }
@@ -844,9 +832,6 @@ namespace Yolol.IL.Compiler
             if (method == null)
                 throw new InvalidOperationException($"Cannot find method `op_Decrement` on type {peek}");
 
-            // Get a label which will unwind the current stack in the event of an error
-            var errorLabel = _unwinder.GetUnwinder(_types.Count);
-
             // Find the `will throw` method
             var errorMetadata = method.TryGetErrorMetadata(peek);
 
@@ -861,7 +846,7 @@ namespace Yolol.IL.Compiler
                 _emitter.Call(errorMetadata.Value.WillThrow);
 
                 // Jump away to unwinder if this would throw
-                _emitter.BranchIfTrue(errorLabel);
+                _emitter.LeaveIfTrue(_unwinder);
             }
 
             // Do the actual work

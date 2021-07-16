@@ -19,7 +19,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
 
         public override string ToString()
         {
-            return $"Load_String({_value})";
+            return $"Load_String(\"{_value}\")";
         }
     }
 }

@@ -19,7 +19,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
 
         public override string ToString()
         {
-            return $"StoreLocal({Local.Name}):";
+            return $"StoreLocal({Local.Name})";
         }
     }
 }

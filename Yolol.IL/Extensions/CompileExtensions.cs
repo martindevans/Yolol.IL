@@ -17,23 +17,6 @@ namespace Yolol.IL.Extensions
     public static class ILExtension
     {
         /// <summary>
-        /// Store the given `ArraySegment[Value]` argument index into a local
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="emitter"></param>
-        /// <param name="arg"></param>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        private static Local StoreMemorySegments<T>(OptimisingEmitter<T> emitter, ushort arg, string name)
-        {
-            emitter.LoadArgument(arg);
-            var local = emitter.DeclareLocal<ArraySegment<Value>>(name);
-            emitter.StoreLocal(local);
-
-            return local;
-        }
-
-        /// <summary>
         /// Compile a line of Yolol into a runnable C# function
         /// </summary>
         /// <param name="line">The line of code to convert</param>
@@ -176,10 +159,11 @@ namespace Yolol.IL.Extensions
                 var gotoLabel = emitter.DefineLabel2("encountered_goto");
 
                 // Create a label which marks the end of the line, code reaching here falls through to the next line
-                var eolLabel = emitter.DefineLabel("encountered_eol");
+                var eolLabel = emitter.DefineLabel2("encountered_eol");
 
-                // Define a label that jumps to the end of the try/catch block
-                var exitTry = emitter.DefineLabel("exit_try_catch");
+                // Store the default return address to go to
+                EmitFallthroughCalc();
+                emitter.StoreLocal(retAddr);
 
                 // Create a memory accessor which manages reading and writing the memory arrays
                 using (var accessor = new ArraySegmentMemoryAccessor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(
@@ -193,32 +177,22 @@ namespace Yolol.IL.Extensions
                 {
                     accessor.EmitLoad(line);
 
-                    using (var unwinder = new StackUnwinder<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter))
-                    {
-                        // Convert the entire line into IL
-                        var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, accessor, unwinder, gotoLabel);
-                        converter.Visit(line);
-                        emitter.Branch(eolLabel);
-                    }
-
-                    // Control flow will reach here if an error occurs (via the unwinder). Just act as if control flow fell off the end of the line
+                    // Convert the entire line into IL
+                    var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, accessor, exBlock, gotoLabel);
+                    converter.Visit(line);
 
                     // When a line finishes (with no gotos in the line) call flow eventually reaches here. Go to the next line.
-                    emitter.MarkLabel(eolLabel);
-                    EmitFallthroughCalc();
-                    emitter.StoreLocal(retAddr);
-                    emitter.Branch(exitTry);
+                    if (eolLabel.IsUsed)
+                        eolLabel.Mark();
+                    emitter.Leave(exBlock);
 
                     // Create a block to handle gotos. The destination will already be on the stack, so just return
                     if (gotoLabel.IsUsed)
                     {
                         gotoLabel.Mark();
                         emitter.StoreLocal(retAddr);
-                        emitter.Branch(exitTry);
+                        emitter.Leave(exBlock);
                     }
-
-                    // Mark the end of the block for things that want to leave
-                    emitter.MarkLabel(exitTry);
 
                     // Catch all execution exceptions and return the appropriate next line number to fall through to
                     var catchBlock = emitter.BeginCatchBlock<ExecutionException>(exBlock);
@@ -231,8 +205,6 @@ namespace Yolol.IL.Extensions
 #else
                     emitter.Pop();
 #endif
-                    EmitFallthroughCalc();
-                    emitter.StoreLocal(retAddr);
 
                     // Close the exception block which was wrapping the entire method
                     emitter.EndCatchBlock(catchBlock);

@@ -81,13 +81,13 @@ namespace Benchmark
                 //{ new VariableName("_"), Yolol.Execution.Type.Number },
                 //{ new VariableName("OUTPUT"), Yolol.Execution.Type.String },
 
-                { new VariableName("z"), Yolol.Execution.Type.Number },
-                { new VariableName(":a"), Yolol.Execution.Type.Number },
-                { new VariableName("bc"), Yolol.Execution.Type.Number },
-                { new VariableName(":bc"), Yolol.Execution.Type.Number },
-                { new VariableName("a"), Yolol.Execution.Type.Number },
-                { new VariableName("c"), Yolol.Execution.Type.Number },
-                { new VariableName(":b"), Yolol.Execution.Type.Number },
+                //{ new VariableName("z"), Yolol.Execution.Type.Number },
+                //{ new VariableName(":a"), Yolol.Execution.Type.Number },
+                //{ new VariableName("bc"), Yolol.Execution.Type.Number },
+                //{ new VariableName(":bc"), Yolol.Execution.Type.Number },
+                //{ new VariableName("a"), Yolol.Execution.Type.Number },
+                //{ new VariableName("c"), Yolol.Execution.Type.Number },
+                //{ new VariableName(":b"), Yolol.Execution.Type.Number },
             };
 
             var externals = new ExternalsMap();

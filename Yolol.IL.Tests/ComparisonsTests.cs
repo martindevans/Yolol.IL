@@ -20,9 +20,9 @@ namespace Yolol.IL.Tests
         {
             var (st, _) = Test($"l={a} r={b} a={a}{op}l b={a}{op}r  c={b}{op}l");
 
-            Assert.AreEqual(aa, st.GetVariable("a").ToBool(), $"{a}{op}{a}");
-            Assert.AreEqual(ab, st.GetVariable("b").ToBool(), $"{a}{op}{b}");
-            Assert.AreEqual(ba, st.GetVariable("c").ToBool(), $"{b}{op}{a}");
+            Assert.AreEqual(aa, st.GetVariable("a").ToBool(), $"L={a} Result={a}{op}L");
+            Assert.AreEqual(ab, st.GetVariable("b").ToBool(), $"R={b} Result={a}{op}R");
+            Assert.AreEqual(ba, st.GetVariable("c").ToBool(), $"L={a} Result={b}{op}L");
         }
 
         #region bools
@@ -86,6 +86,16 @@ namespace Yolol.IL.Tests
         #endregion
 
         #region bool val
+        [TestMethod]
+        public void Playground()
+        {
+            var (st, _) = Test($"L=1 R=7 a=1==L b=1==R c=7==L");
+
+            Assert.AreEqual(true, st.GetVariable("a").ToBool());
+            Assert.AreEqual(false, st.GetVariable("b").ToBool());
+            Assert.AreEqual(false, st.GetVariable("c").ToBool());
+        }
+
         [TestMethod]
         public void GreaterThanBoolVal() => CmpVal(">", "1", "7", false, false, true);
 
