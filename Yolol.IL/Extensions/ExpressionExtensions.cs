@@ -458,7 +458,7 @@ namespace Yolol.IL.Extensions
                 return null;
 
             var call = (MethodCallExpression)expr.Body;
-            if (call.Method == null)
+            if (call.Method == null || !call.Method.IsStatic)
                 return null;
 
             // Fast path conversion only works if the arguments are parameters, consumed in the order they were given

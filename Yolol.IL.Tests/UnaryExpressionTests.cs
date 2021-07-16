@@ -8,6 +8,14 @@ namespace Yolol.IL.Tests
     public class UnaryExpressionTests
     {
         [TestMethod]
+        public void FactorialNum()
+        {
+            var (st, _) = Test("a=3 b=(1*a)!");
+
+            Assert.AreEqual((Value)6, st.GetVariable("b"));
+        }
+
+        [TestMethod]
         public void NotNum()
         {
             var (st, _) = Test("a = not 3 b = not 0");
