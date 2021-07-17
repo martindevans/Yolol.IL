@@ -20,7 +20,7 @@ namespace Benchmark
         private readonly string[] _program = {
             ":done++ b=97 c=89",
             ":o++ :done++",
-            ":done++ x-- x=\"abc\" x=atan x",
+            ":done++ x-- _=\"abc\" x=atan x",
             "i=(127-1) _=(i/3%1==0)*i/3>1+(i/5%1==0)*i/5>1+(i/7%1==0)*i/7>1 a=i/11%1==0 x=atan x",
             "_+=a*i/11>1+(i/13%1==0)*i/13>1+(i/17%1==0)*i/17>1+(i/19%1==0)*i/19>1 x=atan x",
             "_+=(i/23%1==0)*i/23>1+(i/29%1==0)*i/29>1+(i/31%1==0)*i/31>1a=i/37%1==0 x=atan x",
@@ -28,6 +28,7 @@ namespace Benchmark
             "_+=(i/53%1==0)*i/53>1+(i/59%1==0)*i/59>1+(i/61%1==0)*i/61>1a=i/67%1==0 x=atan x",
             "_+=a*i/67>1+(i/71%1==0)*i/71>1+(i/73%1==0)*i/73>1+(i/79%1==0)*i/79>1 x=atan x",
             "_+=(i/83%1==0)*i/83>1+(i/c%1==0)*i/c>1+(i/b%1==0)*i/b>1:o+=_<1:done++ x=atan x",
+            "a=1 if _ then a=2 else a=\"2\" end _/=a",
             "z=:o :done++goto4",
         };
 
@@ -61,6 +62,7 @@ namespace Benchmark
         private readonly CompiledProgram _compiled;
         private readonly Value[] _externals;
         private readonly Value[] _internals;
+        private readonly ExternalsMap _externalsMap;
 
         public LinesPerSecond()
         {
@@ -75,7 +77,8 @@ namespace Benchmark
             var staticTypes = new Dictionary<VariableName, Yolol.Execution.Type> {
                 //{ new VariableName("b"), Yolol.Execution.Type.Number },
                 //{ new VariableName("c"), Yolol.Execution.Type.Number },
-                //{ new VariableName("o"), Yolol.Execution.Type.Number },
+                //{ new VariableName(":o"), Yolol.Execution.Type.Number },
+                //{ new VariableName(":done"), Yolol.Execution.Type.Number },
                 //{ new VariableName("i"), Yolol.Execution.Type.Number },
                 //{ new VariableName("z"), Yolol.Execution.Type.Number },
                 //{ new VariableName("_"), Yolol.Execution.Type.Number },
@@ -90,13 +93,13 @@ namespace Benchmark
                 //{ new VariableName(":b"), Yolol.Execution.Type.Number },
             };
 
-            var externals = new ExternalsMap();
+            _externalsMap = new ExternalsMap();
             var timer = new Stopwatch();
             timer.Start();
-            _compiled = ast.Compile(externals, 20, staticTypes);
+            _compiled = ast.Compile(_externalsMap, 20, staticTypes);
             Console.WriteLine($"Compiled in: {timer.Elapsed.TotalMilliseconds}ms");
 
-            _externals = new Value[externals.Count];
+            _externals = new Value[_externalsMap.Count];
             Array.Fill(_externals, Number.Zero);
 
             _internals = new Value[_compiled.InternalsMap.Count];
@@ -116,7 +119,7 @@ namespace Benchmark
         {
             var zidx = _compiled.InternalsMap["z"];
 
-            const int iterations = 10000000;
+            const int iterations = 25000000;
 
             var samples = new List<double>();
             var timer = new Stopwatch();
@@ -140,6 +143,14 @@ namespace Benchmark
 
                 Console.WriteLine($"{lps:#,##0.00} l/s | {avg:#,##0.00} avg | {stdDev:#,##0.00} dev | z: {_internals[zidx]}");
             }
+
+            //Console.WriteLine("## Externals");
+            //foreach (var (key, value) in _externalsMap)
+            //    Console.WriteLine($"{key} {_externals[value]}");
+
+            //Console.WriteLine("## Internals");
+            //foreach (var (key, value) in _compiled.InternalsMap)
+            //    Console.WriteLine($"{key} {_internals[value]}");
         }
 
         public void RunCompiled(int iterations)
@@ -148,98 +159,98 @@ namespace Benchmark
                 _compiled.Tick(_internals, _externals);
         }
 
-        //public void RunRewritten(int iterations)
-        //{
-        //    // a="" b=1 l=0 z++ a=-""
-        //    // b*=2 c=""+b d=c
-        //    // d-- l++ goto3
-        //    // a+=b if l<25 then goto2 end
-        //    // a-- l-- goto5/(x>0)
-        //    // goto1
+        public void RunRewritten(int iterations)
+        {
+            // a="" b=1 l=0 z++ a=-""
+            // b*=2 c=""+b d=c
+            // d-- l++ goto3
+            // a+=b if l<25 then goto2 end
+            // a-- l-- goto5/(x>0)
+            // goto1
 
-        //    // a  0
-        //    // b  1
-        //    // c  2
-        //    // d  3
-        //    // l  4
-        //    // z  5
-        //    // x  6
+            // a  0
+            // b  1
+            // c  2
+            // d  3
+            // l  4
+            // z  5
+            // x  6
 
-        //    var pc = 1;
-        //    for (var i = 0; i < iterations; i++)
-        //    {
-        //        switch (pc)
-        //        {
-        //            case 1:
-        //                // a="" b=1 l=0 z++ a=-""
-        //                _internals[0] = new Value(new YString(""));
-        //                _internals[1] = (Number)0;
-        //                _internals[4] = (Number)0;
-        //                _internals[5]++;
-        //                // Static error to next line
-        //                pc = 2;
-        //                break;
+            var pc = 1;
+            for (var i = 0; i < iterations; i++)
+            {
+                switch (pc)
+                {
+                    case 1:
+                        // a="" b=1 l=0 z++ a=-""
+                        _internals[0] = new Value(new YString(""));
+                        _internals[1] = (Number)0;
+                        _internals[4] = (Number)0;
+                        _internals[5]++;
+                        // Static error to next line
+                        pc = 2;
+                        break;
 
-        //            case 2:
-        //                // b*=2 c=""+b d=c
-        //                _internals[1] *= 2;
-        //                _internals[2] = "" + _internals[1];
-        //                _internals[3] = _internals[2];
-        //                pc = 3;
-        //                break;
+                    case 2:
+                        // b*=2 c=""+b d=c
+                        _internals[1] *= (Value)2;
+                        _internals[2] = "" + _internals[1];
+                        _internals[3] = _internals[2];
+                        pc = 3;
+                        break;
 
-        //            case 3:
-        //                // d-- l++ goto3
-        //                var d = _internals[3];
-        //                if (WillDecThrow(d))
-        //                    pc = 4;
-        //                else
-        //                {
-        //                    _internals[3]--;
-        //                    _internals[4]++;
-        //                    pc = 3;
-        //                }
+                    case 3:
+                        // d-- l++ goto3
+                        var d = _internals[3];
+                        if (WillDecThrow(d))
+                            pc = 4;
+                        else
+                        {
+                            _internals[3]--;
+                            _internals[4]++;
+                            pc = 3;
+                        }
 
-        //                break;
+                        break;
 
-        //            case 4:
-        //                // a+=b if l<25 then goto2 end
-        //                _internals[0] += _internals[1];
-        //                if (_internals[4] < 25)
-        //                    pc = 2;
-        //                else
-        //                    pc = 5;
-        //                break;
+                    case 4:
+                        // a+=b if l<25 then goto2 end
+                        _internals[0] += _internals[1];
+                        if (_internals[4] < (Value)25)
+                            pc = 2;
+                        else
+                            pc = 5;
+                        break;
 
-        //            case 5:
-        //                // a-- l-- goto5/(x>0)
-        //                if (WillDecThrow(_internals[0]))
-        //                {
-        //                    pc = 6;
-        //                    break;
-        //                }
-        //                _internals[0]--;
+                    case 5:
+                        // a-- l-- goto5/(x>0)
+                        if (WillDecThrow(_internals[0]))
+                        {
+                            pc = 6;
+                            break;
+                        }
+                        _internals[0]--;
 
-        //                if (WillDecThrow(_internals[4]))
-        //                {
-        //                    pc = 6;
-        //                    break;
-        //                }
-        //                _internals[4]--;
+                        if (WillDecThrow(_internals[4]))
+                        {
+                            pc = 6;
+                            break;
+                        }
+                        _internals[4]--;
 
-        //                pc = _internals[6] <= 0 ? 6 : 5;
-        //                break;
+                        pc = _internals[6] <= (Value)0 ? 6 : 5;
+                        break;
 
-        //            case 6:
-        //                pc = 1;
-        //                break;
-        //        }
-        //    }
-        //}
+                    case 6:
+                        pc = 1;
+                        break;
+                }
+            }
+        }
 
-        //private static bool WillDecThrow(Value value)
-        //{
-        //    return value.Type == Yolol.Execution.Type.String && value.String.Length == 0;
-        //}
+        private static bool WillDecThrow(Value value)
+        {
+            return value.Type == Yolol.Execution.Type.String && value.String.Length == 0;
+        }
     }
 }

@@ -1,11 +1,10 @@
 ﻿using System;
-using Yolol.Analysis.Types;
 using Yolol.Grammar;
 
 namespace Yolol.IL.Compiler.Memory
 {
     internal interface IMemoryAccessor<TEmit>
-        : IDisposable, ITypeAssignments
+        : IDisposable
     {
         /// <summary>
         /// Store a value from the stack into the given variable.

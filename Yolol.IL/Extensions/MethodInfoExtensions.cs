@@ -47,9 +47,8 @@ namespace Yolol.IL.Extensions
             /// <typeparam name="TEmit"></typeparam>
             /// <param name="emitter"></param>
             /// <param name="errorLabel"></param>
-            /// <param name="stackSize"></param>
             /// <param name="parameters"></param>
-            public void EmitDynamicWillThrow<TEmit>(OptimisingEmitter<TEmit> emitter, Compiler.Emitter.Instructions.ExceptionBlock errorLabel, int stackSize, IReadOnlyList<Local> parameters)
+            public void EmitDynamicWillThrow<TEmit>(OptimisingEmitter<TEmit> emitter, Compiler.Emitter.Instructions.ExceptionBlock errorLabel, IReadOnlyList<Local> parameters)
             {
                 if (WillThrow == null)
                     return;
@@ -67,11 +66,7 @@ namespace Yolol.IL.Extensions
                 // Jump past error handling if this is ok
                 emitter.BranchIfFalse(noThrowLabel);
 
-                // If execution reaches here it means an error would occur in this operation. First empty out the stack and then jump
-                // to the error handling label for this expression.
-                // There are N less things on the stack than indicated by stackSize because the N parameters to this method have already been taken off the stack.
-                for (var i = 0; i < stackSize - parameters.Count; i++)
-                    emitter.Pop();
+                // If execution reaches here it means an error would occur in this operation
                 emitter.Leave(errorLabel);
 
                 emitter.MarkLabel(noThrowLabel);

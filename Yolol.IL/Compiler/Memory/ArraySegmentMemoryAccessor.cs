@@ -3,13 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Yolol.Analysis.TreeVisitor.Inspection;
-using Yolol.Analysis.Types;
 using Yolol.Execution;
 using Yolol.Grammar;
 using Yolol.Grammar.AST;
 using Yolol.IL.Compiler.Emitter;
 using Yolol.IL.Extensions;
-using Type = Yolol.Execution.Type;
 
 namespace Yolol.IL.Compiler.Memory
 {
@@ -22,7 +20,7 @@ namespace Yolol.IL.Compiler.Memory
         private readonly IReadonlyInternalsMap _internals;
         private readonly IReadonlyExternalsMap _externals;
 
-        private readonly IReadOnlyDictionary<VariableName, Type> _knownTypes;
+        private readonly StaticTypeTracker _types;
 
         private readonly Dictionary<VariableName, TypedLocal> _cache;
         private readonly HashSet<VariableName> _mutated;
@@ -33,15 +31,15 @@ namespace Yolol.IL.Compiler.Memory
             ushort internalArraySegmentArg,
             IReadonlyInternalsMap internals,
             IReadonlyExternalsMap externals,
-            IReadOnlyDictionary<VariableName, Type>? staticTypes)
+            StaticTypeTracker types)
         {
             _emitter = emitter;
             _externalArraySegmentArg = externalArraySegmentArg;
             _internalArraySegmentArg = internalArraySegmentArg;
             _internals = internals;
             _externals = externals;
+            _types = types;
 
-            _knownTypes = staticTypes ?? new Dictionary<VariableName, Type>();
             _cache = new Dictionary<VariableName, TypedLocal>();
             _mutated = new HashSet<VariableName>();
         }
@@ -70,7 +68,7 @@ namespace Yolol.IL.Compiler.Memory
             // everything that's loaded _or_ stored so that the write later is valid in all cases.
             foreach (var variable in toCache)
             {
-                var type = _knownTypes.TryGetValue(variable, out var t) ? t.ToStackType() : StackType.YololValue;
+                var type = _types.TypeOf(variable) ?? StackType.YololValue;
                 var local = _emitter.DeclareLocal(type.ToType(), $"CacheFor_{variable.Name}", false);
 
                 EmitLoadValue(variable);
@@ -103,6 +101,8 @@ namespace Yolol.IL.Compiler.Memory
         /// <param name="types"></param>
         public void Store(VariableName name, TypeStack<TEmit> types)
         {
+            _types.Store(name, types.Peek);
+
             if (_cache.ContainsKey(name))
             {
                 var local = _cache[name];
@@ -133,21 +133,21 @@ namespace Yolol.IL.Compiler.Memory
         /// <param name="types"></param>
         public void Load(VariableName name, TypeStack<TEmit> types)
         {
+            // Check if we know what type this variable is
+            var type = _types.TypeOf(name) ?? StackType.YololValue;
+
             if (_cache.ContainsKey(name))
             {
                 var local = _cache[name];
                 _emitter.LoadLocal(local.Local);
-                types.Push(local.Type);
+
+                ConvertType(local.Type, type);
+                types.Push(type);
             }
             else
             {
-                // Load fro backing store
+                // Load from backing store
                 EmitLoadValue(name);
-
-                // Check if we know what type this variable is
-                var type = StackType.YololValue;
-                if (_knownTypes.TryGetValue(name, out var kType))
-                    type = kType.ToStackType();
 
                 // Unbox it to that type (bypassing dynamic type checking)
                 StaticUnbox(type);
@@ -187,6 +187,10 @@ namespace Yolol.IL.Compiler.Memory
 #else
                     _emitter.GetRuntimePropertyValue<TEmit, Value>(nameof(Value.String));
 #endif
+                    return;
+
+                case StackType.Bool:
+                    _emitter.EmitCoerce(StackType.YololValue, StackType.Bool);
                     return;
             }
         }
@@ -258,12 +262,5 @@ namespace Yolol.IL.Compiler.Memory
             _emitter.Call(get);
         }
         #endregion
-
-        Type? ITypeAssignments.TypeOf(VariableName name)
-        {
-            if (_knownTypes.TryGetValue(name, out var type))
-                return type;
-            return default;
-        }
     }
 }

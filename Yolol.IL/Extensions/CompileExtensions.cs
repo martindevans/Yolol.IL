@@ -165,6 +165,8 @@ namespace Yolol.IL.Extensions
                 EmitFallthroughCalc();
                 emitter.StoreLocal(retAddr);
 
+                var types = new StaticTypeTracker(staticTypes);
+
                 // Create a memory accessor which manages reading and writing the memory arrays
                 using (var accessor = new ArraySegmentMemoryAccessor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(
                     emitter,
@@ -172,13 +174,13 @@ namespace Yolol.IL.Extensions
                     0,
                     internalVariableMap,
                     externalVariableMap,
-                    staticTypes
+                    types
                 ))
                 {
                     accessor.EmitLoad(line);
 
                     // Convert the entire line into IL
-                    var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, accessor, exBlock, gotoLabel);
+                    var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, accessor, exBlock, gotoLabel, types);
                     converter.Visit(line);
 
                     // When a line finishes (with no gotos in the line) call flow eventually reaches here. Go to the next line.

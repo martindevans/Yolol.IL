@@ -25,16 +25,18 @@ namespace Yolol.IL.Compiler
         private readonly ExceptionBlock _unwinder;
         private readonly Label2<TEmit> _gotoLabel;
 
-        private readonly TypeStack<TEmit> _types;
+        private readonly TypeStack<TEmit> _typesStack;
+        private readonly StaticTypeTracker _staticTypes;
 
-        public bool IsTypeStackEmpty => _types.IsEmpty;
+        public bool IsTypeStackEmpty => _typesStack.IsEmpty;
 
         public ConvertLineVisitor(
             OptimisingEmitter<TEmit> emitter,
             int maxLineNumber,
             IMemoryAccessor<TEmit> memory,
             ExceptionBlock unwinder,
-            Label2<TEmit> gotoLabel
+            Label2<TEmit> gotoLabel,
+            StaticTypeTracker staticTypes
         )
         {
             _emitter = emitter;
@@ -42,8 +44,9 @@ namespace Yolol.IL.Compiler
             _memory = memory;
             _unwinder = unwinder;
             _gotoLabel = gotoLabel;
+            _staticTypes = staticTypes;
 
-            _types = new TypeStack<TEmit>(_emitter);
+            _typesStack = new TypeStack<TEmit>(_emitter);
         }
 
         #region statements
@@ -54,7 +57,7 @@ namespace Yolol.IL.Compiler
                 return ass;
 
             // Emit code to assign the value on the stack to the variable
-            _memory.Store(ass.Left, _types);
+            _memory.Store(ass.Left, _typesStack);
 
             return ass;
         }
@@ -79,26 +82,37 @@ namespace Yolol.IL.Compiler
             if (Visit(@if.Condition) is ErrorExpression)
                 return @if;
 
-            // Convert it to a bool we can branch on
-            _types.Coerce(StackType.Bool);
-            _types.Pop(StackType.Bool);
+                // Convert it to a bool we can branch on
+                _typesStack.Coerce(StackType.Bool);
+                _typesStack.Pop(StackType.Bool);
 
-            // jump to false branch if the condition is false. Fall through to true branch
-            _emitter.BranchIfFalse(falseLabel);
+                // jump to false branch if the condition is false. Fall through to true branch
+                _emitter.BranchIfFalse(falseLabel);
 
-            // Emit true branch
-            Visit(@if.TrueBranch);
-            _emitter.Branch(exitLabel);
+                // Emit true branch
+                TypeContext trueCtx;
+                using (_staticTypes.EnterContext(out trueCtx))
+                {
+                    Visit(@if.TrueBranch);
+                    _emitter.Branch(exitLabel);
+                }
 
-            // Emit false branch
-            _emitter.MarkLabel(falseLabel);
-            Visit(@if.FalseBranch);
-            _emitter.Branch(exitLabel);
+                // Emit false branch
+                TypeContext falseCtx;
+                using (_staticTypes.EnterContext(out falseCtx))
+                {
+                    _emitter.MarkLabel(falseLabel);
+                    Visit(@if.FalseBranch);
+                    _emitter.Branch(exitLabel);
+                }
 
-            // Exit point for both branches
-            _emitter.MarkLabel(exitLabel);
+                // Update types to the common types of both branches
+                _staticTypes.Unify(trueCtx, falseCtx);
 
-            return @if;
+                // Exit point for both branches
+                _emitter.MarkLabel(exitLabel);
+
+                return @if;
         }
 
         protected override BaseStatement Visit(Goto @goto)
@@ -114,18 +128,18 @@ namespace Yolol.IL.Compiler
                 if (Visit(@goto.Destination) is ErrorExpression)
                     return @goto;
 
-                switch (_types.Peek)
+                switch (_typesStack.Peek)
                 {
                     case StackType.Bool:
                         // `Goto1` and `Goto0` both go to line 1
-                        _types.Pop(StackType.Bool);
+                        _typesStack.Pop(StackType.Bool);
                         _emitter.Pop();
                         _emitter.LoadConstant(1);
                         break;
 
                     case StackType.YololNumber:
-                        _types.Coerce(StackType.YololNumber);
-                        _types.Pop(StackType.YololNumber);
+                        _typesStack.Coerce(StackType.YololNumber);
+                        _typesStack.Pop(StackType.YololNumber);
                         _emitter.LoadConstant(_maxLineNumber);
                         _emitter.CallRuntimeN(nameof(Runtime.GotoNumber), typeof(Number), typeof(int));
                         break;
@@ -136,7 +150,7 @@ namespace Yolol.IL.Compiler
                         break;
 
                     case StackType.YololValue:
-                        _types.Coerce(StackType.YololValue);
+                        _typesStack.Coerce(StackType.YololValue);
                         _emitter.Duplicate();
                         _emitter.CallRuntimeN(nameof(Runtime.IsValueANumber), typeof(Value));
                         _emitter.LeaveIfFalse(_unwinder);
@@ -168,7 +182,7 @@ namespace Yolol.IL.Compiler
 
             // Check if the last expression was guaranteed to generate an error
             // If so jump to the runtime error handler
-            if (_types.Peek == StackType.StaticError || result is ErrorExpression)
+            if (_typesStack.Peek == StackType.StaticError || result is ErrorExpression)
             {
                 _emitter.Leave(_unwinder);
 
@@ -192,14 +206,14 @@ namespace Yolol.IL.Compiler
             if (rawValue == 0 || rawValue == 1000)
             {
                 _emitter.LoadConstant(rawValue == 1000);
-                _types.Push(StackType.Bool);
+                _typesStack.Push(StackType.Bool);
             }
             else
             {
                 // Convert raw value into a number
                 _emitter.LoadConstant(rawValue);
                 _emitter.NewObject<Number, long>();
-                _types.Push(StackType.YololNumber);
+                _typesStack.Push(StackType.YololNumber);
             }
 
             return con;
@@ -210,14 +224,14 @@ namespace Yolol.IL.Compiler
             // Put a string on the stack
             _emitter.LoadConstant(str.Value.ToString());
             _emitter.NewObject<YString, string>();
-            _types.Push(StackType.YololString);
+            _typesStack.Push(StackType.YololString);
 
             return str;
         }
 
         protected override BaseExpression Visit(Grammar.AST.Expressions.Variable var)
         {
-            _memory.Load(var.Name, _types);
+            _memory.Load(var.Name, _typesStack);
             return var;
         }
 
@@ -250,18 +264,18 @@ namespace Yolol.IL.Compiler
             // Visit left and right, coercing them into `Value`s
             if (Visit(expr.Left) is ErrorExpression)
                 return new ErrorExpression();
-            _types.Coerce(input);
+            _typesStack.Coerce(input);
             if (Visit(expr.Right) is ErrorExpression)
                 return new ErrorExpression();
-            _types.Coerce(input);
+            _typesStack.Coerce(input);
 
             // Emit IL
             emit();
 
             // Update types
-            _types.Pop(input);
-            _types.Pop(input);
-            _types.Push(output);
+            _typesStack.Pop(input);
+            _typesStack.Pop(input);
+            _typesStack.Push(output);
 
             return expr;
         }
@@ -294,18 +308,18 @@ namespace Yolol.IL.Compiler
             // Convert the two sides of the expression
             if (Visit(expr.Left) is ErrorExpression)
                 return new ErrorExpression();
-            var leftType = _types.Peek;
+            var leftType = _typesStack.Peek;
             if (Visit(expr.Right) is ErrorExpression)
                 return new ErrorExpression();
-            var rightType = _types.Peek;
+            var rightType = _typesStack.Peek;
 
             // Try to calculate static values for the two sides
             var constLeft = expr.Left.IsConstant ? Execution.Extensions.BaseExpressionExtensions.TryStaticEvaluate(expr.Left, out _) : null;
             var constRight = expr.Right.IsConstant ? Execution.Extensions.BaseExpressionExtensions.TryStaticEvaluate(expr.Right, out _) : null;
 
             // Emit code
-            _types.Pop(rightType);
-            _types.Pop(leftType);
+            _typesStack.Pop(rightType);
+            _typesStack.Pop(leftType);
             var (emitType, _) = (left: leftType, right: rightType) switch {
 
                 (StackType.Bool, StackType.Bool) => emitBoolBool.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
@@ -330,7 +344,7 @@ namespace Yolol.IL.Compiler
 
                 _ => throw new InvalidOperationException($"{expr.GetType().Name}({leftType},{rightType})")
             };
-            _types.Push(emitType!.ToStackType());
+            _typesStack.Push(emitType!.ToStackType());
 
             return expr;
         }
@@ -715,8 +729,8 @@ namespace Yolol.IL.Compiler
         {
             return EmitUnaryExpr(expr, errorLabel => {
                 // Emit code
-                var p = _types.Peek;
-                _types.Pop(p);
+                var p = _typesStack.Peek;
+                _typesStack.Pop(p);
                 var (emitType, fallible) = p switch {
                     StackType.Bool => emitBool.ConvertUnary(_emitter, errorLabel),
                     StackType.YololNumber => emitNum.ConvertUnary(_emitter, errorLabel),
@@ -724,7 +738,7 @@ namespace Yolol.IL.Compiler
                     StackType.YololValue => emitVal.ConvertUnary(_emitter, errorLabel),
                     _ => throw new InvalidOperationException($"{expr.GetType().Name}({p})")
                 };
-                _types.Push(emitType!.ToStackType());
+                _typesStack.Push(emitType!.ToStackType());
 
                 return fallible;
             });
@@ -819,15 +833,15 @@ namespace Yolol.IL.Compiler
             if (!preOp)
             {
                 _emitter.Duplicate();
-                _types.Push(_types.Peek);
+                _typesStack.Push(_typesStack.Peek);
             }
 
             // If there is a bool on the stack coerce it to a number (bool won't have inc/dec operators defined on it)
-            if (StackType.Bool == _types.Peek)
-                _types.Coerce(StackType.YololNumber);
+            if (StackType.Bool == _typesStack.Peek)
+                _typesStack.Coerce(StackType.YololNumber);
 
             // Find the operator method
-            var peek = _types.Peek.ToType();
+            var peek = _typesStack.Peek.ToType();
             var method = peek.GetMethod("op_Decrement", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { peek }, null);
             if (method == null)
                 throw new InvalidOperationException($"Cannot find method `op_Decrement` on type {peek}");
@@ -851,19 +865,19 @@ namespace Yolol.IL.Compiler
 
             // Do the actual work
             _emitter.Call(method);
-            _types.Pop(_types.Peek);
-            _types.Push(method.ReturnType.ToStackType());
+            _typesStack.Pop(_typesStack.Peek);
+            _typesStack.Push(method.ReturnType.ToStackType());
             
 
             // If we need to return the new value, save it now by duplicating it
             if (preOp)
             {
                 _emitter.Duplicate();
-                _types.Push(_types.Peek);
+                _typesStack.Push(_typesStack.Peek);
             }
 
             // Write value to variable
-            _memory.Store(expr.Name, _types);
+            _memory.Store(expr.Name, _typesStack);
 
             return expr;
         }
@@ -878,33 +892,33 @@ namespace Yolol.IL.Compiler
             if (!preOp)
             {
                 _emitter.Duplicate();
-                _types.Push(_types.Peek);
+                _typesStack.Push(_typesStack.Peek);
             }
 
             // If there is a bool on the stack coerce it to a number (bool won't have inc/dec operators defined on it)
-            if (StackType.Bool == _types.Peek)
-                _types.Coerce(StackType.YololNumber);
+            if (StackType.Bool == _typesStack.Peek)
+                _typesStack.Coerce(StackType.YololNumber);
 
             // Find the operator method
-            var peek = _types.Peek.ToType();
+            var peek = _typesStack.Peek.ToType();
             var method = peek.GetMethod("op_Increment", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { peek }, null);
             if (method == null)
                 throw new InvalidOperationException($"Cannot find method `op_Increment` on type {peek}");
 
             // Do the actual work
             _emitter.Call(method);
-            _types.Pop(_types.Peek);
-            _types.Push(method.ReturnType.ToStackType());
+            _typesStack.Pop(_typesStack.Peek);
+            _typesStack.Push(method.ReturnType.ToStackType());
             
             // If we need to return the new value, save it now by duplicating it
             if (preOp)
             {
                 _emitter.Duplicate();
-                _types.Push(_types.Peek);
+                _typesStack.Push(_typesStack.Peek);
             }
 
             // Write value to variable
-            _memory.Store(expr.Name, _types);
+            _memory.Store(expr.Name, _typesStack);
 
             return expr;
         }
@@ -929,18 +943,18 @@ namespace Yolol.IL.Compiler
                 Visit(new Grammar.AST.Expressions.Variable(inc.Name));
 
                 // Find the increment method on whatever type it is
-                var peek = _types.Peek.ToType();
+                var peek = _typesStack.Peek.ToType();
                 var method = peek.GetMethod("op_Increment", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { peek }, null);
                 if (method == null)
                     return false;
 
                 // Do the work
                 _emitter.Call(method);
-                _types.Pop(_types.Peek);
-                _types.Push(method!.ReturnType.ToStackType());
+                _typesStack.Pop(_typesStack.Peek);
+                _typesStack.Push(method!.ReturnType.ToStackType());
 
                 // Save the result
-                _memory.Store(inc.Name, _types);
+                _memory.Store(inc.Name, _typesStack);
 
                 return true;
             }
@@ -961,7 +975,7 @@ namespace Yolol.IL.Compiler
 
                     // The wrapped expression left a value on the stack. Pop it off now.
                     _emitter.Pop();
-                    _types.Pop(_types.Peek);
+                    _typesStack.Pop(_typesStack.Peek);
 
                     return r;
             }
