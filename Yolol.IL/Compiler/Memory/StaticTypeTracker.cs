@@ -50,6 +50,8 @@ namespace Yolol.IL.Compiler.Memory
         {
             if (contexts.Contains(_current))
                 throw new InvalidOperationException("Cannot unify types with an active context");
+            if (contexts.Select(c => c.Parent).Distinct().Count() != 1)
+                throw new InvalidOperationException("Cannot unify types with different parents");
 
             var groups = contexts.SelectMany(ctx => ctx.Types)
                     .GroupBy(a => a.Key)
@@ -58,15 +60,13 @@ namespace Yolol.IL.Compiler.Memory
 
             foreach (var (key, types) in groups)
             {
-                if (types.Count == 1)
-                {
-                    Store(key, types[0]);
-                }
-                else
-                {
-                    var t = types.Aggregate(UnifyTypes);
-                    Store(key, t);
-                }
+                // It's possible that some branches did not store to a variable, and thus has no opinion about the type.
+                // In this case, use the type from the parent context.
+                if (types.Count != contexts.Length)
+                    types.Add(contexts[0].Parent.TypeOf(key) ?? StackType.YololValue);
+
+                var t = types.Aggregate(UnifyTypes);
+                Store(key, t);
             }
 
             static StackType UnifyTypes(StackType a, StackType b)

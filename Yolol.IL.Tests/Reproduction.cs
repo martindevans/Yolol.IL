@@ -74,5 +74,11 @@ namespace Yolol.IL.Tests
         {
             var (ms, _) = TestHelpers.Test(":o=not (:i%100)");
         }
+
+        [TestMethod]
+        public void Spaceship()
+        {
+            var (ms, _) = TestHelpers.Test("if :q then :x=0 goto l end if :q then :x++ end");
+        }
     }
 }
