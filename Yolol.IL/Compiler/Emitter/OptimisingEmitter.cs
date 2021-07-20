@@ -34,7 +34,8 @@ namespace Yolol.IL.Compiler.Emitter
         {
             var optimisations = new List<BaseOptimisation> {
                 new StoreLoadChain(),
-                new LoadStoreChain(),
+                //new LoadStoreChain(),
+                new DupStorePopChain(),
             };
 
             for (var i = 0; i < 128; i++)

@@ -82,37 +82,37 @@ namespace Yolol.IL.Compiler
             if (Visit(@if.Condition) is ErrorExpression)
                 return @if;
 
-                // Convert it to a bool we can branch on
-                _typesStack.Coerce(StackType.Bool);
-                _typesStack.Pop(StackType.Bool);
+            // Convert it to a bool we can branch on
+            _typesStack.Coerce(StackType.Bool);
+            _typesStack.Pop(StackType.Bool);
 
-                // jump to false branch if the condition is false. Fall through to true branch
-                _emitter.BranchIfFalse(falseLabel);
+            // jump to false branch if the condition is false. Fall through to true branch
+            _emitter.BranchIfFalse(falseLabel);
 
-                // Emit true branch
-                TypeContext trueCtx;
-                using (_staticTypes.EnterContext(out trueCtx))
-                {
-                    Visit(@if.TrueBranch);
-                    _emitter.Branch(exitLabel);
-                }
+            // Emit true branch
+            TypeContext trueCtx;
+            using (_staticTypes.EnterContext(out trueCtx))
+            {
+                Visit(@if.TrueBranch);
+                _emitter.Branch(exitLabel);
+            }
 
-                // Emit false branch
-                TypeContext falseCtx;
-                using (_staticTypes.EnterContext(out falseCtx))
-                {
-                    _emitter.MarkLabel(falseLabel);
-                    Visit(@if.FalseBranch);
-                    _emitter.Branch(exitLabel);
-                }
+            // Emit false branch
+            TypeContext falseCtx;
+            using (_staticTypes.EnterContext(out falseCtx))
+            {
+                _emitter.MarkLabel(falseLabel);
+                Visit(@if.FalseBranch);
+                _emitter.Branch(exitLabel);
+            }
 
-                // Update types to the common types of both branches
-                _staticTypes.Unify(trueCtx, falseCtx);
+            // Update types to the common types of both branches
+            _staticTypes.Unify(trueCtx, falseCtx);
 
-                // Exit point for both branches
-                _emitter.MarkLabel(exitLabel);
+            // Exit point for both branches
+            _emitter.MarkLabel(exitLabel);
 
-                return @if;
+            return @if;
         }
 
         protected override BaseStatement Visit(Goto @goto)

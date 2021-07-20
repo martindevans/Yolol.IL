@@ -75,6 +75,9 @@ namespace Yolol.IL.Extensions
             Value? rightConst
         )
         {
+            if (expr.ReturnType == typeof(StaticError))
+                return new ConvertResult(typeof(StaticError), true, null);
+
             // Try to convert expression without putting things into locals. Only works with certain expressions.
             var fast = TryConvertBinaryFastPath(expr, emitter, errorLabel, leftConst, rightConst);
             if (fast != null)
@@ -105,6 +108,9 @@ namespace Yolol.IL.Extensions
         /// <returns>A tuple, indicating the type left on the stack by this expression and if the expression **is** potentially fallible (i.e. errorLabel may be jumped to)</returns>
         public static ConvertResult ConvertUnary<TIn, TOut, TEmit>(this Expression<Func<TIn, TOut>> expr, OptimisingEmitter<TEmit> emitter, ExceptionBlock errorLabel)
         {
+            if (expr.ReturnType == typeof(StaticError))
+                return new ConvertResult(typeof(StaticError), true, null);
+
             // Try to convert expression without putting things into locals. Only works with certain expressions.
             var fast = TryConvertUnaryFastPath(expr, emitter, errorLabel);
             if (fast != null)

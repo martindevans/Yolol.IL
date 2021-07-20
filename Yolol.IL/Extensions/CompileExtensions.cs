@@ -153,17 +153,17 @@ namespace Yolol.IL.Extensions
                 var exBlock = emitter.BeginExceptionBlock();
 
                 // Create a local to store the return address from inside the try/catch block
-                var retAddr = emitter.DeclareLocal<int>("ret_addr");
+                var retAddr = emitter.DeclareLocal<int>("ret_addr", initializeReused: false);
+
+                // Store the default return address to go to
+                EmitFallthroughCalc();
+                emitter.StoreLocal(retAddr);
 
                 // Create a label which any `goto` statements can use. They drop their destination PC on the stack and then jump to this label
                 var gotoLabel = emitter.DefineLabel2("encountered_goto");
 
                 // Create a label which marks the end of the line, code reaching here falls through to the next line
                 var eolLabel = emitter.DefineLabel2("encountered_eol");
-
-                // Store the default return address to go to
-                EmitFallthroughCalc();
-                emitter.StoreLocal(retAddr);
 
                 var types = new StaticTypeTracker(staticTypes);
 
@@ -199,7 +199,7 @@ namespace Yolol.IL.Extensions
                     // Catch all execution exceptions and return the appropriate next line number to fall through to
                     var catchBlock = emitter.BeginCatchBlock<ExecutionException>(exBlock);
 #if DEBUG
-                    using (var ex = emitter.DeclareLocal(typeof(ExecutionException)))
+                    using (var ex = emitter.DeclareLocal(typeof(ExecutionException), initializeReused: false))
                     {
                         emitter.StoreLocal(ex);
                         emitter.WriteLine("execution exception: {0}", ex);
