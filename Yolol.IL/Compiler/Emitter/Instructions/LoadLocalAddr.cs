@@ -5,21 +5,23 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
     internal class LoadLocalAddress
         : BaseInstruction
     {
-        private readonly Local _local;
+        public bool IsReadonly { get; }
+        public Local Local { get; }
 
-        public LoadLocalAddress(Local local)
+        public LoadLocalAddress(Local local, bool isReadonly)
         {
-            _local = local;
+            IsReadonly = isReadonly;
+            Local = local;
         }
 
         public override void Emit<T>(Emit<T> emitter)
         {
-            emitter.LoadLocalAddress(_local);
+            emitter.LoadLocalAddress(Local);
         }
 
         public override string ToString()
         {
-            return $"LoadLocalAddr({_local.Name}):";
+            return $"LoadLocalAddr({Local.Name}):";
         }
     }
 }

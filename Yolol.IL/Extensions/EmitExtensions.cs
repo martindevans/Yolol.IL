@@ -62,7 +62,7 @@ namespace Yolol.IL.Extensions
             using (var local = emitter.DeclareLocal(typeof(TCallee), "CallRuntimeThis0_Callee", false))
             {
                 emitter.StoreLocal(local);
-                emitter.LoadLocalAddress(local);
+                emitter.LoadLocalAddress(local, false);
                 emitter.CallRuntimeN<TEmit, TCallee>(methodName);
             }
         }
@@ -121,7 +121,7 @@ namespace Yolol.IL.Extensions
             using (var local = emitter.DeclareLocal(typeof(TType), "GetRuntimePropertyValue_Callee", false))
             {
                 emitter.StoreLocal(local);
-                emitter.LoadLocalAddress(local);
+                emitter.LoadLocalAddress(local, true);
                 emitter.Call(method);
             }
         }
@@ -140,7 +140,7 @@ namespace Yolol.IL.Extensions
             using (var local = emitter.DeclareLocal(typeof(TType), "GetRuntimeFieldValue_Callee", false))
             {
                 emitter.StoreLocal(local);
-                emitter.LoadLocalAddress(local);
+                emitter.LoadLocalAddress(local, true);
                 emitter.LoadField(field);
             }
         }
@@ -212,7 +212,7 @@ namespace Yolol.IL.Extensions
                     using (var conditional = emitter.DeclareLocal(typeof(Value), "EmitCoerce_ValueToBool_Conditional", false))
                     {
                         emitter.StoreLocal(conditional);
-                        emitter.LoadLocalAddress(conditional);
+                        emitter.LoadLocalAddress(conditional, true);
                         emitter.Call(typeof(Value).GetMethod(nameof(Value.ToBool))!);
                     }
                     break;

@@ -17,6 +17,8 @@ namespace Yolol.IL.Compiler.Emitter
 
         private readonly List<BaseInstruction> _ops = new List<BaseInstruction>();
 
+        public int InstructionCount => _ops.Count;
+
         public OptimisingEmitter(Emit<TEmit> emitter)
         {
             _emitter = emitter;
@@ -33,8 +35,9 @@ namespace Yolol.IL.Compiler.Emitter
         public void Optimise()
         {
             var optimisations = new List<BaseOptimisation> {
+                //new LoadStoreChain2(),
                 new StoreLoadChain(),
-                //new LoadStoreChain(),
+                new LoadStoreChain(),
                 new DupStorePopChain(),
             };
 
@@ -122,9 +125,64 @@ namespace Yolol.IL.Compiler.Emitter
             _ops.Add(new LoadLocal(local));
         }
 
-        public void LoadLocalAddress(Local local)
+        /// <summary>
+        /// Load the address of a local.
+        /// </summary>
+        /// <param name="local"></param>
+        /// <param name="isReadonly">Promise that this address will not be written through.
+        /// This promise is not checked in any way, but may be relied upon by optimisations.</param>
+        public void LoadLocalAddress(Local local, bool isReadonly)
         {
-            _ops.Add(new LoadLocalAddress(local));
+            _ops.Add(new LoadLocalAddress(local, isReadonly));
+        }
+        #endregion
+
+        #region addresses
+        /// <summary>
+        /// Pops a pointer from the stack, and pushes the given value type it points to onto the stack.
+        /// 
+        /// For primitive and reference types, use LoadIndirect().
+        /// </summary>
+        public void LoadObject<T>(bool isVolatile = false, int? unaligned = null)
+            where T : struct
+        {
+            _ops.Add(new LoadObject(typeof(T), isVolatile, unaligned));
+        }
+
+        /// <summary>
+        /// Pops a pointer from the stack, and pushes the given value type it points to onto the stack.
+        /// 
+        /// For primitive and reference types, use LoadIndirect().
+        /// </summary>
+        public void LoadObject(Type type, bool isVolatile = false, int? unaligned = null)
+        {
+            if (!type.IsValueType)
+                throw new ArgumentException("`LoadObject` Type must be a value type");
+            if (type.IsPrimitive)
+                throw new ArgumentException("`LoadObject` Type must not be primitive");
+
+            _ops.Add(new LoadObject(type, isVolatile, unaligned));
+        }
+
+        /// <summary>
+        /// Takes a destination pointer, a source pointer as arguments.  Pops both off the stack.
+        /// 
+        /// Copies the given value type from the source to the destination.
+        /// </summary>
+        public void CopyObject<TObject>()
+            where TObject : struct
+        {
+            CopyObject(typeof(TObject));
+        }
+
+        /// <summary>
+        /// Takes a destination pointer, a source pointer as arguments.  Pops both off the stack.
+        /// 
+        /// Copies the given value type from the source to the destination.
+        /// </summary>
+        public void CopyObject(Type type)
+        {
+            _ops.Add(new CopyObject(type));
         }
         #endregion
 
@@ -361,29 +419,6 @@ namespace Yolol.IL.Compiler.Emitter
             BranchIfFalse(dontLeave);
             Leave(block);
             MarkLabel(dontLeave);
-        }
-        #endregion
-
-        #region copy
-        /// <summary>
-        /// Takes a destination pointer, a source pointer as arguments.  Pops both off the stack.
-        /// 
-        /// Copies the given value type from the source to the destination.
-        /// </summary>
-        public void CopyObject<TObject>()
-            where TObject : struct
-        {
-            _ops.Add(new CopyObject<TObject>());
-        }
-
-        /// <summary>
-        /// Takes a destination pointer, a source pointer as arguments.  Pops both off the stack.
-        /// 
-        /// Copies the given value type from the source to the destination.
-        /// </summary>
-        public void CopyObject(Type type)
-        {
-            _ops.Add(new CopyObject(type));
         }
         #endregion
     }

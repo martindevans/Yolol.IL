@@ -234,7 +234,7 @@ namespace Yolol.IL.Extensions
                         using (var local = emitter.DeclareLocal(c.Object!.Type, "ConvertExpression_NonStaticCall", false))
                         {
                             emitter.StoreLocal(local);
-                            emitter.LoadLocalAddress(local);
+                            emitter.LoadLocalAddress(local, false);
                             foreach (var arg in c.Arguments)
                             {
                                 var (_, e) = ConvertExpression(arg, emitter, parameters, errorLabel);
@@ -376,7 +376,7 @@ namespace Yolol.IL.Extensions
             var parameterLocals = new List<Local>();
             for (var i = parameterTypes.Length - 1; i >= 0; i--)
             {
-                var local = emitter.DeclareLocal(parameterTypes[i], $"ConvertCallWithErrorHandling_{parameterLocals.Count}", false);
+                var local = emitter.DeclareLocal(parameterTypes[i], $"ConvertCallWithErrorHandling_{emitter.InstructionCount}", false);
                 emitter.StoreLocal(local);
                 parameterLocals.Add(local);
             }

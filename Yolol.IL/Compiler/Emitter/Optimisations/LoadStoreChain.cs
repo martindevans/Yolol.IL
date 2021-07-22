@@ -29,8 +29,8 @@ namespace Yolol.IL.Compiler.Emitter.Optimisations
                 return false;
 
             instructions.Clear();
-            instructions.Add(new LoadLocalAddress(load.Local));
-            instructions.Add(new LoadLocalAddress(store.Local));
+            instructions.Add(new LoadLocalAddress(load.Local, true));
+            instructions.Add(new LoadLocalAddress(store.Local, false));
             instructions.Add(new CopyObject(store.Local.LocalType));
 
             return true;

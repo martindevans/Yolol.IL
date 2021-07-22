@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.13.0" />
-    <PackageReference Include="Yolol" Version="14.4.0" />
+    <PackageReference Include="Yolol" Version="14.4.1" />
   </ItemGroup>
 
   <ItemGroup>

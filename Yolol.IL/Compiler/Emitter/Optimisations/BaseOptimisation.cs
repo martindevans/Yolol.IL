@@ -16,6 +16,16 @@ namespace Yolol.IL.Compiler.Emitter.Optimisations
 
         protected abstract bool Replace(List<BaseInstruction> instructions);
 
+        protected virtual bool PreReplace(IReadOnlyList<BaseInstruction> allInstructions, List<BaseInstruction> slice, int matchStart, int matchLength)
+        {
+            return true;
+        }
+
+        protected virtual bool ReplaceWide(List<BaseInstruction> allInstructions, int matchStart, int matchLength)
+        {
+            return false;
+        }
+
         private bool CheckSegment(IReadOnlyList<BaseInstruction> instructions)
         {
             if (instructions.Count != _opTypes.Length)
@@ -42,6 +52,15 @@ namespace Yolol.IL.Compiler.Emitter.Optimisations
 
                 if (CheckSegment(slice))
                 {
+                    if (!PreReplace(ops, slice, i, _opTypes.Length))
+                        continue;
+
+                    if (ReplaceWide(ops, i, _opTypes.Length))
+                    {
+                        status = true;
+                        break;
+                    }
+
                     if (!Replace(slice))
                         continue;
 

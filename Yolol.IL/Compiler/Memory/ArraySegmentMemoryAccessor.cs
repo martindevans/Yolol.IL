@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Sigil;
 using Yolol.Analysis.TreeVisitor.Inspection;
 using Yolol.Execution;
 using Yolol.Grammar;
@@ -23,6 +24,7 @@ namespace Yolol.IL.Compiler.Memory
         private readonly StaticTypeTracker _types;
 
         private readonly Dictionary<VariableName, TypedLocal> _cache;
+        private readonly Dictionary<VariableName, Local> _cacheDirty;
         private readonly HashSet<VariableName> _mutated;
 
         public ArraySegmentMemoryAccessor(
@@ -41,6 +43,7 @@ namespace Yolol.IL.Compiler.Memory
             _types = types;
 
             _cache = new Dictionary<VariableName, TypedLocal>();
+            _cacheDirty = new Dictionary<VariableName, Local>();
             _mutated = new HashSet<VariableName>();
         }
         
@@ -64,8 +67,8 @@ namespace Yolol.IL.Compiler.Memory
                 if (count > 1)
                     toCache.Add(name);
 
-            // All stored things will be written out at the end. That means we need to load
-            // everything that's loaded _or_ stored so that the write later is valid in all cases.
+            // Load up everything that will be read later in the line
+            // The `IsDirty` flags protect against writing back uninitialised variables at the end
             foreach (var variable in toCache)
             {
                 var type = _types.TypeOf(variable) ?? StackType.YololValue;
@@ -75,6 +78,11 @@ namespace Yolol.IL.Compiler.Memory
                 StaticUnbox(type);
                 _emitter.StoreLocal(local);
                 _cache.Add(variable, new TypedLocal(type, local));
+
+                var dirty = _emitter.DeclareLocal(typeof(bool), $"CacheFor_{variable.Name}_IsDirty");
+                _emitter.LoadConstant(false);
+                _emitter.StoreLocal(dirty);
+                _cacheDirty.Add(variable, dirty);
             }
         }
 
@@ -85,13 +93,24 @@ namespace Yolol.IL.Compiler.Memory
             {
                 if (_mutated.Contains(name))
                 {
+                    var skip = _emitter.DefineLabel();
+
+                    var dirty = _cacheDirty[name];
+                    _emitter.LoadLocal(dirty);
+                    _emitter.BranchIfFalse(skip);
+
                     _emitter.LoadLocal(local.Local);
                     _emitter.EmitCoerce(local.Type, StackType.YololValue);
                     EmitStoreValue(name);
+
+                    _emitter.MarkLabel(skip);
                 }
 
                 local.Local.Dispose();
             }
+
+            foreach (var local in _cacheDirty)
+                local.Value.Dispose();
         }
 
         /// <summary>
@@ -114,6 +133,10 @@ namespace Yolol.IL.Compiler.Memory
 
                 // Store in appropriate local
                 _emitter.StoreLocal(local.Local);
+
+                // Mark cache dirty
+                _emitter.LoadConstant(true);
+                _emitter.StoreLocal(_cacheDirty[name]);
             }
             else
             {

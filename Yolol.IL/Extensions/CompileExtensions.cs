@@ -81,7 +81,7 @@ namespace Yolol.IL.Extensions
         }
 
         /// <summary>
-        /// Compile all the lines of a Yolol program into runnable C# functions (one per line)
+        /// Compile all the lines of a Yolol program into a `CompiledProgram` object
         /// </summary>
         /// <param name="ast"></param>
         /// <param name="externals"></param>
