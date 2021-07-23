@@ -1,5 +1,4 @@
-﻿using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Running;
+﻿using System.IO;
 
 namespace Benchmark
 {
@@ -10,10 +9,11 @@ namespace Benchmark
             //var config = DefaultConfig.Instance;
             //var summary = BenchmarkRunner.Run<CompareInterpreter>(config);
 
-            var lps = new LinesPerSecond();
-            lps.Run();
+            //var lps = new LinesPerSecond();
+            //lps.Run();
 
-            //new Yolol.IL.Serializer().Save("foo");
+            var flex = new FlexBench(new DirectoryInfo(Path.Combine(args)));
+            flex.Run();
         }
     }
 }
