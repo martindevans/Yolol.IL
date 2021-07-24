@@ -7,7 +7,7 @@ namespace Yolol.IL.Extensions
     internal static class ValueExtensions
     {
         /// <summary>
-        /// Coerce a value into specific type, throws id the coercion is invalid
+        /// Coerce a value into specific type, throws if the coercion is invalid
         /// </summary>
         /// <param name="input"></param>
         /// <param name="output"></param>

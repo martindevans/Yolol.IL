@@ -162,9 +162,6 @@ namespace Yolol.IL.Extensions
                 // Create a label which any `goto` statements can use. They drop their destination PC on the stack and then jump to this label
                 var gotoLabel = emitter.DefineLabel2("encountered_goto");
 
-                // Create a label which marks the end of the line, code reaching here falls through to the next line
-                var eolLabel = emitter.DefineLabel2("encountered_eol");
-
                 var types = new StaticTypeTracker(staticTypes);
 
                 // Create a memory accessor which manages reading and writing the memory arrays
@@ -184,8 +181,6 @@ namespace Yolol.IL.Extensions
                     converter.Visit(line);
 
                     // When a line finishes (with no gotos in the line) call flow eventually reaches here. Go to the next line.
-                    if (eolLabel.IsUsed)
-                        eolLabel.Mark();
                     emitter.Leave(exBlock);
 
                     // Create a block to handle gotos. The destination will already be on the stack, so just return

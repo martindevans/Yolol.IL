@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using Sigil;
@@ -156,13 +157,19 @@ namespace Yolol.IL.Extensions
 
         private static MethodInfo GetMethod(Type declaringType, string name, Type? requiredReturnType, Type[] parameters)
         {
-            var method = declaringType.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, parameters, null);
-            if (method == null)
-                throw new InvalidOperationException($"ErrorMetadataAttribute references an invalid method: `{name}`");
-            if (requiredReturnType != null && method.ReturnType != requiredReturnType)
-                throw new InvalidOperationException($"ErrorMetadataAttribute references an method which does not return {requiredReturnType.Name}: `{name}`");
+            [ExcludeFromCodeCoverage]
+            static MethodInfo CheckMethod(string name, MethodInfo? method, Type? requiredReturnType)
+            {
+                if (method == null)
+                    throw new InvalidOperationException($"ErrorMetadataAttribute references an invalid method: `{name}`");
+                if (requiredReturnType != null && method.ReturnType != requiredReturnType)
+                    throw new InvalidOperationException($"ErrorMetadataAttribute references an method which does not return {requiredReturnType.Name}: `{name}`");
 
-            return method;
+                return method;
+            }
+
+            var method = declaringType.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, parameters, null);
+            return CheckMethod(name, method, requiredReturnType);
         }
     }
 }

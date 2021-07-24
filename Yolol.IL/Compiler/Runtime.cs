@@ -53,7 +53,7 @@ namespace Yolol.IL.Compiler
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GotoNumber(Number value, int maxLineNumber)
         {
-            return Math.Min(maxLineNumber, Math.Max(1, (int)value));
+            return Math.Clamp((int)value, 1, maxLineNumber);
         }
         #endregion
 

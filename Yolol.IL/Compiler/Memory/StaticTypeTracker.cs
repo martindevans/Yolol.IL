@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Yolol.Grammar;
 using System.Linq;
 using Yolol.IL.Extensions;
@@ -48,11 +49,16 @@ namespace Yolol.IL.Compiler.Memory
 
         public void Unify(params TypeContext[] contexts)
         {
-            if (contexts.Contains(_current))
-                throw new InvalidOperationException("Cannot unify types with an active context");
-            if (contexts.Select(c => c.Parent).Distinct().Count() != 1)
-                throw new InvalidOperationException("Cannot unify types with different parents");
-
+            [ExcludeFromCodeCoverage]
+            static void CheckArgs(TypeContext[] contexts, ITypeContext current)
+            {
+                if (contexts.Contains(current))
+                    throw new InvalidOperationException("Cannot unify types with an active context");
+                if (contexts.Select(c => c.Parent).Distinct().Count() != 1)
+                    throw new InvalidOperationException("Cannot unify types with different parents");
+            }
+            CheckArgs(contexts, _current);
+            
             var groups = contexts.SelectMany(ctx => ctx.Types)
                     .GroupBy(a => a.Key)
                     .Select(a => (a.Key, a.Select(b => b.Value).Distinct().ToList()))

@@ -14,7 +14,7 @@ namespace Benchmark
     public class FlexBench
     {
         // How long to run batches for. Set according to patience.
-        private static readonly TimeSpan Duration = TimeSpan.FromSeconds(3);
+        private static readonly TimeSpan Duration = TimeSpan.FromSeconds(10);
 
         private readonly DirectoryInfo _dir;
 
@@ -82,7 +82,7 @@ namespace Benchmark
             var iterations = 500000;
 
             // Run the program for some time
-            var totalLineCount = 0;
+            var totalLineCount = 0ul;
             var samples = new List<double>();
             outerTimer.Restart();
             while (outerTimer.Elapsed < Duration)
@@ -92,21 +92,21 @@ namespace Benchmark
                 for (var i = 0; i < iterations; i++)
                     compiled.Tick(internals, externals);
                 innerTimer.Stop();
-                totalLineCount += iterations;
+                totalLineCount += (ulong)iterations;
 
                 // Calculate how many lines-per-second that was and store in lps buffer
                 var lps = iterations / innerTimer.Elapsed.TotalSeconds;
                 samples.Add(lps);
 
-                // Adjust iteration count so next batch takes about 0.1 seconds
-                iterations = (int)(lps * 0.1);
+                // Adjust iteration count so next batch takes about 0.5 seconds
+                iterations = (int)(lps * 0.5);
             }
 
             // Calculate average LPS over the last 10 samples (this should cut out any weirdness in the first few samples as things are getting going)
             var avg = samples.Take(10).Average();
 
             // Calculate standard deviation over entire set
-            var s = samples.AsEnumerable().Reverse().ToList();
+            var s = samples.AsEnumerable().ToList();
             var sum = s.Sum(d => Math.Pow(d - avg, 2));
             var stdDev = Math.Sqrt(sum / (samples.Count - 1));
 

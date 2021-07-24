@@ -54,9 +54,33 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void NegateNumber()
         {
-            var (st, _) = Test("a = 3 b = -a");
+            var (st, _) = Test("b = -3");
 
             Assert.AreEqual((Value)(-3), st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void NegateString()
+        {
+            var (st, _) = Test("b = -\"a\"");
+
+            Assert.AreEqual((Value)(0), st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void NegateBool()
+        {
+            var (st, _) = Test("b = -1");
+
+            Assert.AreEqual((Value)(-1), st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void NegateVal()
+        {
+            var (st, _) = Test("a=2 b = -a");
+
+            Assert.AreEqual((Value)(-2), st.GetVariable("b"));
         }
 
         [TestMethod]
