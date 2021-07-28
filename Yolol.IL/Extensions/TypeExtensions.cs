@@ -21,7 +21,7 @@ namespace Yolol.IL.Extensions
             if (type == typeof(StaticError))
                 return StackType.StaticError;
 
-            throw new ArgumentException($"Unknown type `{type.Name}`, cannot convert to `StackType`");
+            throw new ArgumentOutOfRangeException($"Unknown type `{type.Name}`, cannot convert to `StackType`");
         }
 
         public static StackType ToStackType(this Execution.Type type)

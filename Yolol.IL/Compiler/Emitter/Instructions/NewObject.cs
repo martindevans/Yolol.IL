@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
@@ -18,6 +19,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
             emitter.NewObject(_cons);
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return $"NewObject({_cons})";

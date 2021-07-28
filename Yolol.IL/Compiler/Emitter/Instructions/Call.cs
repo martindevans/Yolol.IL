@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Sigil;
 
@@ -21,6 +22,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
             emitter.Call(_method, _arglist);
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return $"Call({_method})";

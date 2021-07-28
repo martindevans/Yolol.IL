@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Diagnostics.CodeAnalysis;
 using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
@@ -18,6 +18,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
             _block.Block = emitter.BeginExceptionBlock();
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return "BeginExceptionBlock";
@@ -36,12 +37,11 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
 
         public override void Emit<T>(Emit<T> emitter)
         {
-            if (_block.Block == null)
-                throw new InvalidOperationException("Exception block has not been opened yet");
-
-            emitter.EndExceptionBlock(_block.Block);
+            var block = ThrowHelper.CheckNotNull(_block.Block, "Exception block has not been opened yet");
+            emitter.EndExceptionBlock(block);
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return "EndExceptionBlock";

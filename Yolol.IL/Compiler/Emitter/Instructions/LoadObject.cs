@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
@@ -22,6 +23,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
             emitter.LoadObject(Type, IsVolatile, Unaligned);
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return $"LoadObject<{Type}>(Volatile:{IsVolatile}, Unaligned:{Unaligned})";

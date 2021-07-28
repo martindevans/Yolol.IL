@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using Sigil;
 using Yolol.IL.Compiler.Emitter.Instructions;
 
 namespace Yolol.IL.Compiler.Emitter.Optimisations

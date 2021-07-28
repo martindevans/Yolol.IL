@@ -1,4 +1,5 @@
-﻿using Sigil;
+﻿using System.Diagnostics.CodeAnalysis;
+using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
 {
@@ -19,6 +20,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
             emitter.WriteLine(_format, _args);
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             var args = string.Join<Local>(",", _args);

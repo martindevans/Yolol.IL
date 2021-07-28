@@ -67,7 +67,7 @@ namespace Yolol.IL.Tests
             Assert.AreEqual(false, Runtime.And(false, false));
             Assert.AreEqual(false, Runtime.And(false, true));
             Assert.AreEqual(false, Runtime.And(true, false));
-            Assert.AreEqual(false, Runtime.And(true, true));
+            Assert.AreEqual(true, Runtime.And(true, true));
         }
     }
 }

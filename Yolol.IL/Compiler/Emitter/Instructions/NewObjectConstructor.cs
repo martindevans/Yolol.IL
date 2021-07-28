@@ -1,4 +1,5 @@
-﻿using Sigil;
+﻿using System.Diagnostics.CodeAnalysis;
+using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
 {
@@ -10,6 +11,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
             emitter.NewObject<TA, TB>();
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return $"NewObject<{typeof(TA)},{typeof(TB)}>()";

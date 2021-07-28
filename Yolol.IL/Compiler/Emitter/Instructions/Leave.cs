@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Diagnostics.CodeAnalysis;
 using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
@@ -15,12 +15,11 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
 
         public override void Emit<T>(Emit<T> emitter)
         {
-            if (_block.Block == null)
-                throw new InvalidOperationException("Cannot leave block that has not been opened yet");
-
-            emitter.Leave(_block.Block.Label);
+            var block = ThrowHelper.CheckNotNull(_block.Block, "Cannot leave block that has not been opened yet");
+            emitter.Leave(block.Label);
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return $"Leave()";

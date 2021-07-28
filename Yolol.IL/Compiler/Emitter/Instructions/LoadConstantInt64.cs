@@ -1,4 +1,5 @@
-﻿using Sigil;
+﻿using System.Diagnostics.CodeAnalysis;
+using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
 {
@@ -17,6 +18,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
             emitter.LoadConstant(_value);
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return $"Load_i64({_value})";

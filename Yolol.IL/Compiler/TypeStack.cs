@@ -10,8 +10,6 @@ namespace Yolol.IL.Compiler
         private readonly OptimisingEmitter<TEmit> _emitter;
         private readonly Stack<StackType> _types = new Stack<StackType>();
 
-        public bool IsEmpty => _types.Count == 0;
-
         public int Count => _types.Count;
 
         public StackType Peek => _types.Peek();

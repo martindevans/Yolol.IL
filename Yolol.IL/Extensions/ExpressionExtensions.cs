@@ -15,20 +15,12 @@ namespace Yolol.IL.Extensions
     public readonly struct ConvertResult
     {
         public readonly Type OnStack;
-        public readonly bool IsFallible;
         public readonly Value? StaticValue;
 
-        public ConvertResult(Type onStack, bool isFallible, Value? staticValue)
+        public ConvertResult(Type onStack, Value? staticValue)
         {
             OnStack = onStack;
-            IsFallible = isFallible;
             StaticValue = staticValue;
-        }
-
-        public void Deconstruct(out Type type, out bool fallible)
-        {
-            type = OnStack;
-            fallible = IsFallible;
         }
     }
 
@@ -76,7 +68,7 @@ namespace Yolol.IL.Extensions
         )
         {
             if (expr.ReturnType == typeof(StaticError))
-                return new ConvertResult(typeof(StaticError), true, null);
+                return new ConvertResult(typeof(StaticError), null);
 
             // Try to convert expression without putting things into locals. Only works with certain expressions.
             var fast = TryConvertBinaryFastPath(expr, emitter, errorLabel, leftConst, rightConst);
@@ -109,7 +101,7 @@ namespace Yolol.IL.Extensions
         public static ConvertResult ConvertUnary<TIn, TOut, TEmit>(this Expression<Func<TIn, TOut>> expr, OptimisingEmitter<TEmit> emitter, ExceptionBlock errorLabel)
         {
             if (expr.ReturnType == typeof(StaticError))
-                return new ConvertResult(typeof(StaticError), true, null);
+                return new ConvertResult(typeof(StaticError), null);
 
             // Try to convert expression without putting things into locals. Only works with certain expressions.
             var fast = TryConvertUnaryFastPath(expr, emitter, errorLabel);
@@ -138,16 +130,12 @@ namespace Yolol.IL.Extensions
             {
                 case ExpressionType.New: {
                     var n = (NewExpression)expr;
-                    var fallible = false;
                     foreach (var arg in n.Arguments)
-                    {
-                        var result = ConvertExpression(arg, emitter, parameters, errorLabel);
-                        fallible |= result.IsFallible;
-                    }
+                        ConvertExpression(arg, emitter, parameters, errorLabel);
 
                     emitter.NewObject(n.Constructor);
 
-                    return new ConvertResult(n.Type, fallible, null);
+                    return new ConvertResult(n.Type, null);
                 }
 
                 case ExpressionType.Constant: {
@@ -155,56 +143,56 @@ namespace Yolol.IL.Extensions
                     if (constant.Type == typeof(string))
                     {
                         emitter.LoadConstant((string)constant.Value!);
-                        return new ConvertResult(typeof(string), false, (string)constant.Value!);
+                        return new ConvertResult(typeof(string), (string)constant.Value!);
                     }
 
                     if (constant.Type == typeof(bool))
                     {
                         emitter.LoadConstant((bool)constant.Value!);
-                        return new ConvertResult(typeof(bool), false, (Number)(bool)constant.Value!);
+                        return new ConvertResult(typeof(bool), (Number)(bool)constant.Value!);
                     }
 
                     if (constant.Type == typeof(int))
                     {
                         emitter.LoadConstant((int)constant.Value!);
-                        return new ConvertResult(typeof(int), false, (Number)(int)constant.Value!);
+                        return new ConvertResult(typeof(int), (Number)(int)constant.Value!);
                     }
-                    
-                    throw new NotSupportedException($"Constant type: `{constant.Type.Name}`");
+
+                    throw ThrowHelper.NotImplemented($"Constant type: `{constant.Type.Name}`");
                 }
 
                 case ExpressionType.Parameter: {
                     var paramExpr = (ParameterExpression)expr;
                     var param = parameters[paramExpr.Name!];
                     emitter.LoadLocal(param.Local);
-                    return new ConvertResult(expr.Type, false, param.Constant);
+                    return new ConvertResult(expr.Type, param.Constant);
                 }
 
                 case ExpressionType.Not: {
                     var unary = (UnaryExpression)expr;
-                    var result = ConvertExpression(unary.Operand, emitter, parameters, errorLabel);
+                    ConvertExpression(unary.Operand, emitter, parameters, errorLabel);
                     var m = unary.Operand.Type == typeof(bool)
                         ? typeof(Runtime).GetMethod(nameof(Runtime.LogicalNot))
                         : unary.Operand.Type.GetMethod("op_LogicalNot");
                     emitter.Call(m!);
-                    return new ConvertResult(m!.ReturnType, result.IsFallible, null);
+                    return new ConvertResult(m!.ReturnType, null);
                 }
 
                 case ExpressionType.Negate: {
                     var unary = (UnaryExpression)expr;
-                    var result = ConvertExpression(unary.Operand, emitter, parameters, errorLabel);
+                    ConvertExpression(unary.Operand, emitter, parameters, errorLabel);
                     var m = unary.Operand.Type == typeof(bool)
                         ? typeof(Runtime).GetMethod(nameof(Runtime.BoolNegate))
                         : unary.Operand.Type.GetMethod("op_UnaryNegation");
                     emitter.Call(m!);
-                    return new ConvertResult(m!.ReturnType, result.IsFallible, null);
+                    return new ConvertResult(m!.ReturnType, null);
                 }
 
                 case ExpressionType.Convert: {
                     var unary = (UnaryExpression)expr;
-                    var result = ConvertExpression(unary.Operand, emitter, parameters, errorLabel);
+                    ConvertExpression(unary.Operand, emitter, parameters, errorLabel);
                     emitter.Call(unary.Method);
-                    return new ConvertResult(unary.Method!.ReturnType, result.IsFallible, null);
+                    return new ConvertResult(unary.Method!.ReturnType, null);
                 }
 
                 case ExpressionType.Call: {
@@ -214,35 +202,30 @@ namespace Yolol.IL.Extensions
                         var idx = 0;
                         var types = new Type[c.Arguments.Count];
                         var staticValues = new Value?[c.Arguments.Count];
-                        var fallible = false;
                         foreach (var arg in c.Arguments)
                         {
                             var result = ConvertExpression(arg, emitter, parameters, errorLabel);
                             types[idx] = result.OnStack;
                             staticValues[idx] = result.StaticValue;
                             idx++;
-                            fallible |= result.IsFallible;
                         }
 
-                        var (tc, ec) = ConvertCallWithErrorHandling(types, staticValues, c.Method, emitter, errorLabel);
-                        return new ConvertResult(tc, ec | fallible, null);
+                        var call = ConvertCallWithErrorHandling(types, staticValues, c.Method, emitter, errorLabel);
+                        return new ConvertResult(call.OnStack, null);
                     }
                     else
                     {
-                        var (_, fallible) = ConvertExpression(c.Object!, emitter, parameters, errorLabel);
+                        ConvertExpression(c.Object!, emitter, parameters, errorLabel);
 
                         using (var local = emitter.DeclareLocal(c.Object!.Type, "ConvertExpression_NonStaticCall", false))
                         {
                             emitter.StoreLocal(local);
                             emitter.LoadLocalAddress(local, false);
                             foreach (var arg in c.Arguments)
-                            {
-                                var (_, e) = ConvertExpression(arg, emitter, parameters, errorLabel);
-                                fallible |= e;
-                            }
+                                ConvertExpression(arg, emitter, parameters, errorLabel);
 
                             emitter.Call(c.Method);
-                            return new ConvertResult(c.Method.ReturnType, fallible, null);
+                            return new ConvertResult(c.Method.ReturnType, null);
                         }
                     }
                 }
@@ -272,8 +255,7 @@ namespace Yolol.IL.Extensions
                         errorLabel
                     );
 
-                    var err = finalResult.IsFallible | leftResult.IsFallible | rightResult.IsFallible;
-                    return new ConvertResult(finalResult.OnStack, err, finalResult.StaticValue);
+                    return new ConvertResult(finalResult.OnStack, finalResult.StaticValue);
                 }
 
                 case ExpressionType.And: {
@@ -290,7 +272,7 @@ namespace Yolol.IL.Extensions
 
                     emitter.And();
 
-                    return new ConvertResult(typeof(bool), false, staticVal);
+                    return new ConvertResult(typeof(bool), staticVal);
                 }
 
                 default:
@@ -306,26 +288,24 @@ namespace Yolol.IL.Extensions
             ExceptionBlock errorLabel
         )
         {
-            if (method.DeclaringType == null)
-                throw new InvalidOperationException("Cannot convert call with null `DeclaringType`");
+            ThrowHelper.CheckNotNull(method.DeclaringType, "Cannot convert call with null `DeclaringType`");
 
             // Check for errors, early out if this is guaranteed to be an error
             var errorData = method.TryGetErrorMetadata(parameterTypes);
-            var infallible = (errorData?.IsInfallible ?? false);
             if (errorData != null)
-                infallible |= CheckForRuntimeError(errorData.Value, parameterTypes, staticValues, emitter, errorLabel);
+                CheckForRuntimeError(errorData.Value, parameterTypes, staticValues, emitter, errorLabel);
 
             // If the error metadata specifies an alternative implementation to use (which does not include runtime checks
             // for the case already checked by `WillThrow`) use that alternative instead.
             if (errorData != null && errorData.Value.UnsafeAlternative != null)
             {
                 emitter.Call(errorData.Value.UnsafeAlternative);
-                return new ConvertResult(errorData.Value.UnsafeAlternative!.ReturnType, !infallible, null);
+                return new ConvertResult(errorData.Value.UnsafeAlternative!.ReturnType, null);
             }
             else
             {
                 emitter.Call(method);
-                return new ConvertResult(method.ReturnType, !infallible, null);
+                return new ConvertResult(method.ReturnType, null);
             }
         }
 
@@ -349,10 +329,6 @@ namespace Yolol.IL.Extensions
         {
             if (staticValues != null && staticValues.Length != parameterTypes.Length)
                 throw new ArgumentException("incorrect number of static values");
-
-            // If it's infallible there's no point checking for errors!
-            if (errorData.IsInfallible)
-                return true;
 
             // Determine it we can statically determine whether this is an error
             if (staticValues != null)
@@ -417,19 +393,18 @@ namespace Yolol.IL.Extensions
                 case ExpressionType.GreaterThan:
                 case ExpressionType.GreaterThanOrEqual: {
                     var binary = (BinaryExpression)expr.Body;
-                    if (binary.Method == null)
-                        return null;
+                    var method = ThrowHelper.CheckNotNull(binary.Method, "Cannot convert null method");
 
                     // Fast path conversion only works if the two arguments are parameters, consumed in the order they were given
-                    if (!(binary.Left is ParameterExpression pl) || pl.Name != expr.Parameters[0].Name)
+                    if (binary.Left is not ParameterExpression pl || pl.Name != expr.Parameters[0].Name)
                         return null;
-                    if (!(binary.Right is ParameterExpression pr) || pr.Name != expr.Parameters[1].Name)
+                    if (binary.Right is not ParameterExpression pr || pr.Name != expr.Parameters[1].Name)
                         return null;
 
                     return ConvertCallWithErrorHandling(
                         new[] { expr.Parameters[0].Type, expr.Parameters[1].Type },
                         new Value?[] {leftConst, rightConst},
-                        binary.Method!,
+                        method,
                         emitter,
                         errorLabel
                     );
@@ -450,7 +425,7 @@ namespace Yolol.IL.Extensions
             {
                 case ExpressionType.Parameter:
                     var p = (ParameterExpression)expr.Body;
-                    return new ConvertResult(p.Type, false, null);
+                    return new ConvertResult(p.Type, null);
 
                 case ExpressionType.Constant:
                     emitter.Pop();

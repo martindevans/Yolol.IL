@@ -1,4 +1,5 @@
-﻿using Sigil;
+﻿using System.Diagnostics.CodeAnalysis;
+using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
 {
@@ -17,6 +18,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
             emitter.LoadLocal(Local);
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return $"LoadLocal({Local.Name})";

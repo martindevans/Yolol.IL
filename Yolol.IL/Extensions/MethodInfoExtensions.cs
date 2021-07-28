@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using Sigil;
 using Yolol.Execution;
 using Yolol.Execution.Attributes;
+using Yolol.IL.Compiler;
 using Yolol.IL.Compiler.Emitter;
 using Type = System.Type;
 
@@ -17,19 +18,22 @@ namespace Yolol.IL.Extensions
         {
             public readonly MethodInfo OriginalMethod;
             public readonly MethodInfo? UnsafeAlternative;
+            public readonly MethodInfo WillThrow;
 
-            public readonly MethodInfo? WillThrow;
-            public readonly bool IsInfallible;
-
+            /// <summary>
+            /// A set of flags which indicate if the parameter is required in the WillThrow method.
+            /// If this flag is false then the argument in that position can be set to the `default` value when
+            /// calling WillThrow.
+            /// </summary>
             private readonly IReadOnlyList<bool>? _ignoreParams;
 
-            public ErrorMetadata(MethodInfo original, bool infallible, MethodInfo? willThrow, MethodInfo? unsafeAlternative)
+            public ErrorMetadata(MethodInfo original, MethodInfo willThrow, MethodInfo? unsafeAlternative)
             {
                 OriginalMethod = original;
                 WillThrow = willThrow;
                 UnsafeAlternative = unsafeAlternative;
-                IsInfallible = infallible;
 
+                _ignoreParams = null;
                 if (willThrow != null)
                 {
                     _ignoreParams = (
@@ -38,8 +42,6 @@ namespace Yolol.IL.Extensions
                         select attr != null
                     ).ToArray();
                 }
-                else
-                    _ignoreParams = null;
             }
 
             /// <summary>
@@ -51,9 +53,6 @@ namespace Yolol.IL.Extensions
             /// <param name="parameters"></param>
             public void EmitDynamicWillThrow<TEmit>(OptimisingEmitter<TEmit> emitter, Compiler.Emitter.Instructions.ExceptionBlock errorLabel, IReadOnlyList<Local> parameters)
             {
-                if (WillThrow == null)
-                    return;
-
                 // Load parameters back onto stack
                 for (var i = parameters.Count - 1; i >= 0; i--)
                     emitter.LoadLocal(parameters[i]);
@@ -80,14 +79,11 @@ namespace Yolol.IL.Extensions
             /// <returns></returns>
             public bool? StaticWillThrow(Value?[] values)
             {
-                if (IsInfallible)
-                    return false;
                 if (WillThrow == null || _ignoreParams == null)
                     return null;
 
                 var parameters = WillThrow.GetParameters();
-                if (parameters.Length != values.Length)
-                    throw new ArgumentException("Incorrect number of args supplied", nameof(values));
+                ThrowHelper.Check(parameters.Length == values.Length, "Incorrect number of args supplied");
 
                 // Check that there is a value for all non-ignored arguments
                 for (var i = 0; i < values.Length; i++)
@@ -117,59 +113,35 @@ namespace Yolol.IL.Extensions
 
         public static ErrorMetadata? TryGetErrorMetadata(this MethodInfo method, params Type[] parameters)
         {
-            if (method == null)
-                throw new ArgumentNullException(nameof(method));
-            if (method.DeclaringType == null)
-                throw new InvalidOperationException("Cannot find will throw on method with null `DeclaringType`");
+            Debug.Assert(method.DeclaringType != null);
 
             // Reflect out the error metadata, this can tell us in advance if the method will throw
-            var attrs = method.GetCustomAttributes(typeof(ErrorMetadataAttribute), false);
-
-            if (attrs.Length > 1)
-                throw new InvalidOperationException("Method has more than one `ErrorMetadataAttribute`");
-
-            if (attrs.Length == 0)
+            var attr = method.GetCustomAttributes(typeof(ErrorMetadataAttribute), false).OfType<ErrorMetadataAttribute>().SingleOrDefault();
+            if (attr == null)
                 return null;
             
-            var attr = (ErrorMetadataAttribute)attrs[0];
-
             // Get the `will throw` method which tells us if a given pair of values would cause a runtime error
-            var willThrow = attr.WillThrow == null ? null : GetMethod(method.DeclaringType, attr.WillThrow, typeof(bool), parameters);
+            var willThrow = GetMethod(method.DeclaringType, attr.WillThrow, typeof(bool), parameters);
 
             // Get the `unsafe alternative` method which implements the same behaviour but without runtime checks
             var alternativeImpl = attr.UnsafeAlternative == null ? null : GetMethod(method.DeclaringType, attr.UnsafeAlternative, null, parameters);
 
-            // If both are null there's nothing useful to return
-            if (willThrow == null && alternativeImpl == null)
-                return null;
+            // Method is not infallible, so return both
+            return new ErrorMetadata(method, willThrow, alternativeImpl);
 
-            if (attr.IsInfallible)
-            {
-                // There's no point returning will throw since it's infallible
-                return new ErrorMetadata(method, true, null, alternativeImpl);
-            }
-            else
-            {
-                // Method is not infallible, so return both
-                return new ErrorMetadata(method, false, willThrow, alternativeImpl);
-            }
         }
 
         private static MethodInfo GetMethod(Type declaringType, string name, Type? requiredReturnType, Type[] parameters)
         {
-            [ExcludeFromCodeCoverage]
-            static MethodInfo CheckMethod(string name, MethodInfo? method, Type? requiredReturnType)
-            {
-                if (method == null)
-                    throw new InvalidOperationException($"ErrorMetadataAttribute references an invalid method: `{name}`");
-                if (requiredReturnType != null && method.ReturnType != requiredReturnType)
-                    throw new InvalidOperationException($"ErrorMetadataAttribute references an method which does not return {requiredReturnType.Name}: `{name}`");
-
-                return method;
-            }
-
             var method = declaringType.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, parameters, null);
-            return CheckMethod(name, method, requiredReturnType);
+            method = ThrowHelper.CheckNotNull(method, $"ErrorMetadataAttribute references an invalid method: `{name}`");
+
+            ThrowHelper.Check(
+                requiredReturnType == null || method.ReturnType == requiredReturnType,
+                $"ErrorMetadataAttribute references an method which does not return {requiredReturnType?.Name}: `{name}`"
+            );
+
+            return method;
         }
     }
 }

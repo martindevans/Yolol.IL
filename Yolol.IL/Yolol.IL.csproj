@@ -31,9 +31,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="JetBrains.Annotations" Version="2021.2.0" />
     <PackageReference Include="Lokad.ILPack" Version="0.1.6" />
     <PackageReference Include="Sigil.NetStandard" Version="4.8.0" />
-    <PackageReference Include="Yolol" Version="14.4.1" />
+    <PackageReference Include="Yolol" Version="14.5.1" />
     <PackageReference Include="Yolol.Analysis" Version="6.2.4" />
   </ItemGroup>
 

@@ -1,4 +1,5 @@
-﻿using Sigil;
+﻿using System.Diagnostics.CodeAnalysis;
+using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
 {
@@ -17,6 +18,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
             emitter.LoadArgumentAddress(_arg);
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return $"LoadArgAddr({_arg})";

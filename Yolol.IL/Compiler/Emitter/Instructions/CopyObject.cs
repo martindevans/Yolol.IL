@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
@@ -13,6 +13,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
             emitter.CopyObject<TObject>();
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return $"CopyObject<{typeof(TObject)}>()";
@@ -34,6 +35,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
             emitter.CopyObject(_type);
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return $"CopyObject<{_type}>()";

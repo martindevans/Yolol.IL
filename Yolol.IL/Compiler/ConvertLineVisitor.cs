@@ -28,8 +28,6 @@ namespace Yolol.IL.Compiler
         private readonly TypeStack<TEmit> _typesStack;
         private readonly StaticTypeTracker _staticTypes;
 
-        public bool IsTypeStackEmpty => _typesStack.IsEmpty;
-
         public ConvertLineVisitor(
             OptimisingEmitter<TEmit> emitter,
             int maxLineNumber,
@@ -320,7 +318,7 @@ namespace Yolol.IL.Compiler
             // Emit code
             _typesStack.Pop(rightType);
             _typesStack.Pop(leftType);
-            var (emitType, _) = (left: leftType, right: rightType) switch {
+            var convert = (left: leftType, right: rightType) switch {
 
                 (StackType.Bool, StackType.Bool) => emitBoolBool.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
                 (StackType.Bool, StackType.YololNumber) => emitBoolNum.ConvertBinary(_emitter, _unwinder, constLeft, constRight),
@@ -344,7 +342,7 @@ namespace Yolol.IL.Compiler
 
                 _ => throw new InvalidOperationException($"{expr.GetType().Name}({leftType},{rightType})")
             };
-            _typesStack.Push(emitType!.ToStackType());
+            _typesStack.Push(convert.OnStack.ToStackType());
 
             return expr;
         }
@@ -708,7 +706,7 @@ namespace Yolol.IL.Compiler
         #endregion
 
         #region unary expressions
-        private BaseExpression EmitUnaryExpr<T>(T expr, Func<ExceptionBlock, bool> emit)
+        private BaseExpression EmitUnaryExpr<T>(T expr, Action<ExceptionBlock> emit)
             where T : BaseUnaryExpression
         {
              if (TryStaticEvaluate(expr, out var runtimeError))
@@ -728,19 +726,16 @@ namespace Yolol.IL.Compiler
             where T : BaseUnaryExpression
         {
             return EmitUnaryExpr(expr, errorLabel => {
-                // Emit code
                 var p = _typesStack.Peek;
                 _typesStack.Pop(p);
-                var (emitType, fallible) = p switch {
+                var convert = p switch {
                     StackType.Bool => emitBool.ConvertUnary(_emitter, errorLabel),
                     StackType.YololNumber => emitNum.ConvertUnary(_emitter, errorLabel),
                     StackType.YololString => emitStr.ConvertUnary(_emitter, errorLabel),
                     StackType.YololValue => emitVal.ConvertUnary(_emitter, errorLabel),
                     _ => throw new InvalidOperationException($"{expr.GetType().Name}({p})")
                 };
-                _typesStack.Push(emitType!.ToStackType());
-
-                return fallible;
+                _typesStack.Push(convert.OnStack.ToStackType());
             });
         }
 

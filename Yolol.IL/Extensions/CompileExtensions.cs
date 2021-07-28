@@ -186,7 +186,7 @@ namespace Yolol.IL.Extensions
                     // Create a block to handle gotos. The destination will already be on the stack, so just return
                     if (gotoLabel.IsUsed)
                     {
-                        gotoLabel.Mark();
+                        emitter.MarkLabel(gotoLabel);
                         emitter.StoreLocal(retAddr);
                         emitter.Leave(exBlock);
                     }

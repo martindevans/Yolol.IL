@@ -1,5 +1,4 @@
-﻿using System;
-using Yolol.Analysis.ControlFlowGraph.AST;
+﻿using Yolol.Analysis.ControlFlowGraph.AST;
 using Yolol.Analysis.TreeVisitor;
 using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;

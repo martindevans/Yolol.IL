@@ -1,4 +1,5 @@
-﻿using Sigil;
+﻿using System.Diagnostics.CodeAnalysis;
+using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
 {
@@ -19,6 +20,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
             _finBlock.Block = emitter.BeginFinallyBlock(_exBlock.Block);
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return "BeginFinallyBlock";
@@ -37,9 +39,11 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
 
         public override void Emit<T>(Emit<T> emitter)
         {
-            emitter.EndFinallyBlock(_finBlock.Block);
+            var block = ThrowHelper.CheckNotNull(_finBlock.Block, "Finally block has not been opened yet");
+            emitter.EndFinallyBlock(block);
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             return "EndFinallyBlock";
