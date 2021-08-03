@@ -25,7 +25,7 @@ namespace Yolol.IL.Extensions
             /// If this flag is false then the argument in that position can be set to the `default` value when
             /// calling WillThrow.
             /// </summary>
-            private readonly IReadOnlyList<bool>? _ignoreParams;
+            private readonly IReadOnlyList<bool> _ignoreParams;
 
             public ErrorMetadata(MethodInfo original, MethodInfo willThrow, MethodInfo? unsafeAlternative)
             {
@@ -33,15 +33,12 @@ namespace Yolol.IL.Extensions
                 WillThrow = willThrow;
                 UnsafeAlternative = unsafeAlternative;
 
-                _ignoreParams = null;
-                if (willThrow != null)
-                {
-                    _ignoreParams = (
-                        from parameter in willThrow.GetParameters()
-                        let attr = parameter.GetCustomAttribute<IgnoreParamAttribute>()
-                        select attr != null
-                    ).ToArray();
-                }
+                _ignoreParams = (
+                    from parameter in willThrow.GetParameters()
+                    let attr = parameter.GetCustomAttribute<IgnoreParamAttribute>()
+                    select attr != null
+                ).ToArray();
+                
             }
 
             /// <summary>
@@ -79,9 +76,6 @@ namespace Yolol.IL.Extensions
             /// <returns></returns>
             public bool? StaticWillThrow(Value?[] values)
             {
-                if (WillThrow == null || _ignoreParams == null)
-                    return null;
-
                 var parameters = WillThrow.GetParameters();
                 ThrowHelper.Check(parameters.Length == values.Length, "Incorrect number of args supplied");
 

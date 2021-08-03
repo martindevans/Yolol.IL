@@ -168,7 +168,7 @@ namespace Yolol.IL.Extensions
                 #endregion
 
                 default:
-                    throw new InvalidOperationException($"Cannot coerce `{input}` -> `{output}`");
+                    throw ThrowHelper.Invalid($"Cannot coerce `{input}` -> `{output}`");
             }
         }
 

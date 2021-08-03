@@ -31,5 +31,10 @@ namespace Yolol.IL.Compiler
         {
             return new NotImplementedException(message);
         }
+
+        public static Exception Invalid(string message)
+        {
+            throw new InvalidOperationException(message);
+        }
     }
 }
