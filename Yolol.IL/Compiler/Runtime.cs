@@ -27,6 +27,16 @@ namespace Yolol.IL.Compiler
         }
         #endregion
 
+        #region value
+        public static Value TrimValue(Value value, int maxStringLength)
+        {
+            if (value.Type != Execution.Type.String)
+                return value;
+
+            return new Value(YString.Trim(value.String, maxStringLength));
+        }
+        #endregion
+
         #region number
         public static Number Abs(Number value)
         {

@@ -14,7 +14,7 @@ namespace Benchmark
     public class FlexBench
     {
         // How long to run batches for. Set according to patience.
-        private static readonly TimeSpan Duration = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan Duration = TimeSpan.FromSeconds(2);
 
         private readonly DirectoryInfo _dir;
 

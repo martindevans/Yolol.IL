@@ -321,14 +321,13 @@ namespace Yolol.IL.Extensions
         /// <returns>If the method is infallible (i.e. is statically known not to throw)</returns>
         private static bool CheckForRuntimeError<TEmit>(
             MethodInfoExtensions.ErrorMetadata errorData,
-            Type[] parameterTypes,
+            IReadOnlyList<Type> parameterTypes,
             Value?[]? staticValues,
             OptimisingEmitter<TEmit> emitter,
             ExceptionBlock errorLabel
         )
         {
-            if (staticValues != null && staticValues.Length != parameterTypes.Length)
-                throw new ArgumentException("incorrect number of static values");
+            ThrowHelper.Check(staticValues == null || staticValues.Length == parameterTypes.Count, "Incorrect number of static values");
 
             // Determine it we can statically determine whether this is an error
             if (staticValues != null)
@@ -345,12 +344,9 @@ namespace Yolol.IL.Extensions
                 }
             }
 
-            if (errorData.WillThrow == null)
-                throw new InvalidOperationException("Null `WillThrow` method");
-
             // Save the parameters into locals
             var parameterLocals = new List<Local>();
-            for (var i = parameterTypes.Length - 1; i >= 0; i--)
+            for (var i = parameterTypes.Count - 1; i >= 0; i--)
             {
                 var local = emitter.DeclareLocal(parameterTypes[i], $"ConvertCallWithErrorHandling_{emitter.InstructionCount}", false);
                 emitter.StoreLocal(local);
@@ -446,14 +442,14 @@ namespace Yolol.IL.Extensions
                 return null;
 
             var call = (MethodCallExpression)expr.Body;
-            if (call.Method == null || !call.Method.IsStatic)
+            if (!call.Method.IsStatic)
                 return null;
 
             // Fast path conversion only works if the arguments are parameters, consumed in the order they were given
             for (var i = 0; i < call.Arguments.Count; i++)
             {
                 var arg = call.Arguments[i];
-                if (!(arg is ParameterExpression pl) || pl.Name != expr.Parameters[i].Name)
+                if (arg is not ParameterExpression pl || pl.Name != expr.Parameters[i].Name)
                     return null;
             }
 

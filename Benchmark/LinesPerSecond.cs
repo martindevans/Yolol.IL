@@ -95,7 +95,7 @@ namespace Benchmark
             _externalsMap = new ExternalsMap();
             var timer = new Stopwatch();
             timer.Start();
-            _compiled = ast.Compile(_externalsMap, 20, staticTypes);
+            _compiled = ast.Compile(_externalsMap, 20, null, staticTypes);
             Console.WriteLine($"Compiled in: {timer.Elapsed.TotalMilliseconds}ms");
 
             _externals = new Value[_externalsMap.Count];

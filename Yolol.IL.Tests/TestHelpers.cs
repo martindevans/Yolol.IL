@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using Yolol.Execution;
 using Yolol.Grammar;
 using Yolol.IL.Compiler;
@@ -11,7 +10,7 @@ namespace Yolol.IL.Tests
 {
     public static class TestHelpers
     {
-        public static Grammar.AST.Program Parse([NotNull] params string[] lines)
+        public static Grammar.AST.Program Parse(params string[] lines)
         {
             var result = Parser.ParseProgram(string.Join("\n", lines));
             if (!result.IsOk)
@@ -20,13 +19,13 @@ namespace Yolol.IL.Tests
             return result.Ok;
         }
 
-        public static (IMachineState, int) Test(string line, int lineNumber = 1, IReadOnlyDictionary<VariableName, Type>? staticTypes = null)
+        public static (IMachineState, int) Test(string line, int lineNumber = 1, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null)
         {
             var internals = new InternalsMap();
             var externals = new ExternalsMap();
 
             var ast = Parse(line);
-            var compiled = ast.Lines[0].Compile(lineNumber, 20, internals, externals, staticTypes);
+            var compiled = ast.Lines[0].Compile(lineNumber, 20, maxStringLength, internals, externals, staticTypes);
 
             var i = new Value[internals.Count];
             Array.Fill(i, new Value((Number)0));
@@ -38,11 +37,11 @@ namespace Yolol.IL.Tests
             return (new EasyMachineState(i, e, internals, externals), r);
         }
 
-        public static (IMachineState, int) Test(string[] lines, int iterations, IReadOnlyDictionary<VariableName, Type>? staticTypes = null)
+        public static (IMachineState, int) Test(string[] lines, int iterations, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null)
         {
             var ext = new ExternalsMap();
             var prog = Parser.ParseProgram(string.Join("\n", lines)).Ok;
-            var compiled = prog.Compile(ext, staticTypes: staticTypes);
+            var compiled = prog.Compile(ext, maxStringLength: maxStringLength, staticTypes: staticTypes);
             var doneIndex = compiled.InternalsMap.GetValueOrDefault("done", -1);
 
             var i = new Value[compiled.InternalsMap.Count];

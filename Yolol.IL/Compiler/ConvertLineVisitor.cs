@@ -27,6 +27,7 @@ namespace Yolol.IL.Compiler
 
         private readonly TypeStack<TEmit> _typesStack;
         private readonly StaticTypeTracker _staticTypes;
+        private readonly int? _maxStringLength;
 
         public ConvertLineVisitor(
             OptimisingEmitter<TEmit> emitter,
@@ -34,7 +35,8 @@ namespace Yolol.IL.Compiler
             IMemoryAccessor<TEmit> memory,
             ExceptionBlock unwinder,
             Label2<TEmit> gotoLabel,
-            StaticTypeTracker staticTypes
+            StaticTypeTracker staticTypes,
+            int? maxStringLength
         )
         {
             _emitter = emitter;
@@ -43,6 +45,7 @@ namespace Yolol.IL.Compiler
             _unwinder = unwinder;
             _gotoLabel = gotoLabel;
             _staticTypes = staticTypes;
+            _maxStringLength = maxStringLength;
 
             _typesStack = new TypeStack<TEmit>(_emitter);
         }
@@ -219,8 +222,13 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(ConstantString str)
         {
+            // Check the constant is not over the max length
+            var trimmed = str.Value;
+            if (_maxStringLength.HasValue)
+                trimmed = YString.Trim(trimmed, _maxStringLength.Value);
+
             // Put a string on the stack
-            _emitter.LoadConstant(str.Value.ToString());
+            _emitter.LoadConstant(trimmed.ToString());
             _emitter.NewObject<YString, string>();
             _typesStack.Push(StackType.YololString);
 
@@ -256,7 +264,7 @@ namespace Yolol.IL.Compiler
             where T : BaseBinaryExpression
         {
             if (TryStaticEvaluate(expr, out var runtimeError))
-                return runtimeError ? new ErrorExpression() : (BaseExpression)expr;
+                return runtimeError ? new ErrorExpression() : expr;
 
             // Visit the inner expression of the unary and coerce it to the correct type
             // Visit left and right, coercing them into `Value`s
@@ -296,7 +304,8 @@ namespace Yolol.IL.Compiler
             Expression<Func<Value, bool, TVB>> emitValBool,
             Expression<Func<Value, Number, TVN>> emitValNum,
             Expression<Func<Value, YString, TVS>> emitValStr,
-            Expression<Func<Value, Value, TVV>> emitValVal
+            Expression<Func<Value, Value, TVV>> emitValVal,
+            bool trimString = false
         )
             where T : BaseBinaryExpression
         {
@@ -344,7 +353,28 @@ namespace Yolol.IL.Compiler
             };
             _typesStack.Push(convert.OnStack.ToStackType());
 
+            // Ensure max string length is not exceeded
+            if (trimString)
+                CheckStringLength();
+
             return expr;
+        }
+
+        private void CheckStringLength()
+        {
+            if (_maxStringLength.HasValue)
+            {
+                if (_typesStack.Peek == StackType.YololString)
+                {
+                    _emitter.LoadConstant(_maxStringLength.Value);
+                    _emitter.CallRuntimeN<TEmit, YString>(nameof(YString.Trim), typeof(YString), typeof(int));
+                }
+                else if (_typesStack.Peek == StackType.YololValue)
+                {
+                    _emitter.LoadConstant(_maxStringLength.Value);
+                    _emitter.CallRuntimeN(nameof(Runtime.TrimValue), typeof(Value), typeof(int));
+                }
+            }
         }
 
         protected override BaseExpression Visit(Add add) => ConvertBinaryExpr(add,
@@ -363,7 +393,8 @@ namespace Yolol.IL.Compiler
             (a, b) => a + b,
             (a, b) => a + b,
             (a, b) => a + b,
-            (a, b) => a + b
+            (a, b) => a + b,
+            trimString: true
         );
 
         protected override BaseExpression Visit(Subtract sub)
@@ -912,6 +943,8 @@ namespace Yolol.IL.Compiler
                 _typesStack.Push(_typesStack.Peek);
             }
 
+            CheckStringLength();
+
             // Write value to variable
             _memory.Store(expr.Name, _typesStack);
 
@@ -946,7 +979,9 @@ namespace Yolol.IL.Compiler
                 // Do the work
                 _emitter.Call(method);
                 _typesStack.Pop(_typesStack.Peek);
-                _typesStack.Push(method!.ReturnType.ToStackType());
+                _typesStack.Push(method.ReturnType.ToStackType());
+
+                CheckStringLength();
 
                 // Save the result
                 _memory.Store(inc.Name, _typesStack);

@@ -226,5 +226,23 @@ namespace Yolol.IL.Tests
             Assert.AreEqual((Value)1, st.GetVariable("a"));
             Assert.AreEqual((Value)1, st.GetVariable("b"));
         }
+
+        [TestMethod]
+        public void And()
+        {
+            var (st, _) = Test("x=1 y=0 a = x and y b = x and x");
+
+            Assert.AreEqual((Value)0, st.GetVariable("a"));
+            Assert.AreEqual((Value)1, st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void Or()
+        {
+            var (st, _) = Test("x=1 y=0 a = x or y b = y or y");
+
+            Assert.AreEqual((Value)1, st.GetVariable("a"));
+            Assert.AreEqual((Value)0, st.GetVariable("b"));
+        }
     }
 }

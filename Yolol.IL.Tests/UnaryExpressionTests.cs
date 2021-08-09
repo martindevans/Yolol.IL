@@ -8,6 +8,30 @@ namespace Yolol.IL.Tests
     public class UnaryExpressionTests
     {
         [TestMethod]
+        public void Acos()
+        {
+            var (st, _) = Test("a=0.3 b=acos(a)");
+
+            Assert.AreEqual("72.542", st.GetVariable("b").ToString());
+        }
+
+        [TestMethod]
+        public void Asin()
+        {
+            var (st, _) = Test("a=0.3 b=asin(a)");
+
+            Assert.AreEqual("17.457", st.GetVariable("b").ToString());
+        }
+
+        [TestMethod]
+        public void Atan()
+        {
+            var (st, _) = Test("a=0.3 b=atan(a)");
+
+            Assert.AreEqual("16.699", st.GetVariable("b").ToString());
+        }
+
+        [TestMethod]
         public void FactorialNum()
         {
             var (st, _) = Test("a=3 b=(1*a)!");

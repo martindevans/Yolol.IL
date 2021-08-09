@@ -22,6 +22,7 @@ namespace Yolol.IL.Extensions
         /// <param name="line">The line of code to convert</param>
         /// <param name="lineNumber">The number of this line</param>
         /// <param name="maxLines">The max number of lines in a valid program (20, in standard Yolol)</param>
+        /// <param name="maxStringLength"></param>
         /// <param name="internalVariableMap">A dictionary used for mapping variables to integers in all lines in this script</param>
         /// <param name="externalVariableMap">A dictionary used for mapping externals to integers in all lines in this script</param>
         /// <param name="staticTypes">Statically known types for variables</param>
@@ -30,6 +31,7 @@ namespace Yolol.IL.Extensions
             this Line line,
             int lineNumber,
             int maxLines,
+            int? maxStringLength,
             InternalsMap internalVariableMap,
             ExternalsMap externalVariableMap,
             IReadOnlyDictionary<VariableName, Type>? staticTypes = null
@@ -47,7 +49,7 @@ namespace Yolol.IL.Extensions
                     dict[name.Name] = dict.Count;
             }
 
-            return line.Compile(lineNumber, maxLines, (IReadonlyInternalsMap)internalVariableMap, externalVariableMap, staticTypes);
+            return line.Compile(lineNumber, maxLines, maxStringLength, (IReadonlyInternalsMap)internalVariableMap, externalVariableMap, staticTypes);
         }
 
         /// <summary>
@@ -56,6 +58,7 @@ namespace Yolol.IL.Extensions
         /// <param name="line">The line of code to convert</param>
         /// <param name="lineNumber">The number of this line</param>
         /// <param name="maxLines">The max number of lines in a valid program (20, in standard Yolol)</param>
+        /// <param name="maxStringLength"></param>
         /// <param name="internalVariableMap">A dictionary used for mapping variables to integers in all lines in this script</param>
         /// <param name="externalVariableMap">A dictionary used for mapping externals to integers in all lines in this script</param>
         /// <param name="staticTypes">Statically known types for variables</param>
@@ -64,6 +67,7 @@ namespace Yolol.IL.Extensions
             this Line line,
             int lineNumber,
             int maxLines,
+            int? maxStringLength,
             IReadonlyInternalsMap internalVariableMap,
             IReadonlyExternalsMap externalVariableMap,
             IReadOnlyDictionary<VariableName, Type>? staticTypes = null
@@ -73,7 +77,7 @@ namespace Yolol.IL.Extensions
             var emitter = Emit<Func<ArraySegment<Value>, ArraySegment<Value>, int>>.NewDynamicMethod(strictBranchVerification: true);
 
             // Compile code into the emitter
-            line.Compile(emitter, lineNumber, maxLines, internalVariableMap, externalVariableMap, staticTypes);
+            line.Compile(emitter, lineNumber, maxLines, maxStringLength, internalVariableMap, externalVariableMap, staticTypes);
 
             // Finally convert the IL into a runnable C# method for this line
             var del = emitter.CreateDelegate();
@@ -86,12 +90,14 @@ namespace Yolol.IL.Extensions
         /// <param name="ast"></param>
         /// <param name="externals"></param>
         /// <param name="maxLines"></param>
+        /// <param name="maxStringLength"></param>
         /// <param name="staticTypes"></param>
         /// <returns></returns>
         public static CompiledProgram Compile(
             this Program ast,
             ExternalsMap externals,
             int maxLines = 20,
+            int? maxStringLength = null,
             IReadOnlyDictionary<VariableName, Type>? staticTypes = null
         )
         {
@@ -105,7 +111,7 @@ namespace Yolol.IL.Extensions
             {
                 var lineNum = i + 1;
                 var line = ast.Lines.ElementAtOrDefault(i) ?? new Line(new StatementList());
-                compiledLines[i] = new JitLine(line.Compile(lineNum, maxLines, internals, externals, staticTypes));
+                compiledLines[i] = new JitLine(line.Compile(lineNum, maxLines, maxStringLength, internals, externals, staticTypes));
             }
 
             return new CompiledProgram(internals, compiledLines);
@@ -118,6 +124,7 @@ namespace Yolol.IL.Extensions
         /// <param name="emit"></param>
         /// <param name="lineNumber"></param>
         /// <param name="maxLines"></param>
+        /// <param name="maxStringLength"></param>
         /// <param name="internalVariableMap"></param>
         /// <param name="externalVariableMap"></param>
         /// <param name="staticTypes"></param>
@@ -126,6 +133,7 @@ namespace Yolol.IL.Extensions
             Emit<Func<ArraySegment<Value>, ArraySegment<Value>, int>> emit,
             int lineNumber,
             int maxLines,
+            int? maxStringLength,
             IReadonlyInternalsMap internalVariableMap,
             IReadonlyExternalsMap externalVariableMap,
             IReadOnlyDictionary<VariableName, Type>? staticTypes = null
@@ -177,7 +185,7 @@ namespace Yolol.IL.Extensions
                     accessor.EmitLoad(line);
 
                     // Convert the entire line into IL
-                    var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, accessor, exBlock, gotoLabel, types);
+                    var converter = new ConvertLineVisitor<Func<ArraySegment<Value>, ArraySegment<Value>, int>>(emitter, maxLines, accessor, exBlock, gotoLabel, types, maxStringLength);
                     converter.Visit(line);
 
                     // When a line finishes (with no gotos in the line) call flow eventually reaches here. Go to the next line.

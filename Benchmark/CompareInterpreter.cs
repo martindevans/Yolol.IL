@@ -52,12 +52,12 @@ namespace Benchmark
             var externalsPerLine = new ExternalsMap();
             _compiledLines = new Func<ArraySegment<Value>, ArraySegment<Value>, int>[_ast.Lines.Count];
             for (var i = 0; i < _ast.Lines.Count; i++)
-                _compiledLines[i] = _ast.Lines[i].Compile(i + 1, 20, internalsPerLine, externalsPerLine, types);
+                _compiledLines[i] = _ast.Lines[i].Compile(i + 1, 20, null, internalsPerLine, externalsPerLine, types);
 
             _internals = new Value[internalsPerLine.Count];
             _externals = new Value[externalsPerLine.Count];
 
-            _compiledProgramLine = _ast.Compile(new ExternalsMap(), 20, types);
+            _compiledProgramLine = _ast.Compile(new ExternalsMap(), 20, null, types);
         }
 
         private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)

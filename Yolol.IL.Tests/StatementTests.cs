@@ -16,6 +16,14 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
+        public void IfStatementError()
+        {
+            var (st, _) = Test("if \"1\"! then a = 1 else a = 2 end");
+
+            Assert.AreEqual((Value)0, st.GetVariable("a"));
+        }
+
+        [TestMethod]
         public void IfStatementTrue()
         {
             var (st, _) = Test("if 1 then a = 1 else a = 2 end");
