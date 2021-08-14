@@ -9,11 +9,11 @@ namespace Benchmark
             //var config = DefaultConfig.Instance;
             //var summary = BenchmarkRunner.Run<CompareInterpreter>(config);
 
-            //var lps = new LinesPerSecond();
-            //lps.Run();
+            var lps = new LinesPerSecond();
+            lps.Run();
 
-            var flex = new FlexBench(new DirectoryInfo(Path.Combine(args)));
-            flex.Run();
+            //var flex = new FlexBench(new DirectoryInfo(Path.Combine(args)));
+            //flex.Run();
         }
     }
 }

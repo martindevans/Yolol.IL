@@ -1,4 +1,6 @@
-﻿using Yolol.Analysis.ControlFlowGraph.AST;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
+using Yolol.Analysis.ControlFlowGraph.AST;
 using Yolol.Analysis.TreeVisitor;
 using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
@@ -31,13 +33,17 @@ namespace Yolol.IL.Compiler.Analysis
 
         protected override bool Visit(Factorial fac) => base.Visit(fac.Parameter);
 
-        protected override bool Visit(ErrorExpression err) => false;
+        [ExcludeFromCodeCoverage]
+        protected override bool Visit(ErrorExpression err) => throw new NotSupportedException();
 
-        protected override bool Visit(Increment inc) => true;
+        [ExcludeFromCodeCoverage]
+        protected override bool Visit(Increment inc) => throw new NotSupportedException();
 
-        protected override bool Visit(Decrement dec) => true;
-       
-        protected override bool Visit(Phi phi) => false;
+        [ExcludeFromCodeCoverage]
+        protected override bool Visit(Decrement dec) => throw new NotSupportedException();
+
+        [ExcludeFromCodeCoverage]
+        protected override bool Visit(Phi phi) => throw new NotSupportedException();
 
         protected override bool Visit(LessThanEqualTo eq) => base.Visit(eq.Left) || base.Visit(eq.Right);
 

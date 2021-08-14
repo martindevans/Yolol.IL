@@ -23,7 +23,10 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
         [ExcludeFromCodeCoverage]
         public override string ToString()
         {
-            return $"LoadLocalAddr({Local.Name}):";
+            if (IsReadonly)
+                return $"LoadLocalAddr({Local.Name}) (readonly):";
+            else
+                return $"LoadLocalAddr({Local.Name}):";
         }
     }
 }

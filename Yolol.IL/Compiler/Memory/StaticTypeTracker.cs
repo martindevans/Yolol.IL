@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using Yolol.Grammar;
 using System.Linq;
 using Yolol.IL.Extensions;
@@ -31,34 +30,19 @@ namespace Yolol.IL.Compiler.Memory
             return ctx;
         }
 
-        public TypeContext EnterContext(out TypeContext ctx)
-        {
-            ctx = EnterContext();
-            return ctx;
-        }
-
         public void ExitContext(TypeContext context)
         {
-            if (!ReferenceEquals(_current, context))
-                throw new InvalidOperationException("Cannot exit non-current type context");
-            if (ReferenceEquals(_root, context))
-                throw new InvalidOperationException("Cannot exit root type context");
+            ThrowHelper.Check(ReferenceEquals(_current, context), "Cannot exit non-current type context");
+            ThrowHelper.Check(!ReferenceEquals(_root, context), "Cannot exit root type context");
 
             _current = context.Parent;
         }
 
         public void Unify(params TypeContext[] contexts)
         {
-            [ExcludeFromCodeCoverage]
-            static void CheckArgs(TypeContext[] contexts, ITypeContext current)
-            {
-                if (contexts.Contains(current))
-                    throw new InvalidOperationException("Cannot unify types with an active context");
-                if (contexts.Select(c => c.Parent).Distinct().Count() != 1)
-                    throw new InvalidOperationException("Cannot unify types with different parents");
-            }
-            CheckArgs(contexts, _current);
-            
+            ThrowHelper.Check(!contexts.Contains(_current), "Cannot unify types with an active context");
+            ThrowHelper.Check(contexts.Select(c => c.Parent).Distinct().Count() == 1, "Cannot unify types with different parents");
+
             var groups = contexts.SelectMany(ctx => ctx.Types)
                     .GroupBy(a => a.Key)
                     .Select(a => (a.Key, a.Select(b => b.Value).Distinct().ToList()))
@@ -81,9 +65,6 @@ namespace Yolol.IL.Compiler.Memory
                     return a;
 
                 return (a, b) switch {
-                    (StackType.YololValue, _) => StackType.YololValue,
-                    (_, StackType.YololValue) => StackType.YololValue,
-
                     (StackType.Bool, StackType.YololNumber) => StackType.YololNumber,
                     (StackType.YololNumber, StackType.Bool) => StackType.YololNumber,
 

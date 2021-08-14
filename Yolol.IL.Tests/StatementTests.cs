@@ -8,6 +8,16 @@ namespace Yolol.IL.Tests
     public class StatementTests
     {
         [TestMethod]
+        public void Increment()
+        {
+            var (st1, _) = Test(new[] { "a = 2", "b = ++a" }, 2, 10);
+            Assert.AreEqual(3, (int)st1.GetVariable("a").Number);
+
+            var (st2, _) = Test(new[] { "a = \"2\"", "b = ++a" }, 2, 10);
+            Assert.AreEqual("2 ", st2.GetVariable("a").ToString());
+        }
+
+        [TestMethod]
         public void Assignment()
         {
             var (st, _) = Test("a = 2");

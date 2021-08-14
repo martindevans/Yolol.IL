@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Yolol.IL.Compiler.Emitter;
 using Yolol.IL.Extensions;
 
@@ -9,8 +8,6 @@ namespace Yolol.IL.Compiler
     {
         private readonly OptimisingEmitter<TEmit> _emitter;
         private readonly Stack<StackType> _types = new Stack<StackType>();
-
-        public int Count => _types.Count;
 
         public StackType Peek => _types.Peek();
 
@@ -27,8 +24,7 @@ namespace Yolol.IL.Compiler
         public void Pop(StackType type)
         {
             var pop = _types.Pop();
-            if (pop != type)
-                throw new InvalidOperationException($"Attempted to pop `{type}` but stack had `{pop}`");
+            ThrowHelper.Check(pop == type, $"Attempted to pop `{type}` but stack had `{pop}`");
         }
 
         public void Coerce(StackType target)

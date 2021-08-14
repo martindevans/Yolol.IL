@@ -1,5 +1,7 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-
+﻿using System.Collections.Generic;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Yolol.Execution;
+using Yolol.Grammar;
 using static Yolol.IL.Tests.TestHelpers;
 
 namespace Yolol.IL.Tests
@@ -11,6 +13,16 @@ namespace Yolol.IL.Tests
         public void SingleAssignment()
         {
             var (st, _) = Test("a=7");
+
+            Assert.AreEqual(7, (int)st.GetVariable("a").Number);
+        }
+
+        [TestMethod]
+        public void SingleAssignmentWithAnnotations()
+        {
+            var (st, _) = Test("a=7", staticTypes: new Dictionary<VariableName, Type> {
+                {  new VariableName("a"), Type.Number },
+            });
 
             Assert.AreEqual(7, (int)st.GetVariable("a").Number);
         }

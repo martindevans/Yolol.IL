@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text;
 using Sigil;
@@ -24,6 +25,7 @@ namespace Yolol.IL.Compiler.Emitter
             _emitter = emitter;
         }
 
+        [ExcludeFromCodeCoverage]
         public override string ToString()
         {
             var builder = new StringBuilder();

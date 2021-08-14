@@ -17,11 +17,11 @@ namespace Benchmark
         //    "z=1 :a=2 ++bc bc++ ++:bc :bc++ ++a c++ goto :a+:b"
         //};
 
-        private readonly string[] _program = {
+        private readonly string[] _program = new[] {
             ":done++ b=97 c=89",
             ":o++ :done++",
             ":done++ x-- x=\"abc\" x=atan x",
-            "i=(127-1) _=(i/3%1==0)*i/3>1+(i/5%1==0)*i/5>1+(i/7%1==0)*i/7>1 a=i/11%1==0 x=atan x",
+            "i=:i _=(i/3%1==0)*i/3>1+(i/5%1==0)*i/5>1+(i/7%1==0)*i/7>1 a=i/11%1==0 x=atan x",
             "_+=a*i/11>1+(i/13%1==0)*i/13>1+(i/17%1==0)*i/17>1+(i/19%1==0)*i/19>1 x=atan x",
             "_+=(i/23%1==0)*i/23>1+(i/29%1==0)*i/29>1+(i/31%1==0)*i/31>1a=i/37%1==0 x=atan x",
             "_+=a*i/37>1+(i/41%1==0)*i/41>1+(i/43%1==0)*i/43>1+(i/47%1==0)*i/47>1 x=atan x",
@@ -97,9 +97,10 @@ namespace Benchmark
             timer.Start();
             _compiled = ast.Compile(_externalsMap, 20, null, staticTypes);
             Console.WriteLine($"Compiled in: {timer.Elapsed.TotalMilliseconds}ms");
-
+            
             _externals = new Value[_externalsMap.Count];
             Array.Fill(_externals, Number.Zero);
+            _externals[_externalsMap[":i"]] = (Number)126;
 
             _internals = new Value[_compiled.InternalsMap.Count];
             Array.Fill(_internals, Number.Zero);

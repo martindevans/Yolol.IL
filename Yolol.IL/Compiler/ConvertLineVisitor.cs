@@ -92,7 +92,7 @@ namespace Yolol.IL.Compiler
 
             // Emit true branch
             TypeContext trueCtx;
-            using (_staticTypes.EnterContext(out trueCtx))
+            using (trueCtx = _staticTypes.EnterContext())
             {
                 Visit(@if.TrueBranch);
                 _emitter.Branch(exitLabel);
@@ -100,7 +100,7 @@ namespace Yolol.IL.Compiler
 
             // Emit false branch
             TypeContext falseCtx;
-            using (_staticTypes.EnterContext(out falseCtx))
+            using (falseCtx = _staticTypes.EnterContext())
             {
                 _emitter.MarkLabel(falseLabel);
                 Visit(@if.FalseBranch);
