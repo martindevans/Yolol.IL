@@ -107,6 +107,9 @@ namespace Yolol.IL.Extensions
 
         public static ErrorMetadata? TryGetErrorMetadata(this MethodInfo method, params Type[] parameters)
         {
+            // Nb. Is parameters _always_ equal to method.GetParameters()? If so, it can be removed and replaced with this:
+            // parameters = method.GetParameters().Select(a => a.ParameterType).ToArray();
+
             Debug.Assert(method.DeclaringType != null);
 
             // Reflect out the error metadata, this can tell us in advance if the method will throw
@@ -123,6 +126,21 @@ namespace Yolol.IL.Extensions
             // Method is not infallible, so return both
             return new ErrorMetadata(method, willThrow, alternativeImpl);
 
+        }
+
+        /// <summary>
+        /// Get a set of "type implications" for the given method - these types are correct if the method does not throw a runtime error
+        /// </summary>
+        /// <param name="method"></param>
+        /// <param name="parameters"></param>
+        /// <returns></returns>
+        public static IReadOnlyList<StackType> GetTypeImplications(this MethodInfo method)
+        {
+            Debug.Assert(method.DeclaringType != null);
+
+            return (from parameter in method.GetParameters()
+                    let impl = parameter.GetCustomAttribute<TypeImplicationAttribute>()
+                    select impl?.Type.ToStackType() ?? parameter.ParameterType.ToStackType()).ToList();
         }
 
         private static MethodInfo GetMethod(Type declaringType, string name, Type? requiredReturnType, Type[] parameters)

@@ -353,6 +353,16 @@ namespace Yolol.IL.Compiler
             };
             _typesStack.Push(convert.OnStack.ToStackType());
 
+            // Store discovered types for any parameters passed into the expression
+            if (convert.Implications != null)
+            {
+                if (expr.Left is Grammar.AST.Expressions.Variable vl)
+                    _staticTypes.Store(vl.Name, convert.Implications[0]);
+
+                if (expr.Right is Grammar.AST.Expressions.Variable vr)
+                    _staticTypes.Store(vr.Name, convert.Implications[1]);
+            }
+
             // Ensure max string length is not exceeded
             if (trimString)
                 CheckStringLength();
@@ -767,6 +777,13 @@ namespace Yolol.IL.Compiler
                     _ => throw new InvalidOperationException($"{expr.GetType().Name}({p})")
                 };
                 _typesStack.Push(convert.OnStack.ToStackType());
+
+                // Store discovered types for parameter passed into the expression
+                if (convert.Implications != null)
+                {
+                    if (expr.Parameter is Grammar.AST.Expressions.Variable vl)
+                        _staticTypes.Store(vl.Name, convert.Implications[0]);
+                }
             });
         }
 

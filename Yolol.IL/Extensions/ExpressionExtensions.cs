@@ -12,15 +12,29 @@ using ExceptionBlock = Yolol.IL.Compiler.Emitter.Instructions.ExceptionBlock;
 
 namespace Yolol.IL.Extensions
 {
-    public readonly struct ConvertResult
+    internal readonly struct ConvertResult
     {
+        /// <summary>
+        /// The type of the value left on the stack
+        /// </summary>
         public readonly Type OnStack;
+
+        /// <summary>
+        /// The value which this expression produced (if it can be statically determined, otherwise null)
+        /// </summary>
         public readonly Value? StaticValue;
 
-        public ConvertResult(Type onStack, Value? staticValue)
+        /// <summary>
+        /// The type which the inputs to this expression must have for the expression not to error. Since an error will
+        /// have caused execution to jump away, the types can be assumed to be these types.
+        /// </summary>
+        public readonly IReadOnlyList<StackType>? Implications;
+
+        public ConvertResult(Type onStack, Value? staticValue, IReadOnlyList<StackType>? implications)
         {
             OnStack = onStack;
             StaticValue = staticValue;
+            Implications = implications;
         }
     }
 
@@ -68,7 +82,7 @@ namespace Yolol.IL.Extensions
         )
         {
             if (expr.ReturnType == typeof(StaticError))
-                return new ConvertResult(typeof(StaticError), null);
+                return new ConvertResult(typeof(StaticError), null, null);
 
             // Try to convert expression without putting things into locals. Only works with certain expressions.
             var fast = TryConvertBinaryFastPath(expr, emitter, errorLabel, leftConst, rightConst);
@@ -101,7 +115,7 @@ namespace Yolol.IL.Extensions
         public static ConvertResult ConvertUnary<TIn, TOut, TEmit>(this Expression<Func<TIn, TOut>> expr, OptimisingEmitter<TEmit> emitter, ExceptionBlock errorLabel)
         {
             if (expr.ReturnType == typeof(StaticError))
-                return new ConvertResult(typeof(StaticError), null);
+                return new ConvertResult(typeof(StaticError), null, null);
 
             // Try to convert expression without putting things into locals. Only works with certain expressions.
             var fast = TryConvertUnaryFastPath(expr, emitter, errorLabel);
@@ -135,7 +149,7 @@ namespace Yolol.IL.Extensions
 
                     emitter.NewObject(n.Constructor);
 
-                    return new ConvertResult(n.Type, null);
+                    return new ConvertResult(n.Type, null, null);
                 }
 
                 case ExpressionType.Constant: {
@@ -143,19 +157,19 @@ namespace Yolol.IL.Extensions
                     if (constant.Type == typeof(string))
                     {
                         emitter.LoadConstant((string)constant.Value!);
-                        return new ConvertResult(typeof(string), (string)constant.Value!);
+                        return new ConvertResult(typeof(string), (string)constant.Value!, null);
                     }
 
                     if (constant.Type == typeof(bool))
                     {
                         emitter.LoadConstant((bool)constant.Value!);
-                        return new ConvertResult(typeof(bool), (Number)(bool)constant.Value!);
+                        return new ConvertResult(typeof(bool), (Number)(bool)constant.Value!, null);
                     }
 
                     if (constant.Type == typeof(int))
                     {
                         emitter.LoadConstant((int)constant.Value!);
-                        return new ConvertResult(typeof(int), (Number)(int)constant.Value!);
+                        return new ConvertResult(typeof(int), (Number)(int)constant.Value!, null);
                     }
 
                     throw ThrowHelper.NotImplemented($"Constant type: `{constant.Type.Name}`");
@@ -165,7 +179,7 @@ namespace Yolol.IL.Extensions
                     var paramExpr = (ParameterExpression)expr;
                     var param = parameters[paramExpr.Name!];
                     emitter.LoadLocal(param.Local);
-                    return new ConvertResult(expr.Type, param.Constant);
+                    return new ConvertResult(expr.Type, param.Constant, null);
                 }
 
                 case ExpressionType.Not: {
@@ -175,7 +189,7 @@ namespace Yolol.IL.Extensions
                         ? typeof(Runtime).GetMethod(nameof(Runtime.LogicalNot))
                         : unary.Operand.Type.GetMethod("op_LogicalNot");
                     emitter.Call(m!);
-                    return new ConvertResult(m!.ReturnType, null);
+                    return new ConvertResult(m!.ReturnType, null, null);
                 }
 
                 case ExpressionType.Negate: {
@@ -184,15 +198,14 @@ namespace Yolol.IL.Extensions
                     var m = unary.Operand.Type == typeof(bool)
                         ? typeof(Runtime).GetMethod(nameof(Runtime.BoolNegate))
                         : unary.Operand.Type.GetMethod("op_UnaryNegation");
-                    emitter.Call(m!);
-                    return new ConvertResult(m!.ReturnType, null);
+                    return ConvertCallWithErrorHandling(new[] { unary.Operand.Type }, null, m!, emitter, errorLabel);
                 }
 
                 case ExpressionType.Convert: {
                     var unary = (UnaryExpression)expr;
                     ConvertExpression(unary.Operand, emitter, parameters, errorLabel);
                     emitter.Call(unary.Method);
-                    return new ConvertResult(unary.Method!.ReturnType, null);
+                    return new ConvertResult(unary.Method!.ReturnType, null, null);
                 }
 
                 case ExpressionType.Call: {
@@ -211,7 +224,7 @@ namespace Yolol.IL.Extensions
                         }
 
                         var call = ConvertCallWithErrorHandling(types, staticValues, c.Method, emitter, errorLabel);
-                        return new ConvertResult(call.OnStack, null);
+                        return call;
                     }
                     else
                     {
@@ -225,7 +238,7 @@ namespace Yolol.IL.Extensions
                                 ConvertExpression(arg, emitter, parameters, errorLabel);
 
                             emitter.Call(c.Method);
-                            return new ConvertResult(c.Method.ReturnType, null);
+                            return new ConvertResult(c.Method.ReturnType, null, null);
                         }
                     }
                 }
@@ -255,7 +268,7 @@ namespace Yolol.IL.Extensions
                         errorLabel
                     );
 
-                    return new ConvertResult(finalResult.OnStack, finalResult.StaticValue);
+                    return new ConvertResult(finalResult.OnStack, finalResult.StaticValue, null);
                 }
 
                 case ExpressionType.And: {
@@ -272,11 +285,11 @@ namespace Yolol.IL.Extensions
 
                     emitter.And();
 
-                    return new ConvertResult(typeof(bool), staticVal);
+                    return new ConvertResult(typeof(bool), staticVal, null);
                 }
 
                 default:
-                    throw new NotImplementedException(expr.NodeType + " " + expr.GetType());
+                    throw ThrowHelper.NotImplemented(expr.NodeType + " " + expr.GetType());
             }
         }
 
@@ -295,17 +308,19 @@ namespace Yolol.IL.Extensions
             if (errorData != null)
                 CheckForRuntimeError(errorData.Value, parameterTypes, staticValues, emitter, errorLabel);
 
+            var implications = method.GetTypeImplications();
+
             // If the error metadata specifies an alternative implementation to use (which does not include runtime checks
             // for the case already checked by `WillThrow`) use that alternative instead.
             if (errorData != null && errorData.Value.UnsafeAlternative != null)
             {
                 emitter.Call(errorData.Value.UnsafeAlternative);
-                return new ConvertResult(errorData.Value.UnsafeAlternative!.ReturnType, null);
+                return new ConvertResult(errorData.Value.UnsafeAlternative!.ReturnType, null, implications);
             }
             else
             {
                 emitter.Call(method);
-                return new ConvertResult(method.ReturnType, null);
+                return new ConvertResult(method.ReturnType, null, implications);
             }
         }
 
@@ -421,7 +436,7 @@ namespace Yolol.IL.Extensions
             {
                 case ExpressionType.Parameter:
                     var p = (ParameterExpression)expr.Body;
-                    return new ConvertResult(p.Type, null);
+                    return new ConvertResult(p.Type, null, null);
 
                 case ExpressionType.Constant:
                     emitter.Pop();

@@ -27,11 +27,13 @@ namespace Yolol.IL.Compiler
             return item;
         }
 
+        [ContractAnnotation(" => halt")]
         public static Exception NotImplemented(string message)
         {
-            return new NotImplementedException(message);
+            throw new NotImplementedException(message);
         }
 
+        [ContractAnnotation(" => halt")]
         public static Exception Invalid(string message)
         {
             throw new InvalidOperationException(message);

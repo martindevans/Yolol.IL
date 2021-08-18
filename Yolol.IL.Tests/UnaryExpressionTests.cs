@@ -84,11 +84,36 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
-        public void NegateString()
+        public void NegateStringConstant()
         {
             var (st, _) = Test("b = -\"a\"");
 
-            Assert.AreEqual((Value)(0), st.GetVariable("b"));
+            Assert.AreEqual((Value)0, st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void NegateExternal()
+        {
+            var (st, _) = Test("b = -:a");
+
+            Assert.AreEqual((Value)0, st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void DivideExternals()
+        {
+            var (st, _) = Test("b = :a/:b");
+
+            Assert.AreEqual((Value)0, st.GetVariable("b"));
+        }
+
+        [TestMethod]
+        public void NegateString()
+        {
+            var (st, pc) = Test("a=\"a\" b=-a goto10");
+
+            Assert.AreEqual((Value)0, st.GetVariable("b"));
+            Assert.AreEqual(2, pc);
         }
 
         [TestMethod]

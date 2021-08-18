@@ -21,6 +21,11 @@ namespace Yolol.IL.Tests
             return 0;
         }
 
+        public static int Simple([TypeImplication(Execution.Type.Number)] Value a, [TypeImplication(Execution.Type.String)] Value b)
+        {
+            return 0;
+        }
+
         private static MethodInfo Get(params Type[] parameters)
         {
             var method = typeof(MethodInfoExtensionsTests).GetMethod(nameof(Simple), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, parameters, null);
@@ -53,6 +58,19 @@ namespace Yolol.IL.Tests
             Assert.IsFalse(err.Value.StaticWillThrow(new[] {(Value?)2, (Value?)1}));
             Assert.IsNull(err.Value.StaticWillThrow(new[] {null, (Value?)1}));
             Assert.IsNull(err.Value.StaticWillThrow(new[] {(Value?)1, null}));
+        }
+
+        [TestMethod]
+        public void GetSimpleMethodTypeImplications()
+        {
+            var method = Get(typeof(Value), typeof(Value));
+
+            var impls = method.GetTypeImplications();
+
+            Assert.IsNotNull(impls);
+            Assert.AreEqual(2, impls.Count);
+            Assert.AreEqual(Execution.Type.Number.ToStackType(), impls[0]);
+            Assert.AreEqual(Execution.Type.String.ToStackType(), impls[1]);
         }
     }
 }

@@ -50,11 +50,35 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
-        public void GotoNumber()
+        public void GotoConstantNumber()
         {
             var (_, l) = Test("goto 10");
 
             Assert.AreEqual(10, l);
+        }
+
+        [TestMethod]
+        public void GotoNumber()
+        {
+            var (_, l) = Test("a=10 goto a");
+
+            Assert.AreEqual(10, l);
+        }
+
+        [TestMethod]
+        public void GotoNumberBool()
+        {
+            var (_, l) = Test("a=1 goto a");
+
+            Assert.AreEqual(1, l);
+        }
+
+        [TestMethod]
+        public void GotoExternalNumber()
+        {
+            var (_, l) = Test("goto :a");
+
+            Assert.AreEqual(1, l);
         }
 
         [TestMethod]
@@ -71,6 +95,14 @@ namespace Yolol.IL.Tests
             var (_, l) = Test("goto 21");
 
             Assert.AreEqual(20, l);
+        }
+
+        [TestMethod]
+        public void GotoString()
+        {
+            var (_, l) = Test("goto \"a\"");
+
+            Assert.AreEqual(2, l);
         }
 
         //[TestMethod]
