@@ -95,7 +95,7 @@ namespace Benchmark
             _externalsMap = new ExternalsMap();
             var timer = new Stopwatch();
             timer.Start();
-            _compiled = ast.Compile(_externalsMap, 20, null, staticTypes, false);
+            _compiled = ast.Compile(_externalsMap, 20, 1024, staticTypes, true);
             Console.WriteLine($"Compiled in: {timer.Elapsed.TotalMilliseconds}ms");
             
             _externals = new Value[_externalsMap.Count];
@@ -106,7 +106,7 @@ namespace Benchmark
             Array.Fill(_internals, Number.Zero);
         }
 
-        private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
+        private static Yolol.Grammar.AST.Program Parse(params string[] lines)
         {
             var result = Parser.ParseProgram(string.Join("\n", lines));
             if (!result.IsOk)

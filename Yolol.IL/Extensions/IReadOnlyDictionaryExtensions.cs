@@ -4,7 +4,7 @@ using Yolol.IL.Compiler;
 
 namespace Yolol.IL.Extensions
 {
-    internal static class IReadOnlyDictionaryExtensions
+    public static class IReadOnlyDictionaryExtensions
     {
         /// <summary>
         /// Get a key for changeset querying for a given VariableName
@@ -14,8 +14,10 @@ namespace Yolol.IL.Extensions
         /// <returns></returns>
         public static ChangeSetKey ChangeSetKey(this IReadOnlyDictionary<VariableName, int> dictionary, VariableName key)
         {
-            var index = dictionary[key];
-            return new ChangeSetKey(1ul << index);
+            if (!dictionary.TryGetValue(key, out var index))
+                return new ChangeSetKey(0);
+            else
+                return new ChangeSetKey(1ul << index);
         }
     }
 }

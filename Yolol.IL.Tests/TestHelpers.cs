@@ -19,13 +19,13 @@ namespace Yolol.IL.Tests
             return result.Ok;
         }
 
-        public static IMachineState Test(string line, int lineNumber = 1, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null)
+        public static IMachineState Test(string line, int lineNumber = 1, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null, bool changeDetection = false)
         {
             var internals = new InternalsMap();
             var externals = new ExternalsMap();
 
             var ast = Parse(line);
-            var compiled = ast.Lines[0].Compile(lineNumber, 20, maxStringLength, internals, externals, staticTypes, true);
+            var compiled = ast.Lines[0].Compile(lineNumber, 20, maxStringLength, internals, externals, staticTypes, changeDetection);
 
             var i = new Value[internals.Count];
             Array.Fill(i, new Value((Number)0));
@@ -37,11 +37,11 @@ namespace Yolol.IL.Tests
             return new EasyMachineState(i, e, internals, externals, r.ProgramCounter, r.ChangeSet);
         }
 
-        public static IMachineState Test(string[] lines, int iterations, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null)
+        public static IMachineState Test(string[] lines, int iterations, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null, bool changeDetection = false)
         {
             var ext = new ExternalsMap();
             var prog = Parser.ParseProgram(string.Join("\n", lines)).Ok;
-            var compiled = prog.Compile(ext, maxStringLength: maxStringLength, staticTypes: staticTypes, changeDetection: true);
+            var compiled = prog.Compile(ext, maxStringLength: maxStringLength, staticTypes: staticTypes, changeDetection: changeDetection);
             var doneIndex = compiled.InternalsMap.GetValueOrDefault(new VariableName("done"), -1);
 
             var i = new Value[compiled.InternalsMap.Count];

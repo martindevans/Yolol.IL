@@ -3,7 +3,7 @@ using Yolol.Execution;
 
 namespace Yolol.IL
 {
-    public class JitLine
+    internal class JitLine
         : IJitLine
     {
         private readonly Func<ArraySegment<Value>, ArraySegment<Value>, LineResult> _compiled;
@@ -19,7 +19,7 @@ namespace Yolol.IL
         }
     }
 
-    public interface IJitLine
+    internal interface IJitLine
     {
         LineResult Run(ArraySegment<Value> internals, ArraySegment<Value> externals);
     }

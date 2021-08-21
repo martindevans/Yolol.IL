@@ -28,5 +28,10 @@
         {
             Flag = flag;
         }
+
+        public static ChangeSetKey Combine(ChangeSetKey a, ChangeSetKey b)
+        {
+            return new ChangeSetKey(a.Flag | b.Flag);
+        }
     }
 }

@@ -39,5 +39,26 @@ namespace Yolol.IL
             ProgramCounter = result.ProgramCounter;
             ChangeSet = result.ChangeSet;
         }
+
+        /// <summary>
+        /// Run the program for multiple ticks
+        /// </summary>
+        /// <param name="internals"></param>
+        /// <param name="externals"></param>
+        /// <param name="maxTicks">Maximum number of ticks to run</param>
+        /// <param name="changed">Execution will end if any of the variables represented by this key are changed</param>
+        /// <returns>Total ticks executed</returns>
+        public int Run(ArraySegment<Value> internals, ArraySegment<Value> externals, int maxTicks, ChangeSetKey changed)
+        {
+            var i = 0;
+            for (; i < maxTicks; i++)
+            {
+                Tick(internals, externals);
+
+                if (ChangeSet.Contains(changed))
+                    break;
+            }
+            return i + 1;
+        }
     }
 }
