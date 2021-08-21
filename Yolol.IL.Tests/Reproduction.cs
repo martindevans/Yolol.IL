@@ -9,21 +9,21 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void GotoStringBug()
         {
-            var (_, pc) = TestHelpers.Test("b=\"tt\" :pi += (b-\"t\")==b goto 1");
-            Assert.AreEqual(1, pc);
+            var ms = TestHelpers.Test("b=\"tt\" :pi += (b-\"t\")==b goto 1");
+            Assert.AreEqual(1, ms.ProgramCounter);
         }
 
         [TestMethod]
         public void NullRefString()
         {
-            var (ms, _) = TestHelpers.Test("c += \"t\"");
+            var ms = TestHelpers.Test("c += \"t\"");
             Assert.AreEqual("0t", ms.GetVariable("c").String.ToString());
         }
 
         [TestMethod]
         public void NullRefString2()
         {
-            var (ms, _) = TestHelpers.Test("c = c + \"t\"");
+            var ms = TestHelpers.Test("c = c + \"t\"");
             Assert.AreEqual("0t", ms.GetVariable("c").String.ToString());
         }
 
@@ -32,15 +32,15 @@ namespace Yolol.IL.Tests
         {
             var result = TestHelpers.Test("a = \"2\" + 2 + 2");
 
-            Assert.AreEqual("222", result.Item1.GetVariable("a").String.ToString());
+            Assert.AreEqual("222", result.GetVariable("a").String.ToString());
         }
 
         [TestMethod]
         public void GotoDonePlusPlus()
         {
-            var (_, pc) = TestHelpers.Test("goto:done++");
+            var ms = TestHelpers.Test("goto:done++");
 
-            Assert.AreEqual(1, pc);
+            Assert.AreEqual(1, ms.ProgramCounter);
         }
 
         [TestMethod]
@@ -52,7 +52,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void NonStringSubtraction()
         {
-            var (ms, _) = TestHelpers.Test("a=70 b=\"\"+a-0");
+            var ms = TestHelpers.Test("a=70 b=\"\"+a-0");
             Assert.AreEqual(new YString("7"), ms.GetVariable("b").String);
         }
 
@@ -65,20 +65,20 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void Abs()
         {
-            var (ms, _) = TestHelpers.Test("a = abs -7");
+            var ms = TestHelpers.Test("a = abs -7");
             Assert.AreEqual((Number)7, ms.GetVariable("a").Number);
         }
 
         [TestMethod]
         public void NotModulo()
         {
-            var (ms, _) = TestHelpers.Test(":o=not (:i%100)");
+            var ms = TestHelpers.Test(":o=not (:i%100)");
         }
 
         [TestMethod]
         public void Spaceship()
         {
-            var (ms, _) = TestHelpers.Test("if :q then :x=0 goto l end if :q then :x++ end");
+            var ms = TestHelpers.Test("if :q then :x=0 goto l end if :q then :x++ end");
         }
     }
 }

@@ -3,18 +3,18 @@ using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
 {
-    internal class NewObject<TA, TB>
+    internal class NewObject<TConstruct, TParameter>
         : BaseInstruction
     {
         public override void Emit<T>(Emit<T> emitter)
         {
-            emitter.NewObject<TA, TB>();
+            emitter.NewObject<TConstruct, TParameter>();
         }
 
         [ExcludeFromCodeCoverage]
         public override string ToString()
         {
-            return $"NewObject<{typeof(TA)},{typeof(TB)}>()";
+            return $"NewObject<{typeof(TConstruct)},{typeof(TParameter)}>()";
         }
     }
 }

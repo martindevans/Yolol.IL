@@ -9,7 +9,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void AcidStringLogic()
         {
-            var (ms, _) = Test(new[] {
+            var ms = Test(new[] {
                     $"num=1 if \"\" then goto 19 end num++",
                     "if \"abc\" then goto 19 end num++",
                     "if \"1\" then goto 19 end num++",

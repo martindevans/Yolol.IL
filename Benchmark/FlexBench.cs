@@ -77,7 +77,7 @@ namespace Benchmark
             Array.Fill(externals, Number.Zero);
             var internals = new Value[compiled.InternalsMap.Count];
             Array.Fill(internals, Number.Zero);
-            var outputIdx = externalsMap[":output"];
+            var outputIdx = externalsMap[new VariableName(":output")];
 
             var iterations = 500000;
 

@@ -95,12 +95,12 @@ namespace Benchmark
             _externalsMap = new ExternalsMap();
             var timer = new Stopwatch();
             timer.Start();
-            _compiled = ast.Compile(_externalsMap, 20, null, staticTypes);
+            _compiled = ast.Compile(_externalsMap, 20, null, staticTypes, false);
             Console.WriteLine($"Compiled in: {timer.Elapsed.TotalMilliseconds}ms");
             
             _externals = new Value[_externalsMap.Count];
             Array.Fill(_externals, Number.Zero);
-            _externals[_externalsMap[":i"]] = (Number)126;
+            _externals[_externalsMap[new VariableName(":i")]] = (Number)126;
 
             _internals = new Value[_compiled.InternalsMap.Count];
             Array.Fill(_internals, Number.Zero);
@@ -117,7 +117,7 @@ namespace Benchmark
 
         public void Run()
         {
-            var zidx = _compiled.InternalsMap["z"];
+            var zidx = _compiled.InternalsMap[new VariableName("z")];
 
             const int iterations = 10000000;
 

@@ -26,6 +26,7 @@ namespace Yolol.IL.Compiler.Memory
         private readonly Dictionary<VariableName, TypedLocal> _cache;
         private readonly Dictionary<VariableName, Local> _cacheDirty;
         private readonly HashSet<VariableName> _mutated;
+        private readonly Local? _changeSet;
 
         public ArraySegmentMemoryAccessor(
             OptimisingEmitter<TEmit> emitter,
@@ -33,7 +34,8 @@ namespace Yolol.IL.Compiler.Memory
             ushort internalArraySegmentArg,
             IReadonlyInternalsMap internals,
             IReadonlyExternalsMap externals,
-            StaticTypeTracker types)
+            StaticTypeTracker types,
+            Local? changeSet)
         {
             _emitter = emitter;
             _externalArraySegmentArg = externalArraySegmentArg;
@@ -41,6 +43,7 @@ namespace Yolol.IL.Compiler.Memory
             _internals = internals;
             _externals = externals;
             _types = types;
+            _changeSet = changeSet;
 
             _cache = new Dictionary<VariableName, TypedLocal>();
             _cacheDirty = new Dictionary<VariableName, Local>();
@@ -237,10 +240,17 @@ namespace Yolol.IL.Compiler.Memory
         #endregion
 
         #region direct memory access
+        private ulong SegmentBitFlag(VariableName name)
+        {
+            var map = name.IsExternal ? (IReadOnlyDictionary<VariableName, int>)_externals : _internals;
+            var flag = map.ChangeSetKey(name).Flag;
+            return flag;
+        }
+
         private int SegmentIndex(VariableName name)
         {
-            var map = name.IsExternal ? (IReadOnlyDictionary<string, int>)_externals : _internals;
-            var idx = map[name.Name];
+            var map = name.IsExternal ? (IReadOnlyDictionary<VariableName, int>)_externals : _internals;
+            var idx = map[name];
             return idx;
         }
 
@@ -272,6 +282,13 @@ namespace Yolol.IL.Compiler.Memory
             EmitLoadArraySegmentAddr(name);
             EmitLoadIndex(name);
             _emitter.CallRuntimeN(nameof(Runtime.Store), typeof(Value), typeof(ArraySegment<Value>).MakeByRefType(), typeof(int));
+
+            if (_changeSet != null)
+            {
+                _emitter.LoadConstant(SegmentBitFlag(name));
+                _emitter.LoadLocalAddress(_changeSet, false);
+                _emitter.CallRuntimeN(nameof(Runtime.BitSet), typeof(ulong), typeof(ulong).MakeByRefType());
+            }
         }
 
         private void EmitLoadValue(VariableName name)

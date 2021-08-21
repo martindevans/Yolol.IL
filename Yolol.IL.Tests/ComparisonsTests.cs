@@ -9,7 +9,7 @@ namespace Yolol.IL.Tests
     {
         private static void Cmp(string op, string a, string b, bool aa, bool ab, bool ba)
         {
-            var (st, _) = Test($"a={a}{op}{a} b={a}{op}{b} c={b}{op}{a}");
+            var st = Test($"a={a}{op}{a} b={a}{op}{b} c={b}{op}{a}");
 
             Assert.AreEqual(aa, st.GetVariable("a").ToBool(), $"{a}{op}{a}");
             Assert.AreEqual(ab, st.GetVariable("b").ToBool(), $"{a}{op}{b}");
@@ -18,7 +18,7 @@ namespace Yolol.IL.Tests
 
         private static void CmpVal(string op, string a, string b, bool aa, bool ab, bool ba)
         {
-            var (st, _) = Test($"l={a} r={b} a={a}{op}l b={a}{op}r  c={b}{op}l");
+            var st = Test($"l={a} r={b} a={a}{op}l b={a}{op}r  c={b}{op}l");
 
             Assert.AreEqual(aa, st.GetVariable("a").ToBool(), $"L={a} Result={a}{op}L");
             Assert.AreEqual(ab, st.GetVariable("b").ToBool(), $"R={b} Result={a}{op}R");
@@ -89,7 +89,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void Playground()
         {
-            var (st, _) = Test($"L=1 R=7 a=1==L b=1==R c=7==L");
+            var st = Test($"L=1 R=7 a=1==L b=1==R c=7==L");
 
             Assert.AreEqual(true, st.GetVariable("a").ToBool());
             Assert.AreEqual(false, st.GetVariable("b").ToBool());

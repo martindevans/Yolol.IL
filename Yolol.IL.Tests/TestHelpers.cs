@@ -19,13 +19,13 @@ namespace Yolol.IL.Tests
             return result.Ok;
         }
 
-        public static (IMachineState, int) Test(string line, int lineNumber = 1, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null)
+        public static IMachineState Test(string line, int lineNumber = 1, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null)
         {
             var internals = new InternalsMap();
             var externals = new ExternalsMap();
 
             var ast = Parse(line);
-            var compiled = ast.Lines[0].Compile(lineNumber, 20, maxStringLength, internals, externals, staticTypes);
+            var compiled = ast.Lines[0].Compile(lineNumber, 20, maxStringLength, internals, externals, staticTypes, true);
 
             var i = new Value[internals.Count];
             Array.Fill(i, new Value((Number)0));
@@ -34,15 +34,15 @@ namespace Yolol.IL.Tests
 
             var r = compiled.Invoke(i, e);
 
-            return (new EasyMachineState(i, e, internals, externals), r);
+            return new EasyMachineState(i, e, internals, externals, r.ProgramCounter, r.ChangeSet);
         }
 
-        public static (IMachineState, int) Test(string[] lines, int iterations, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null)
+        public static IMachineState Test(string[] lines, int iterations, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null)
         {
             var ext = new ExternalsMap();
             var prog = Parser.ParseProgram(string.Join("\n", lines)).Ok;
-            var compiled = prog.Compile(ext, maxStringLength: maxStringLength, staticTypes: staticTypes);
-            var doneIndex = compiled.InternalsMap.GetValueOrDefault("done", -1);
+            var compiled = prog.Compile(ext, maxStringLength: maxStringLength, staticTypes: staticTypes, changeDetection: true);
+            var doneIndex = compiled.InternalsMap.GetValueOrDefault(new VariableName("done"), -1);
 
             var i = new Value[compiled.InternalsMap.Count];
             Array.Fill(i, new Value((Number)0));
@@ -59,13 +59,19 @@ namespace Yolol.IL.Tests
                     break;
             }
 
-            return (new CompiledMachineState(compiled, ext, i, e), compiled.ProgramCounter);
+            return new CompiledMachineState(compiled, ext, i, e);
         }
     }
 
     public interface IMachineState
     {
         Value GetVariable(string v);
+
+        ChangeSetKey GetVariableChangeSetKey(VariableName n);
+
+        ChangeSet ChangeSet { get; }
+
+        int ProgramCounter { get; }
     }
 
     public class EasyMachineState
@@ -74,15 +80,20 @@ namespace Yolol.IL.Tests
         public Value[] Internals;
         public Value[] Externals;
 
-        public Dictionary<string, int> InternalMap;
-        public Dictionary<string, int> ExternalMap;
+        public Dictionary<VariableName, int> InternalMap;
+        public Dictionary<VariableName, int> ExternalMap;
 
-        public EasyMachineState(Value[] i, Value[] e, InternalsMap internals, ExternalsMap externals)
+        public ChangeSet ChangeSet { get; }
+        public int ProgramCounter { get; }
+
+        public EasyMachineState(Value[] i, Value[] e, InternalsMap internals, ExternalsMap externals, int pc, ChangeSet set)
         {
             Internals = i;
             Externals = e;
             InternalMap = internals;
             ExternalMap = externals;
+            ProgramCounter = pc;
+            ChangeSet = set;
         }
 
         public Value GetVariable(string v)
@@ -91,7 +102,15 @@ namespace Yolol.IL.Tests
 
             var n = new VariableName(v);
             var (a, m) = n.IsExternal ? (Externals, ExternalMap) : (Internals, InternalMap);
-            return a[m[v]];
+            return a[m[n]];
+        }
+
+        public ChangeSetKey GetVariableChangeSetKey(VariableName n)
+        {
+            if (!n.IsExternal)
+                throw new ArgumentException("Variable must be external", nameof(n));
+
+            return ExternalMap.ChangeSetKey(n);
         }
     }
 
@@ -102,6 +121,9 @@ namespace Yolol.IL.Tests
         private readonly IReadonlyExternalsMap _externalsMap;
         private readonly Value[] _internals;
         private readonly Value[] _externals;
+
+        public ChangeSet ChangeSet => _program.ChangeSet;
+        public int ProgramCounter => _program.ProgramCounter;
 
         public CompiledMachineState(CompiledProgram program, IReadonlyExternalsMap externalsMap, Value[] internals, Value[] externals)
         {
@@ -117,14 +139,22 @@ namespace Yolol.IL.Tests
 
             if (vn.IsExternal)
             {
-                if (!_externalsMap.TryGetValue(vn.Name, out var idxe))
+                if (!_externalsMap.TryGetValue(vn, out var idxe))
                     return Number.Zero;
                 return _externals[idxe];
             }
 
-            if (!_program.InternalsMap.TryGetValue(vn.Name, out var idxi))
+            if (!_program.InternalsMap.TryGetValue(vn, out var idxi))
                 return Number.Zero;
             return _internals[idxi];
+        }
+
+        public ChangeSetKey GetVariableChangeSetKey(VariableName n)
+        {
+            if (!n.IsExternal)
+                throw new ArgumentException("Variable must be external", nameof(n));
+
+            return _externalsMap.ChangeSetKey(n);
         }
     }
 }

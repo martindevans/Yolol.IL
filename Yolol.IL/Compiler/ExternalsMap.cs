@@ -1,14 +1,15 @@
 ﻿using System.Collections.Generic;
+using Yolol.Grammar;
 
 namespace Yolol.IL.Compiler
 {
     public class ExternalsMap
-        : Dictionary<string, int>, IReadonlyExternalsMap
+        : Dictionary<VariableName, int>, IReadonlyExternalsMap
     {
     }
 
     public interface IReadonlyExternalsMap
-        : IReadOnlyDictionary<string, int>
+        : IReadOnlyDictionary<VariableName, int>
     {
     }
 }

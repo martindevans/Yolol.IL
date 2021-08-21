@@ -9,7 +9,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void Precedence1()
         {
-            var (ms, _) = Test(new[] {
+            var ms = Test(new[] {
                 "num=1 x=(0 and 0 or 1 ) y=0 if x!=y then goto19 end num++",
                 "x=((0 and 0) or 1 ) y= 1 if x!=y then goto19 end num++ ",
                 "x=(0 and (0 or 1) ) y= 0 if x!=y then goto19 end num++ ",
@@ -38,7 +38,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void Precedence2()
         {
-            var (ms, _) = Test(new[] {
+            var ms = Test(new[] {
                 "num=1 x=(sqrt 3! ) y=2.449 if x!=y then goto19 end num++ ",
                 "x=(sqrt (3!) ) y=2.449 if x!=y then goto19 end num++ ",
                 "x=((sqrt 9) ) y=3 if x!=y then goto19 end num++ ",
@@ -67,7 +67,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void Precedence3()
         {
-            var (ms, _) = Test(new[] {
+            var ms = Test(new[] {
                 "num=1 x=(2*2^2 ) y= 8 if x!=y then goto19 end num++ ",
                 "x=(2+2^2 ) y= 6 if x!=y then goto19 end num++ ",
                 "x=(-2^2 ) y= 4 if x!=y then goto19 end num++ ",
@@ -96,7 +96,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void Precedence4()
         {
-            var (ms, _) = Test(new[] {
+            var ms = Test(new[] {
                 "num=1 x=(2*(2>1)*1 ) y= 2 if x!=y then goto19 end num++ ",
                 "x=(2^2>1^1 ) y= 1 if x!=y then goto19 end num++ ",
                 "x=(2+1==1+2 ) y= 5 if x!=y then goto19 end num++ ",
@@ -125,7 +125,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void Precedence5()
         {
-            var (ms, _) = Test(new[] {
+            var ms = Test(new[] {
                 "num=1 x=(not 1+1 ) y=0 if x!=y then goto19 end num++ ",
                 "x=(not 0+1 ) y=0 if x!=y then goto19 end num++ ",
                 "x=(not 0+0 ) y=1 if x!=y then goto19 end num++ ",
@@ -154,7 +154,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void Precedence6()
         {
-            var (ms, _) = Test(new[] {
+            var ms = Test(new[] {
                 "num=1 x=not(not 0) y=0 ifx!=y thengoto19end num++ ",
                 "x=not(not 1) y=1 ifx!=y thengoto19end num++ ",
                 "x=(not 0) and not 0 y=1 ifx!=y thengoto19end num++ ",

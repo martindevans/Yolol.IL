@@ -16,7 +16,7 @@ namespace Benchmark
         private readonly Network _network;
         private readonly MachineState _state;
 
-        private readonly Func<ArraySegment<Value>, ArraySegment<Value>, int>[] _compiledLines;
+        private readonly Func<ArraySegment<Value>, ArraySegment<Value>, LineResult>[] _compiledLines;
         private readonly CompiledProgram _compiledProgramLine;
         private readonly Value[] _internals;
         private readonly Value[] _externals;
@@ -50,7 +50,7 @@ namespace Benchmark
             };
             var internalsPerLine = new InternalsMap();
             var externalsPerLine = new ExternalsMap();
-            _compiledLines = new Func<ArraySegment<Value>, ArraySegment<Value>, int>[_ast.Lines.Count];
+            _compiledLines = new Func<ArraySegment<Value>, ArraySegment<Value>, LineResult>[_ast.Lines.Count];
             for (var i = 0; i < _ast.Lines.Count; i++)
                 _compiledLines[i] = _ast.Lines[i].Compile(i + 1, 20, null, internalsPerLine, externalsPerLine, types);
 
@@ -111,7 +111,7 @@ namespace Benchmark
 
             var pc = 0;
             for (var i = 0; i < _ast.Lines.Count; i++)
-                pc = _compiledLines[pc].Invoke(_internals, _externals) - 1;
+                pc = _compiledLines[pc].Invoke(_internals, _externals).ProgramCounter - 1;
 
             return (_internals, _externals);
         }

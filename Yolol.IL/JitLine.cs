@@ -6,14 +6,14 @@ namespace Yolol.IL
     public class JitLine
         : IJitLine
     {
-        private readonly Func<ArraySegment<Value>, ArraySegment<Value>, int> _compiled;
+        private readonly Func<ArraySegment<Value>, ArraySegment<Value>, LineResult> _compiled;
 
-        internal JitLine(Func<ArraySegment<Value>, ArraySegment<Value>, int> compiled)
+        internal JitLine(Func<ArraySegment<Value>, ArraySegment<Value>, LineResult> compiled)
         {
             _compiled = compiled;
         }
 
-        public int Run(ArraySegment<Value> internals, ArraySegment<Value> externals)
+        public LineResult Run(ArraySegment<Value> internals, ArraySegment<Value> externals)
         {
             return _compiled(internals, externals);
         }
@@ -21,6 +21,6 @@ namespace Yolol.IL
 
     public interface IJitLine
     {
-        int Run(ArraySegment<Value> internals, ArraySegment<Value> externals);
+        LineResult Run(ArraySegment<Value> internals, ArraySegment<Value> externals);
     }
 }

@@ -9,7 +9,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void TrimConstant()
         {
-            var (ms, _) = Test(new[] {
+            var ms = Test(new[] {
                 "a=\"1234567\"",
             }, 3, 5);
 
@@ -19,7 +19,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void TrimAddition()
         {
-            var (ms, _) = Test(new[] {
+            var ms = Test(new[] {
                 "a=\"1234567\"",
                 "b=\"1234567\"",
                 "c=a+b"
@@ -31,7 +31,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void TrimIncrement()
         {
-            var (ms, _) = Test(new[] {
+            var ms = Test(new[] {
                 "a=\"\" a++ a++ a++ a++ a++ a++ a++ a++ a++ a++ a++",
             }, 1, 3);
 
@@ -41,7 +41,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void TrimCompoundAddition()
         {
-            var (ms, _) = Test(new[] {
+            var ms = Test(new[] {
                 "a=\"abcd\" a+=\"efgh\"",
             }, 1, 5);
 

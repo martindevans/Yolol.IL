@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <Version>13</Version>
+    <Version>14</Version>
     <Platforms>AnyCPU;x64</Platforms>
     <Nullable>enable</Nullable>
     <Authors>Martin Evans</Authors>
@@ -35,7 +35,7 @@
     <PackageReference Include="Lokad.ILPack" Version="0.1.6" />
     <PackageReference Include="Sigil.NetStandard" Version="4.8.0" />
     <PackageReference Include="Yolol" Version="14.6.1" />
-    <PackageReference Include="Yolol.Analysis" Version="6.2.4" />
+    <PackageReference Include="Yolol.Analysis" Version="7.0.0" />
   </ItemGroup>
 
 </Project>

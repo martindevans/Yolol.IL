@@ -243,6 +243,11 @@ namespace Yolol.IL.Compiler.Emitter
             _ops.Add(new LoadConstantInt64(value));
         }
 
+        public void LoadConstant(ulong value)
+        {
+            _ops.Add(new LoadConstantUInt64(value));
+        }
+
         public void LoadConstant(string value)
         {
             _ops.Add(new LoadConstantString(value));
@@ -255,9 +260,9 @@ namespace Yolol.IL.Compiler.Emitter
             _ops.Add(new NewObjectConstructor(constructor));
         }
 
-        public void NewObject<TA, TB>()
+        public void NewObject<TConstruct, TParameter>()
         {
-            _ops.Add(new NewObject<TA, TB>());
+            _ops.Add(new NewObject<TConstruct, TParameter>());
         }
         #endregion
 

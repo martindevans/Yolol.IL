@@ -12,7 +12,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void SingleAssignment()
         {
-            var (st, _) = Test("a=7");
+            var st = Test("a=7");
 
             Assert.AreEqual(7, (int)st.GetVariable("a").Number);
         }
@@ -20,7 +20,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void SingleAssignmentWithAnnotations()
         {
-            var (st, _) = Test("a=7", staticTypes: new Dictionary<VariableName, Type> {
+            var st = Test("a=7", staticTypes: new Dictionary<VariableName, Type> {
                 {  new VariableName("a"), Type.Number },
             });
 
@@ -30,7 +30,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void OverwriteAssignment()
         {
-            var (st, _) = Test("a=7 a=8");
+            var st = Test("a=7 a=8");
 
             Assert.AreEqual(8, (int)st.GetVariable("a").Number);
         }
@@ -38,7 +38,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void OverwriteTypeAssignment()
         {
-            var (st, _) = Test("a=7 a=\"8\"");
+            var st = Test("a=7 a=\"8\"");
 
             Assert.AreEqual("8", st.GetVariable("a").String.ToString());
         }

@@ -9,7 +9,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void SqrtA()
         {
-            var (ms, _) = Test("x=sqrt 24 y=sqrt 23.999");
+            var ms = Test("x=sqrt 24 y=sqrt 23.999");
 
             Assert.AreEqual("4.898", ms.GetVariable("y").Number.ToString());
             Assert.AreEqual("4.899", ms.GetVariable("x").Number.ToString());
@@ -18,7 +18,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void SqrtB()
         {
-            var (ms, _) = Test("x=sqrt 2");
+            var ms = Test("x=sqrt 2");
 
             Assert.AreEqual("1.414", ms.GetVariable("x").Number.ToString());
         }
@@ -26,7 +26,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void SqrtC()
         {
-            var (ms, _) = Test("x=sqrt 7");
+            var ms = Test("x=sqrt 7");
 
             Assert.AreEqual("2.645", ms.GetVariable("x").Number.ToString());
         }
@@ -34,7 +34,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void SqrtD()
         {
-            var (ms, _) = Test("x=sqrt 32199");
+            var ms = Test("x=sqrt 32199");
 
             Assert.AreEqual("179.44", ms.GetVariable("x").Number.ToString());
         }
@@ -42,7 +42,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void SqrtE()
         {
-            var (ms, _) = Test("x=sqrt 1000001");
+            var ms = Test("x=sqrt 1000001");
 
             Assert.AreEqual("1000", ms.GetVariable("x").Number.ToString());
         }
@@ -50,7 +50,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void SqrtF()
         {
-            var (ms, _) = Test("x=sqrt 1000002");
+            var ms = Test("x=sqrt 1000002");
 
             Assert.AreEqual("1000.001", ms.GetVariable("x").Number.ToString());
         }
@@ -58,7 +58,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void SqrtG()
         {
-            var (ms, _) = Test("x=sqrt 9223372036854775.807");
+            var ms = Test("x=sqrt 9223372036854775.807");
 
             Assert.AreEqual("-9223372036854775.808", ms.GetVariable("x").Number.ToString());
         }
@@ -66,7 +66,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void SqrtH()
         {
-            var (ms, _) = Test("x=sqrt -3");
+            var ms = Test("x=sqrt -3");
 
             Assert.AreEqual("-9223372036854775.808", ms.GetVariable("x").Number.ToString());
         }
@@ -74,7 +74,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void SqrtI()
         {
-            var (ms, _) = Test("x=sqrt 9223372036854775");
+            var ms = Test("x=sqrt 9223372036854775");
 
             Assert.AreEqual("-9223372036854775.808", ms.GetVariable("x").Number.ToString());
         }
@@ -82,7 +82,7 @@ namespace Yolol.IL.Tests.Acid
         [TestMethod]
         public void SqrtJ()
         {
-            var (ms, _) = Test("x=sqrt 9223372036854774.999");
+            var ms = Test("x=sqrt 9223372036854774.999");
 
             Assert.AreEqual("96038388.349", ms.GetVariable("x").Number.ToString());
         }

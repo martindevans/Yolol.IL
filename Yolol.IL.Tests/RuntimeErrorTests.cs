@@ -10,7 +10,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void StaticRuntimeError()
         {
-            var (st, _) = Test("a=2 a/=0 a=3");
+            var st = Test("a=2 a/=0 a=3");
 
             Assert.AreEqual((Value)2, st.GetVariable("a"));
         }
@@ -18,7 +18,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void DynamicRuntimeError()
         {
-            var (st, _) = Test("a=2 b=0 a/=b a=3");
+            var st = Test("a=2 b=0 a/=b a=3");
 
             Assert.AreEqual((Value)2, st.GetVariable("a"));
         }

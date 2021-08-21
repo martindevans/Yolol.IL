@@ -123,6 +123,12 @@ namespace Yolol.IL.Compiler
         {
             segment[index] = value;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void BitSet(ulong flag, ref ulong set)
+        {
+            set |= flag;
+        }
         #endregion
     }
 }
