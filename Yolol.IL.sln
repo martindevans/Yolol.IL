@@ -14,6 +14,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Benchmarks.txt = Benchmarks.txt
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Yolol.IL.Runtime", "Yolol.IL.Runtime\Yolol.IL.Runtime.csproj", "{2B654F7A-DD02-4071-BD45-94AC7AA083DC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -46,6 +48,14 @@ Global
 		{5CE5FFF8-24C5-4A91-8548-A5BB659FD739}.Release|Any CPU.Build.0 = Release|Any CPU
 		{5CE5FFF8-24C5-4A91-8548-A5BB659FD739}.Release|x64.ActiveCfg = Release|x64
 		{5CE5FFF8-24C5-4A91-8548-A5BB659FD739}.Release|x64.Build.0 = Release|x64
+		{2B654F7A-DD02-4071-BD45-94AC7AA083DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B654F7A-DD02-4071-BD45-94AC7AA083DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B654F7A-DD02-4071-BD45-94AC7AA083DC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2B654F7A-DD02-4071-BD45-94AC7AA083DC}.Debug|x64.Build.0 = Debug|Any CPU
+		{2B654F7A-DD02-4071-BD45-94AC7AA083DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B654F7A-DD02-4071-BD45-94AC7AA083DC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2B654F7A-DD02-4071-BD45-94AC7AA083DC}.Release|x64.ActiveCfg = Release|Any CPU
+		{2B654F7A-DD02-4071-BD45-94AC7AA083DC}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

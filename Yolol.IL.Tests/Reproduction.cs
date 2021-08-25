@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using System;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Yolol.Execution;
 
 namespace Yolol.IL.Tests
@@ -79,6 +80,20 @@ namespace Yolol.IL.Tests
         public void Spaceship()
         {
             var ms = TestHelpers.Test("if :q then :x=0 goto l end if :q then :x++ end");
+        }
+
+        [TestMethod]
+        public void ZijkhalBoolDivision()
+        {
+            const string code = "a=-9223372036854775.808 c=a/1";
+            var ast = TestHelpers.Parse(code);
+
+            var st = new MachineState(new NullDeviceNetwork(), 20);
+            ast.Lines[0].Evaluate(1, st);
+
+            var ms = TestHelpers.Test(code);
+
+            Assert.AreEqual(st.GetVariable("c").Value, ms.GetVariable("c"));
         }
     }
 }

@@ -9,3 +9,5 @@ obj
 bin
 _ReSharper.Caches
 /Yolol.IL/nuget-push.ps1
+/Benchmark/Properties/PublishProfiles/FolderProfile.pubxml
+/Benchmark/Properties/launchSettings.json
