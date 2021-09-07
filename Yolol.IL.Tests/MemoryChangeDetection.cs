@@ -99,5 +99,19 @@ namespace Yolol.IL.Tests
             Assert.IsFalse(cs.Contains(b));
             Assert.IsTrue(cs.Contains(c));
         }
+
+        [TestMethod]
+        public void ChangeAfterErrorIsNotMarked()
+        {
+            var st = Test(":a=7 x/=0 :b=1", changeDetection: true);
+
+            var a = st.GetVariableChangeSetKey(new VariableName(":a"));
+            var b = st.GetVariableChangeSetKey(new VariableName(":b"));
+
+            var cs = st.ChangeSet;
+
+            Assert.IsTrue(cs.Contains(a));
+            Assert.IsFalse(cs.Contains(b));
+        }
     }
 }

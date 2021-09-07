@@ -24,9 +24,9 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
         public override string ToString()
         {
             if (IsReadonly)
-                return $"LoadLocalAddr({Local.Name}) (readonly):";
+                return $"LoadLocalAddr({Local.Name}, readonly)";
             else
-                return $"LoadLocalAddr({Local.Name}):";
+                return $"LoadLocalAddr({Local.Name})";
         }
     }
 }

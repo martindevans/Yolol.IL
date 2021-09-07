@@ -1,11 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Yolol.IL.Compiler.Emitter.Instructions;
 
 namespace Yolol.IL.Compiler.Emitter.Optimisations
 {
     /// <summary>
-    /// Search for the chain: Dup(), Store(_), Pop()
+    /// Search for the chain: Dup(), Store(X), Pop()
     /// Remove the Dup/Pop operations.
     /// </summary>
     internal class DupStorePopChain
@@ -22,8 +21,7 @@ namespace Yolol.IL.Compiler.Emitter.Optimisations
 
         protected override bool Replace(List<BaseInstruction> instructions)
         {
-            if (instructions.Count != 3)
-                throw new ArgumentException("incorrect instruction count");
+            ThrowHelper.Check(instructions.Count == 3, "incorrect instruction count");
 
             var dup = (Duplicate)instructions[0];
             var store = (StoreLocal)instructions[1];

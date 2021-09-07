@@ -16,56 +16,40 @@ namespace Yolol.IL.Compiler.Emitter.Optimisations
 
         protected abstract bool Replace(List<BaseInstruction> instructions);
 
-        protected virtual bool PreReplace(IReadOnlyList<BaseInstruction> allInstructions, List<BaseInstruction> slice, int matchStart, int matchLength)
+        private bool MatchWindow(IReadOnlyList<BaseInstruction> allOps, int start, int length)
         {
-            return true;
-        }
+            ThrowHelper.Check(length == _opTypes.Length, "Incorrect instruction slice length");
+            ThrowHelper.Check(start + length <= allOps.Count, "Slice is out of bounds");
 
-        protected virtual bool ReplaceWide(List<BaseInstruction> allInstructions, int matchStart, int matchLength)
-        {
-            return false;
-        }
-
-        private bool CheckSegment(IReadOnlyList<BaseInstruction> instructions)
-        {
-            if (instructions.Count != _opTypes.Length)
-                throw new ArgumentException("Incorrect instruction slice length");
-
-            for (var i = 0; i < instructions.Count; i++)
-                if (!instructions[i].GetType().IsAssignableFrom(_opTypes[i]))
+            for (var i = 0; i < length; i++)
+                if (!allOps[start + i].GetType().IsAssignableFrom(_opTypes[i]))
                     return false;
 
             return true;
         }
 
-        public bool Match(List<BaseInstruction> ops)
+        public bool Match(List<BaseInstruction> allOps)
         {
             var status = false;
             var slice = new List<BaseInstruction>(_opTypes.Length);
 
-            for (var i = 0; i < ops.Count; i++)
+            // Run a sliding window over the instruction stream, checking for matches
+            for (var i = 0; i < allOps.Count - _opTypes.Length; i++)
             {
-                slice.Clear();
-                slice.AddRange(ops.Skip(i).Take(_opTypes.Length));
-                if (slice.Count != _opTypes.Length)
-                    return status;
-
-                if (CheckSegment(slice))
+                if (MatchWindow(allOps, i, _opTypes.Length))
                 {
-                    if (!PreReplace(ops, slice, i, _opTypes.Length))
-                        continue;
+                    // Copy out the relevant instructions
+                    slice.Clear();
+                    slice.AddRange(allOps.Skip(i).Take(_opTypes.Length));
+                    ThrowHelper.Check(slice.Count == _opTypes.Length, "Incorrect slice length");
 
-                    if (ReplaceWide(ops, i, _opTypes.Length))
-                    {
-                        status = true;
-                        break;
-                    }
-
+                    // Try to mutate that list with the optimisation
                     if (!Replace(slice))
                         continue;
 
-                    ops.RemoveRange(i, _opTypes.Length);
-                    ops.InsertRange(i, slice);
+                    // It succeeded! Replace the instructions in the original
+                    allOps.RemoveRange(i, _opTypes.Length);
+                    allOps.InsertRange(i, slice);
                     status = true;
                 }
             }

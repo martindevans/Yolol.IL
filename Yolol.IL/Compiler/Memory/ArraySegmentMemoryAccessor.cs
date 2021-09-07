@@ -21,7 +21,7 @@ namespace Yolol.IL.Compiler.Memory
         private readonly IReadonlyInternalsMap _internals;
         private readonly IReadonlyExternalsMap _externals;
 
-        private readonly StaticTypeTracker _types;
+        private readonly IStaticTypeTracker _types;
 
         private readonly Dictionary<VariableName, TypedLocal> _cache;
         private readonly Dictionary<VariableName, Local> _cacheDirty;
@@ -34,7 +34,7 @@ namespace Yolol.IL.Compiler.Memory
             ushort internalArraySegmentArg,
             IReadonlyInternalsMap internals,
             IReadonlyExternalsMap externals,
-            StaticTypeTracker types,
+            IStaticTypeTracker types,
             Local? changeSet)
         {
             _emitter = emitter;
@@ -112,6 +112,7 @@ namespace Yolol.IL.Compiler.Memory
                 local.Local.Dispose();
             }
 
+            // Dispose the locals
             foreach (var local in _cacheDirty)
                 local.Value.Dispose();
         }
@@ -123,6 +124,7 @@ namespace Yolol.IL.Compiler.Memory
         /// <param name="types"></param>
         public void Store(VariableName name, TypeStack<TEmit> types)
         {
+            // Update the type tracker with the newly discovered type
             _types.Store(name, types.Peek);
 
             if (_cache.ContainsKey(name))
@@ -285,7 +287,8 @@ namespace Yolol.IL.Compiler.Memory
 
             if (_changeSet != null)
             {
-                _emitter.LoadConstant(SegmentBitFlag(name));
+                var flag = SegmentBitFlag(name);
+                _emitter.LoadConstant(flag);
                 _emitter.LoadLocalAddress(_changeSet, false);
                 _emitter.CallRuntimeN(nameof(Runtime.BitSet), typeof(ulong), typeof(ulong).MakeByRefType());
             }

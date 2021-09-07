@@ -95,5 +95,12 @@ namespace Yolol.IL.Tests
 
             Assert.AreEqual(st.GetVariable("c").Value, ms.GetVariable("c"));
         }
+
+        [TestMethod]
+        public void CraterIncrement()
+        {
+            var ms = TestHelpers.Test(":o=0 if v then :o++ end");
+            Assert.AreEqual((Number)0, ms.GetVariable(":o").Number);
+        }
     }
 }

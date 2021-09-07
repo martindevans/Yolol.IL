@@ -1,9 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Yolol.IL.Compiler.Emitter.Instructions;
 
 namespace Yolol.IL.Compiler.Emitter.Optimisations
 {
+    /// <summary>
+    /// Search for the chain: Store(X), Load(X)
+    /// Replace with: Dup(), Store(X)
+    /// </summary>
     internal class StoreLoadChain
         : BaseOptimisation
     {
@@ -17,8 +20,7 @@ namespace Yolol.IL.Compiler.Emitter.Optimisations
 
         protected override bool Replace(List<BaseInstruction> instructions)
         {
-            if (instructions.Count != 2)
-                throw new ArgumentException("incorrect instruction count");
+            ThrowHelper.Check(instructions.Count == 2, "incorrect instruction count");
 
             var store = (StoreLocal)instructions[0];
             var load = (LoadLocal)instructions[1];

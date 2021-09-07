@@ -37,7 +37,6 @@ namespace Yolol.IL.Compiler.Emitter
         public void Optimise()
         {
             var optimisations = new List<BaseOptimisation> {
-                //new LoadStoreChain2(),
                 new StoreLoadChain(),
                 new LoadStoreChain(),
                 new DupStorePopChain(),

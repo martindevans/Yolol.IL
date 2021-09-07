@@ -26,7 +26,7 @@ namespace Yolol.IL.Compiler
         private readonly Label2<TEmit> _gotoLabel;
 
         private readonly TypeStack<TEmit> _typesStack;
-        private readonly StaticTypeTracker _staticTypes;
+        private readonly IStaticTypeTracker _staticTypes;
         private readonly int? _maxStringLength;
 
         public ConvertLineVisitor(
@@ -35,7 +35,7 @@ namespace Yolol.IL.Compiler
             IMemoryAccessor<TEmit> memory,
             ExceptionBlock unwinder,
             Label2<TEmit> gotoLabel,
-            StaticTypeTracker staticTypes,
+            IStaticTypeTracker staticTypes,
             int? maxStringLength
         )
         {
@@ -91,7 +91,7 @@ namespace Yolol.IL.Compiler
             _emitter.BranchIfFalse(falseLabel);
 
             // Emit true branch
-            TypeContext trueCtx;
+            ITypeContext trueCtx;
             using (trueCtx = _staticTypes.EnterContext())
             {
                 Visit(@if.TrueBranch);
@@ -99,7 +99,7 @@ namespace Yolol.IL.Compiler
             }
 
             // Emit false branch
-            TypeContext falseCtx;
+            ITypeContext falseCtx;
             using (falseCtx = _staticTypes.EnterContext())
             {
                 _emitter.MarkLabel(falseLabel);
@@ -982,50 +982,13 @@ namespace Yolol.IL.Compiler
 
         protected override BaseStatement Visit(ExpressionWrapper expr)
         {
-            bool Inc(BaseIncrement inc)
-            {
-                // Put the value to increment on the stack
-                Visit(new Grammar.AST.Expressions.Variable(inc.Name));
+            var r = base.Visit(expr);
 
-                // Find the increment method on whatever type it is
-                var peek = _typesStack.Peek.ToType();
-                var method = peek.GetMethod("op_Increment", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { peek }, null);
-                if (method == null)
-                    return false;
+            // The wrapped expression left a value on the stack. Pop it off now.
+            _emitter.Pop();
+            _typesStack.Pop(_typesStack.Peek);
 
-                // Do the work
-                _emitter.Call(method);
-                _typesStack.Pop(_typesStack.Peek);
-                _typesStack.Push(method.ReturnType.ToStackType());
-
-                CheckStringLength();
-
-                // Save the result
-                _memory.Store(inc.Name, _typesStack);
-
-                return true;
-            }
-
-            // Special case increment here. Since we know the return value isn't going to be used it doesn't matter if it's a pre/post inc
-            // and all of the work duplicating values and shuffling the stack to ensure the right value is returned doesn't matter. Decrement
-            // could also be special cased like this in principle, but it's quite a lot more complex due to error handling.
-            switch (expr.Expression)
-            {
-                case BaseIncrement inc:
-                    // If special case failed, fall back to default handling
-                    if (!Inc(inc))
-                        goto default;
-                    return expr;
-
-                default:
-                    var r = base.Visit(expr);
-
-                    // The wrapped expression left a value on the stack. Pop it off now.
-                    _emitter.Pop();
-                    _typesStack.Pop(_typesStack.Peek);
-
-                    return r;
-            }
+            return r;
         }
     }
 }

@@ -1,4 +1,6 @@
-﻿using System;
+﻿#define ENABLE_STACK_TYPE_TRACKING
+
+using System;
 using System.Collections.Generic;
 using Yolol.Grammar;
 using System.Linq;
@@ -8,6 +10,7 @@ using Type = Yolol.Execution.Type;
 namespace Yolol.IL.Compiler.Memory
 {
     internal class StaticTypeTracker
+        : IStaticTypeTracker
     {
         private readonly ITypeContext _root;
         private ITypeContext _current;
@@ -23,22 +26,22 @@ namespace Yolol.IL.Compiler.Memory
             return _current.TypeOf(name);
         }
 
-        public TypeContext EnterContext()
+        public ITypeContext EnterContext()
         {
             var ctx = new TypeContext(this, _current);
             _current = ctx;
             return ctx;
         }
 
-        public void ExitContext(TypeContext context)
+        public void ExitContext(ITypeContext context)
         {
             ThrowHelper.Check(ReferenceEquals(_current, context), "Cannot exit non-current type context");
             ThrowHelper.Check(!ReferenceEquals(_root, context), "Cannot exit root type context");
 
-            _current = context.Parent;
+            _current = ((TypeContext)context).Parent;
         }
 
-        public void Unify(params TypeContext[] contexts)
+        public void Unify(params ITypeContext[] contexts)
         {
             ThrowHelper.Check(!contexts.Contains(_current), "Cannot unify types with an active context");
             ThrowHelper.Check(contexts.Select(c => c.Parent).Distinct().Count() == 1, "Cannot unify types with different parents");
@@ -83,6 +86,12 @@ namespace Yolol.IL.Compiler.Memory
         {
             private readonly IDictionary<VariableName, StackType> _types;
 
+            public uint Depth => 0;
+
+            public ITypeContext Parent => throw ThrowHelper.Invalid("Root type context has no parent");
+
+            public IReadOnlyDictionary<VariableName, StackType> Types => (IReadOnlyDictionary<VariableName, StackType>)_types;
+
             public RootContext(IReadOnlyDictionary<VariableName, Type> types)
             {
                 var t = new Dictionary<VariableName, StackType>();
@@ -102,14 +111,12 @@ namespace Yolol.IL.Compiler.Memory
                     return type;
                 return null;
             }
+
+            public void Dispose()
+            {
+                throw ThrowHelper.Invalid("Cannot dispose root type context");
+            }
         }
-    }
-
-    internal interface ITypeContext
-    {
-        void Store(VariableName name, StackType type);
-
-        public StackType? TypeOf(VariableName varName);
     }
 
     internal class TypeContext

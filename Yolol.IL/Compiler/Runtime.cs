@@ -28,6 +28,7 @@ namespace Yolol.IL.Compiler
         #endregion
 
         #region value
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Value TrimValue(Value value, int maxStringLength)
         {
             if (value.Type != Execution.Type.String)
@@ -38,6 +39,7 @@ namespace Yolol.IL.Compiler
         #endregion
 
         #region number
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Number Abs(Number value)
         {
             return value.Abs();
