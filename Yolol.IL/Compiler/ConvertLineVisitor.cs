@@ -952,15 +952,14 @@ namespace Yolol.IL.Compiler
             _emitter.Call(method);
             _typesStack.Pop(_typesStack.Peek);
             _typesStack.Push(method.ReturnType.ToStackType());
-            
+            CheckStringLength();
+
             // If we need to return the new value, save it now by duplicating it
             if (preOp)
             {
                 _emitter.Duplicate();
                 _typesStack.Push(_typesStack.Peek);
             }
-
-            CheckStringLength();
 
             // Write value to variable
             _memory.Store(expr.Name, _typesStack);
