@@ -113,5 +113,17 @@ namespace Yolol.IL.Tests
             Assert.IsTrue(cs.Contains(a));
             Assert.IsFalse(cs.Contains(b));
         }
+
+        [TestMethod]
+        public void NoChangeForNonExistantVar()
+        {
+            var st = Test(":a=7 x/=0 :b=1", changeDetection: true);
+
+            var c = st.GetVariableChangeSetKey(new VariableName(":c"));
+
+            var cs = st.ChangeSet;
+
+            Assert.IsFalse(cs.Contains(c));
+        }
     }
 }

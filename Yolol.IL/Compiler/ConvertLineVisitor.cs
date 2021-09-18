@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Yolol.Analysis.ControlFlowGraph.AST;
@@ -222,14 +223,28 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(ConstantString str)
         {
-            // Check the constant is not over the max length
+            // Ensure the constant is not over the max length
             var trimmed = str.Value;
             if (_maxStringLength.HasValue)
                 trimmed = YString.Trim(trimmed, _maxStringLength.Value);
 
+            // Count the ones and zeros in the string
+            var count0 = trimmed.ToString().Count(a => a == '0');
+            var count1 = trimmed.ToString().Count(a => a == '1');
+
+            // Find the constructor which takes explicit counts
+            var cons = typeof(YString).GetConstructor(
+                BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[] { typeof(string), typeof(int), typeof(int) },
+                null
+            )!;
+
             // Put a string on the stack
             _emitter.LoadConstant(trimmed.ToString());
-            _emitter.NewObject<YString, string>();
+            _emitter.LoadConstant(count0);
+            _emitter.LoadConstant(count1);
+            _emitter.NewObject(cons);
             _typesStack.Push(StackType.YololString);
 
             return str;
