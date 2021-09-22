@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using Yolol.Execution;
@@ -121,7 +120,7 @@ namespace Benchmark
                 Console.WriteLine($" - FAILED! Expected `:OUTPUT==\"ok\"`, got ``:OUTPUT==\"{output}\"``");
         }
 
-        private static Yolol.Grammar.AST.Program Parse([NotNull] params string[] lines)
+        private static Yolol.Grammar.AST.Program Parse(params string[] lines)
         {
             var result = Parser.ParseProgram(string.Join("\n", lines));
             if (!result.IsOk)
