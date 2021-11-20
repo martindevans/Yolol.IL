@@ -25,7 +25,7 @@ while (true)
     compiled.Tick(internals, externals)
 ```
 
-Each call to `Run` will execute one line of Yolol.
+Each call to `Tick` will execute one line of Yolol.
 
 # Advanced Usage
 
@@ -56,7 +56,7 @@ The first pass consumes Yolol and produces IL, it is split across several files.
 
 `Yolol.IL\Extensions\CompileExtensions.cs` provides a set of `Compile` extension methods on Yolol ASTs and individual Yolol lines. All of these extensions ultimately call one single extension which sets up the method body and then calls the `ConvertLineVisitor`. Part of the setup involves creating a try/catch block for Yolol runtime exceptions. The compiler should emit code which never causes a runtime exception (they're very slow), but this exists just in case one is missed!
 
-`Yolol.IL\Compiler\ConvertLineVisitor.cs` walks over the AST and emits IL node by node. There is a `Visit` method for every single statement/expression type in the language which is responsible for emitting code for that item. IL is a stack based language, so each of these `Visit` methods generally drops
+`Yolol.IL\Compiler\ConvertLineVisitor.cs` walks over the AST and emits IL node by node. There is a `Visit` method for every single statement/expression type in the language which is responsible for emitting code for that item.
 
 `Yolol.IL\Compiler\TypeStack.cs` provides a helper for keeping track of types on the stack. IL is a stack based language, so many of the `Visit` methods leave a value onto the stack, the type stack keeps track of what type it was. Most `Visit` methods which consume values off the stack will inspect this and specialise based on the types it is about to operate on.
 
@@ -80,7 +80,7 @@ The `Duplicate` and `Pop` instructions are useless here since they duplicate a v
 
 # Contributing
 
-Although Yolol.IL is quite a complex project overall, contributing an single optimisation is generally quite well contained and only touches a small part of the project. There are broadly three ways an optimisation can be added:
+Although Yolol.IL is quite a complex project overall contributing an single optimisation is relatively simple and should only touch a small part of the project. There are broadly three ways an optimisation can be added:
 
  - Add a way to discover more type information.
  - Modify a single `Visit` method to make better use of type information available to it.
