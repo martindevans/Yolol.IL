@@ -6,7 +6,7 @@ namespace Benchmark
 {
     public class Program
     {
-        public static void Main()
+        public static void Main(string[] args)
         {
             //var config = DefaultConfig.Instance;
             //var summary = BenchmarkRunner.Run<CompareInterpreter>(config);

@@ -13,7 +13,7 @@ namespace Benchmark
     public class FlexBench
     {
         // How long to run batches for. Set according to patience.
-        private static readonly TimeSpan Duration = TimeSpan.FromSeconds(2);
+        private static readonly TimeSpan Duration = TimeSpan.FromSeconds(5);
 
         private readonly DirectoryInfo _dir;
 
@@ -26,8 +26,11 @@ namespace Benchmark
         {
             // Pin to one core to reduce benchmarking noise.
             var proc = Process.GetCurrentProcess();
-            const int affinity = 1 << 5;
-            proc.ProcessorAffinity = (IntPtr)affinity;
+            if (OperatingSystem.IsLinux() || OperatingSystem.IsWindows())
+            {
+                const int affinity = 1 << 5;
+                proc.ProcessorAffinity = (IntPtr)affinity;
+            }
 
             // Make it high priority to reduce benchmarking noise.
             proc.PriorityClass = ProcessPriorityClass.High;
@@ -88,8 +91,7 @@ namespace Benchmark
             {
                 var innerTimer = new Stopwatch();
                 innerTimer.Start();
-                for (var i = 0; i < iterations; i++)
-                    compiled.Tick(internals, externals);
+                compiled.Run(internals, externals, iterations, default);
                 innerTimer.Stop();
                 totalLineCount += (ulong)iterations;
 

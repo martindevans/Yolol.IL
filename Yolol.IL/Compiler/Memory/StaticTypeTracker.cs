@@ -86,8 +86,6 @@ namespace Yolol.IL.Compiler.Memory
         {
             private readonly IDictionary<VariableName, StackType> _types;
 
-            public uint Depth => 0;
-
             public ITypeContext Parent => throw ThrowHelper.Invalid("Root type context has no parent");
 
             public IReadOnlyDictionary<VariableName, StackType> Types => (IReadOnlyDictionary<VariableName, StackType>)_types;

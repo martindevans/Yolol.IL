@@ -27,10 +27,15 @@ namespace Benchmark
 
         public LinesPerSecond()
         {
-            // Pin to one core, to reduce noise as it migrates from core to core
+            // Pin to one core to reduce benchmarking noise.
             var proc = Process.GetCurrentProcess();
-            const int affinity = 1 << 5;
-            proc.ProcessorAffinity = (IntPtr)affinity;
+            if (OperatingSystem.IsLinux() || OperatingSystem.IsWindows())
+            {
+                const int affinity = 1 << 5;
+                proc.ProcessorAffinity = (IntPtr)affinity;
+            }
+
+            // Make it high priority to reduce benchmarking noise.
             proc.PriorityClass = ProcessPriorityClass.High;
 
             var ast = Parse(_program);

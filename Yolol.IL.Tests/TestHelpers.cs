@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using Yolol.Execution;
 using Yolol.Grammar;
+using Yolol.Grammar.AST;
 using Yolol.IL.Compiler;
 using Yolol.IL.Extensions;
 using Type = Yolol.Execution.Type;
@@ -10,11 +13,11 @@ namespace Yolol.IL.Tests
 {
     public static class TestHelpers
     {
-        public static Grammar.AST.Program Parse(params string[] lines)
+        public static Program Parse(params string[] lines)
         {
             var result = Parser.ParseProgram(string.Join("\n", lines));
             if (!result.IsOk)
-                throw new ArgumentException($"Cannot parse program: {result.Err}");
+                throw new ArgumentException($"Cannot parse program:\n{result.Err}");
 
             return result.Ok;
         }
@@ -39,9 +42,15 @@ namespace Yolol.IL.Tests
 
         public static IMachineState Test(string[] lines, int iterations, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null, bool changeDetection = false)
         {
+            var prog = Parse(lines);
+            return Test(prog, iterations, maxStringLength, staticTypes, changeDetection);
+        }
+
+        public static IMachineState Test(Program program, int iterations, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null, bool changeDetection = false)
+        {
             var ext = new ExternalsMap();
-            var prog = Parser.ParseProgram(string.Join("\n", lines)).Ok;
-            var compiled = prog.Compile(ext, maxStringLength: maxStringLength, staticTypes: staticTypes, changeDetection: changeDetection);
+            var lines = Math.Max(20, program.Lines.Count);
+            var compiled = program.Compile(ext, maxLines: lines, maxStringLength: maxStringLength, staticTypes: staticTypes, changeDetection: changeDetection);
             var doneIndex = compiled.InternalsMap.GetValueOrDefault(new VariableName("done"), -1);
 
             var i = new Value[compiled.InternalsMap.Count];
@@ -61,6 +70,66 @@ namespace Yolol.IL.Tests
 
             return new CompiledMachineState(compiled, ext, i, e);
         }
+
+        public static IMachineState Interpret(Program ast, int ticks)
+        {
+            var maxLines = Math.Max(20, ast.Lines.Count);
+
+            int CheckPc(int pc)
+            {
+                if (pc >= maxLines)
+                    return 0;
+                if (pc < 0)
+                    return 0;
+                return pc;
+            }
+
+            var pc = 0;
+            var nt = new DeviceNetwork();
+            var st = new MachineState(nt, (ushort)maxLines);
+
+            for (var i = 0; i < ticks; i++)
+            {
+                if (pc >= ast.Lines.Count)
+                {
+                    pc++;
+                }
+                else
+                {
+                    try
+                    {
+                        pc = ast.Lines[pc].Evaluate(pc, st);
+                    }
+                    catch (ExecutionException)
+                    {
+                        pc++;
+                    }
+                }
+
+                pc = CheckPc(pc);
+            }
+
+            return new InterpretMachineState(pc + 1, nt, st);
+        }
+
+        private class DeviceNetwork
+            : IDeviceNetwork
+        {
+            private readonly Dictionary<string, IVariable> _cache = new Dictionary<string, IVariable>();
+
+            public IVariable Get(string name)
+            {
+                name = name.ToLowerInvariant();
+                if (!_cache.TryGetValue(name, out var result))
+                {
+                    result = new Variable();
+                    result.Value = Number.Zero;
+                    _cache[name] = result;
+                }
+
+                return result;
+            }
+        }
     }
 
     public interface IMachineState
@@ -72,6 +141,32 @@ namespace Yolol.IL.Tests
         ChangeSet ChangeSet { get; }
 
         int ProgramCounter { get; }
+    }
+
+    public class InterpretMachineState
+        : IMachineState
+    {
+        private readonly MachineState _machineState;
+
+        public int ProgramCounter { get; }
+
+        public InterpretMachineState(int pc, IDeviceNetwork deviceNetwork, MachineState machineState)
+        {
+            _machineState = machineState;
+            ProgramCounter = pc;
+        }
+
+        public Value GetVariable(string v)
+        {
+            return _machineState.GetVariable(v).Value;
+        }
+
+        ChangeSetKey IMachineState.GetVariableChangeSetKey(VariableName n)
+        {
+            throw new NotSupportedException();
+        }
+
+        ChangeSet IMachineState.ChangeSet => throw new NotSupportedException();
     }
 
     public class EasyMachineState

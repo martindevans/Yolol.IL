@@ -278,7 +278,6 @@ namespace Yolol.IL.Extensions
                     var leftResult = ConvertExpression(binary.Left, emitter, parameters, errorLabel);
                     var rightResult = ConvertExpression(binary.Right, emitter, parameters, errorLabel);
 
-
                     var staticVal = (Value?)null;
                     if (leftResult.StaticValue.HasValue && rightResult.StaticValue.HasValue)
                         staticVal = (Number)(leftResult.StaticValue.Value.ToBool() & rightResult.StaticValue.Value.ToBool());
