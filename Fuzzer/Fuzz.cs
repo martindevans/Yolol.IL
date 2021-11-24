@@ -25,23 +25,23 @@ namespace Fuzzer
             var max = Math.Max(20, ast.Lines.Count);
 
             // Execute program in interpreter and compiled code
-            var interpretedTask = Task.Run(() => RunInterpreted(ast, max, iterations));
+            //var interpretedTask = Task.Run(() => RunInterpreted(ast, max, iterations));
             var compiled = RunCompiled(ast, max, iterations);
 
-            // Wait for interpreter to finish
-            interpretedTask.Wait();
-            var interpreted = interpretedTask.Result;
+            //// Wait for interpreter to finish
+            //interpretedTask.Wait();
+            //var interpreted = interpretedTask.Result;
 
             Console.WriteLine($"Compile: {compiled.Prepare.TotalMilliseconds}ms");
             Console.WriteLine($"Execute: {compiled.Execute.TotalMilliseconds}ms");
-            Console.WriteLine($"Interpret: {interpreted.Execute.TotalMilliseconds}ms");
+            //Console.WriteLine($"Interpret: {interpreted.Execute.TotalMilliseconds}ms");
 
             // Compare results
             //todo: interpreter does not implement string length limit, so results frequently differ
             //Compare(interpreted, compiled);
         }
 
-        private void Compare(IExecutionResult expected, IExecutionResult actual)
+        private static void Compare(IExecutionResult expected, IExecutionResult actual)
         {
             if (expected.ProgramCounter != actual.ProgramCounter)
                 throw new Exception($"PC differs! Expected:{expected.ProgramCounter} Actual:{actual.ProgramCounter}");
@@ -123,15 +123,14 @@ namespace Fuzzer
         private class DeviceNetwork
             : IDeviceNetwork
         {
-            private readonly Dictionary<string, IVariable> _cache = new Dictionary<string, IVariable>();
+            private readonly Dictionary<string, IVariable> _cache = new();
 
             public IVariable Get(string name)
             {
                 name = name.ToLowerInvariant();
                 if (!_cache.TryGetValue(name, out var result))
                 {
-                    result = new Variable();
-                    result.Value = Number.Zero;
+                    result = new Variable { Value = Number.Zero };
                     _cache[name] = result;
                 }
 

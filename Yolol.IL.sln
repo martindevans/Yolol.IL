@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29418.71
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31912.275
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Yolol.IL", "Yolol.IL\Yolol.IL.csproj", "{19B459B4-7660-4E97-9CD2-23346880856C}"
 EndProject
@@ -16,7 +16,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Yolol.IL.Runtime", "Yolol.IL.Runtime\Yolol.IL.Runtime.csproj", "{2B654F7A-DD02-4071-BD45-94AC7AA083DC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fuzzer", "Fuzzer\Fuzzer.csproj", "{2FAA782A-BD28-421F-94D8-8D8E7B30CDFD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fuzzer", "Fuzzer\Fuzzer.csproj", "{2FAA782A-BD28-421F-94D8-8D8E7B30CDFD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -12,7 +12,7 @@ namespace Fuzzer
         [Option('t', "threads", Required = false, HelpText = "Set number of fuzzer threads to use.", Default = 1)]
         public int ThreadCount { get; set; }
 
-        [Option('i', "iters", Required = false, HelpText = "Numbers of iterations to run each generated program for.", Default = 128)]
+        [Option('i', "iters", Required = false, HelpText = "Numbers of iterations to run each generated program for.", Default = 4096)]
         public int Iters { get; set; }
     }
 
