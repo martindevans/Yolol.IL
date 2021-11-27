@@ -62,8 +62,6 @@ namespace Fuzzer.Generators
 
                 _ => new Yolol.Grammar.AST.Expressions.Variable(_variable.Generate()),
             };
-
-            return new ConstantNumber(Number.One);
         }
 
         private Number RandomNumber()
