@@ -10,6 +10,62 @@ namespace Yolol.IL.Tests
     public class Reproduction
     {
         [TestMethod]
+        public void NumberPop()
+        {
+            var result = TestHelpers.Test(":a=11 :b=:a-:a--");
+
+            Assert.AreEqual(10, (int)result.GetVariable(":a").Number);
+            Assert.AreEqual(1, (int)result.GetVariable(":b").Number);
+        }
+
+        [TestMethod]
+        public void NumberValPop()
+        {
+            var result = TestHelpers.Test(new[] { ":a=11", ":b=:a-:a--" }, 2);
+
+            Assert.AreEqual(10, (int)result.GetVariable(":a").Number);
+            Assert.AreEqual(1, (int)result.GetVariable(":b").Number);
+        }
+
+        [TestMethod]
+        public void StringPop()
+        {
+            var result = TestHelpers.Test(":a=\"abc\" :b=:a-:a--");
+
+            Assert.AreEqual("ab", result.GetVariable(":a").String.ToString());
+            Assert.AreEqual("c", result.GetVariable(":b").String.ToString());
+        }
+
+        [TestMethod]
+        public void StringPopErr()
+        {
+            var result = TestHelpers.Test(":a=\"\" :b=:a-:a-- :c=1");
+
+            Assert.AreEqual("", result.GetVariable(":a").String.ToString());
+            Assert.AreEqual(0, (int)result.GetVariable(":b").Number);
+            Assert.AreEqual(0, (int)result.GetVariable(":c").Number);
+        }
+
+        [TestMethod]
+        public void StringValPop()
+        {
+            var result = TestHelpers.Test(new[] { ":a=\"abc\"", ":b=:a-:a--" }, 2);
+
+            Assert.AreEqual("ab", result.GetVariable(":a").String.ToString());
+            Assert.AreEqual("c", result.GetVariable(":b").String.ToString());
+        }
+
+        [TestMethod]
+        public void StringValPopErr()
+        {
+            var result = TestHelpers.Test(new[] { ":a=\"\"", ":b=:a-:a-- :c=1" }, 2);
+
+            Assert.AreEqual("", result.GetVariable(":a").String.ToString());
+            Assert.AreEqual(0, (int)result.GetVariable(":b").Number);
+            Assert.AreEqual(0, (int)result.GetVariable(":c").Number);
+        }
+
+        [TestMethod]
         public void FuzzOverflow()
         {
             var ast = TestHelpers.Parse(

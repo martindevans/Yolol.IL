@@ -98,7 +98,12 @@ namespace Yolol.IL.Compiler.Emitter
         {
             _ops.Add(new BranchIfTrue(label));
         }
-        
+
+        public void BranchIfEqual(Label label)
+        {
+            _ops.Add(new BranchIfEqual(label));
+        }
+
         public void Branch(Label label)
         {
             _ops.Add(new Branch(label));

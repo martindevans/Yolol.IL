@@ -7,7 +7,7 @@ namespace Yolol.IL.Compiler
     internal class TypeStack<TEmit>
     {
         private readonly OptimisingEmitter<TEmit> _emitter;
-        private readonly Stack<StackType> _types = new Stack<StackType>();
+        private readonly Stack<StackType> _types = new();
 
         public StackType Peek => _types.Peek();
 

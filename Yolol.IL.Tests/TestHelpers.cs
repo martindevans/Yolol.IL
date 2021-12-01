@@ -115,15 +115,17 @@ namespace Yolol.IL.Tests
         private class DeviceNetwork
             : IDeviceNetwork
         {
-            private readonly Dictionary<string, IVariable> _cache = new Dictionary<string, IVariable>();
+            private readonly Dictionary<string, IVariable> _cache = new();
 
             public IVariable Get(string name)
             {
                 name = name.ToLowerInvariant();
                 if (!_cache.TryGetValue(name, out var result))
                 {
-                    result = new Variable();
-                    result.Value = Number.Zero;
+                    result = new Variable
+                    {
+                        Value = Number.Zero
+                    };
                     _cache[name] = result;
                 }
 

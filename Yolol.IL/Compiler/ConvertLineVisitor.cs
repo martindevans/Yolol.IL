@@ -161,7 +161,7 @@ namespace Yolol.IL.Compiler
                         break;
 
                     default:
-                        throw new ArgumentOutOfRangeException();
+                        throw new InvalidOperationException($"Unknown type on stack: `{_typesStack.Peek}`");
                 }
             }
 
@@ -424,8 +424,9 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(Subtract sub)
         {
-            //if (sub.Left is PostDecrement pd && sub.Right is Grammar.AST.Expressions.Variable var && pd.Name.Equals(var.Name))
-            //    return UnaryTripleSubtract(var);
+            // Special case for `a-a--`
+            if (sub.Left is Grammar.AST.Expressions.Variable var && sub.Right is PostDecrement pd && pd.Name.Equals(var.Name))
+                return PopCharacter(var);
 
             return ConvertBinaryExpr(sub,
                 (a, b) => (Number)a - b,
@@ -447,120 +448,101 @@ namespace Yolol.IL.Compiler
             );
         }
 
-        ///// <summary>
-        ///// Special case handling for `a---a`
-        ///// </summary>
-        ///// <param name="variable"></param>
-        ///// <returns></returns>
-        //private BaseExpression UnaryTripleSubtract(Grammar.AST.Expressions.Variable variable) => EmitUnaryExpr(new Bracketed(variable), errorLabel =>
-        //{
-        //    void EmitNum()
-        //    {
-        //        // Pop value off stack, it'll be reloaded later
-        //        // This isn't ideal - we've already done a runtime type check to get here and this forces the `add` method to do it again!
-        //        _emitter.Pop();
+        /// <summary>
+        /// Special case handling for `a-a--` as popping a character from a string
+        /// </summary>
+        /// <param name="variable"></param>
+        /// <returns></returns>
+        private BaseExpression PopCharacter(Grammar.AST.Expressions.Variable variable) => EmitUnaryExpr(new Bracketed(variable), errorLabel =>
+        {
+            // Value of variable is on stack, it's a number
+            // Given: `a=11 b=a-a--`
+            // Evaluate to:
+            //   a -= 1
+            //   b = 1
+            void EmitNum()
+            {
+                _emitter.Pop();
+                Visit(new PostDecrement(variable.Name));
+                Visit(new ConstantNumber(Number.One));
+                _typesStack.Push(StackType.Bool);
+            }
 
-        //        // Rewrite `a-- - a` into `a-- + -a` to avoid this optimisation being detected again and causing an infinite loop
-        //        Visit(new Add(new PostDecrement(variable.Name), new Negate(variable)));
-        //    }
+            // Value of variable is on stack, it's a string
+            // Given: `a="abc" b=a-a--`
+            // Evaluate to:
+            //   a = "ab"
+            //   b = "c"
+            void EmitStr()
+            {
+                Expression<Func<YString, YString>> expr = str => str.LastCharacter();
+                var result = expr.ConvertUnary(_emitter, errorLabel);
+                _typesStack.Push(result.OnStack.ToStackType());
 
-        //    void EmitStr()
-        //    {
-        //        // Get the "will throw" method to check if the decrement throws
-        //        var dec = typeof(YString).GetMethod("op_Decrement", BindingFlags.Public | BindingFlags.Static)!;
-        //        var willThrow = dec.TryGetWillThrowMethod(typeof(YString))!;
+                Visit(new PostDecrement(variable.Name));
+                _emitter.Pop();
+            }
 
-        //        // Jump to error handling if necessary
-        //        using (var willThrowLocal = _emitter.DeclareLocal(typeof(YString), "will_throw_tmp"))
-        //        {
-        //            _emitter.StoreLocal(willThrowLocal);
-        //            _emitter.LoadLocal(willThrowLocal);
-        //            _emitter.Call(willThrow);
-        //            _emitter.BranchIfTrue(errorLabel);
+            void EmitVal()
+            {
+                _typesStack.Push(StackType.YololValue);
 
-        //            // Decrement string and save changed value
-        //            _emitter.LoadLocal(willThrowLocal);
-        //            _emitter.CallRuntimeN<TEmit, YString>("op_Decrement", typeof(YString));
-        //            _types.Push(StackType.YololString);
-        //            _memory.Store(variable.Name, _types);
+                // Set up locals to store results
+                // we're calculating:
+                //   a=value_on_stack
+                //   b=last_char(a)
+                //   a--
+                using (var valueA = _emitter.DeclareLocal<Value>(initializeReused: false))
+                using (var valueB = _emitter.DeclareLocal<Value>(initializeReused: false))
+                {
+                    // Store current value in A
+                    _emitter.StoreLocal(valueA);
 
-        //            // Get last character from string
-        //            _emitter.LoadLocal(willThrowLocal);
-        //            _emitter.CallRuntimeThis0<TEmit, YString>(nameof(YString.LastCharacter));
-        //            _types.Push(StackType.YololString);
-        //        }
-        //    }
+                    // Do the calculation
+                    _emitter.LoadLocalAddress(valueA, false);
+                    _emitter.LoadLocalAddress(valueB, false);
+                    _emitter.CallRuntimeN(nameof(Runtime.TryPopValue), new[] { typeof(Value).MakeByRefType(), typeof(Value).MakeByRefType() });
 
-        //    void EmitVal()
-        //    {
-        //        var numLabel = _emitter.DefineLabel();
-        //        var endLabel = _emitter.DefineLabel();
+                    // Exit line if error
+                    _emitter.LeaveIfTrue(errorLabel);
 
-        //        using (var valueLocal = _emitter.DeclareLocal(typeof(Value), "TripleSubtractTemp"))
-        //        {
-        //            _emitter.StoreLocal(valueLocal);
+                    // Store the modified value
+                    _emitter.LoadLocal(valueA);
+                    _typesStack.Push(StackType.YololValue);
+                    _memory.Store(variable.Name, _typesStack);
 
-        //            // Check type and jump to branch for string
-        //            _emitter.LoadLocal(valueLocal);
-        //            _emitter.GetRuntimePropertyValue<TEmit, Value>(nameof(Value.Type));
-        //            _emitter.LoadConstant((int)Execution.Type.Number);
-        //            _emitter.BranchIfEqual(numLabel);
+                    // Leave the result on the stack
+                    _emitter.LoadLocal(valueB);
+                    _typesStack.Push(StackType.YololValue);
+                }
+            }
 
-        //            // Fallthrough to here means it's a string
-        //            _emitter.LoadLocal(valueLocal);
-        //            _emitter.GetRuntimePropertyValue<TEmit, Value>(nameof(Value.String));
-        //            EmitStr();
-        //            _types.Pop(StackType.YololString);
-        //            _emitter.EmitCoerce(StackType.YololString, StackType.YololValue);
-        //            _emitter.Branch(endLabel);
+            // Discover what type we're working with
+            var p = _typesStack.Peek;
+            _typesStack.Pop(p);
+            switch (p)
+            {
+                case StackType.Bool:
+                    _emitter.EmitCoerce(StackType.Bool, StackType.YololNumber);
+                    EmitNum();
+                    break;
 
-        //            // Jump here means it's a number
-        //            _emitter.MarkLabel(numLabel);
-        //            _emitter.LoadLocal(valueLocal);
-        //            _emitter.GetRuntimePropertyValue<TEmit, Value>(nameof(Value.Number));
-        //            EmitNum();
-        //            _types.Pop(StackType.YololValue);
-        //        }
+                case StackType.YololNumber:
+                    EmitNum();
+                    break;
 
-        //        // However we got here, there's a value left on the stack
-        //        _emitter.MarkLabel(endLabel);
-        //        _types.Push(StackType.YololValue);
-        //    }
+                case StackType.YololString:
+                    EmitStr();
+                    break;
 
-        //    // Discover what type we're working with
-        //    var p = _types.Peek;
-        //    _types.Pop(p);
+                case StackType.YololValue:
+                    EmitVal();
+                    break;
 
-        //    bool fallible;
-        //    switch (p)
-        //    {
-        //        case StackType.Bool:
-        //            fallible = false;
-        //            _emitter.EmitCoerce(StackType.Bool, StackType.YololNumber);
-        //            EmitNum();
-        //            break;
-
-        //        case StackType.YololNumber:
-        //            fallible = false;
-        //            EmitNum();
-        //            break;
-
-        //        case StackType.YololString:
-        //            fallible = true;
-        //            EmitStr();
-        //            break;
-
-        //        case StackType.YololValue:
-        //            fallible = true;
-        //            EmitVal();
-        //            break;
-
-        //        default:
-        //            throw new InvalidProgramException($"Cannot triple subtract `StackType.{p}`");
-        //    }
-
-        //    return fallible;
-        //});
+                default:
+                    throw new InvalidProgramException($"Cannot triple subtract `StackType.{p}`");
+            }
+        });
 
         protected override BaseExpression Visit(Multiply mul) => ConvertBinaryExpr(mul,
             (a, b) => Runtime.And(a, b),

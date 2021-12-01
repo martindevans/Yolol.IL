@@ -100,7 +100,7 @@ namespace Yolol.IL.Extensions
                     }
                 }
 
-                var result = (bool)WillThrow.Invoke(null, args);
+                var result = (bool)WillThrow.Invoke(null, args)!;
                 return result;
             }
         }

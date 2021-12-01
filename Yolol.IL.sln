@@ -11,6 +11,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Benchmark", "Benchmark\Benc
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8C9C4F51-B85D-4AC9-8E5C-4879B4F871B7}"
 	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
 		Benchmarks.txt = Benchmarks.txt
 	EndProjectSection
 EndProject

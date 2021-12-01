@@ -16,12 +16,12 @@ namespace Yolol.IL.Tests
         }
 
         [ErrorMetadata(nameof(SimpleWillThrow), null)]
-        public static int Simple(Number a, Number b)
+        public static int Simple(Number _1, Number _2)
         {
             return 0;
         }
 
-        public static int Simple([TypeImplication(Execution.Type.Number)] Value a, [TypeImplication(Execution.Type.String)] Value b)
+        public static int Simple([TypeImplication(Execution.Type.Number)] Value _1, [TypeImplication(Execution.Type.String)] Value _2)
         {
             return 0;
         }
@@ -71,6 +71,17 @@ namespace Yolol.IL.Tests
             Assert.AreEqual(2, impls.Count);
             Assert.AreEqual(Execution.Type.Number.ToStackType(), impls[0]);
             Assert.AreEqual(Execution.Type.String.ToStackType(), impls[1]);
+        }
+
+
+        [TestMethod]
+        public void GetLastCharacterMetadata()
+        {
+            // Get the "will throw" method to check if `LastCharacter` throws
+            var dec = typeof(YString).GetMethod(nameof(YString.LastCharacter), BindingFlags.NonPublic | BindingFlags.Static)!;
+            var err = dec.TryGetErrorMetadata(typeof(YString));
+
+            Assert.IsNotNull(err);
         }
     }
 }

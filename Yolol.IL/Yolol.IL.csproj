@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
-    <Version>17.0.4</Version>
+    <TargetFramework>net6.0</TargetFramework>
+    <Version>17.0.5</Version>
     <Platforms>AnyCPU;x64</Platforms>
     <Nullable>enable</Nullable>
     <Authors>Martin Evans</Authors>
@@ -31,11 +31,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\.editorconfig" Link=".editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" Version="2021.3.0" />
     <PackageReference Include="Lokad.ILPack" Version="0.1.7" />
     <PackageReference Include="Sigil.NetStandard" Version="4.8.0" />
-    <PackageReference Include="Yolol" Version="14.7.2" />
-    <PackageReference Include="Yolol.Analysis" Version="7.0.0" />
+    <PackageReference Include="Yolol" Version="14.7.10" />
+    <PackageReference Include="Yolol.Analysis" Version="8.0.0" />
   </ItemGroup>
 
 </Project>
