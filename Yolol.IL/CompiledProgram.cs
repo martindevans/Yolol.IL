@@ -50,15 +50,18 @@ namespace Yolol.IL
         /// <returns>Total ticks executed</returns>
         public int Run(ArraySegment<Value> internals, ArraySegment<Value> externals, int maxTicks, ChangeSetKey changed)
         {
-            var i = 0;
-            for (; i < maxTicks; i++)
+            var ticks = 0;
+
+            for (int i = 0; i < maxTicks; i++)
             {
                 Tick(internals, externals);
+                ticks++;
 
                 if (ChangeSet.Contains(changed))
                     break;
             }
-            return i + 1;
+
+            return ticks;
         }
     }
 }
