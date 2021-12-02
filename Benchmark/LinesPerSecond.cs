@@ -20,6 +20,11 @@ namespace Benchmark
             "k=k-q-f+e-r-e+d-s-d+c-t-c+b-u-b+a-l-a v=k+:s v-=k :o=v-v-- :done++ goto3"
         };
 
+        //private readonly string[] _program = new[] {
+        //    "a=\"*a\" :i=0 :s=0",
+        //    "a+=a :done=k++>1000 :o=k goto2",
+        //};
+
         private readonly CompiledProgram _compiled;
         private readonly Value[] _externals;
         private readonly Value[] _internals;
@@ -74,7 +79,7 @@ namespace Benchmark
         {
             var oidx = _externalsMap[new VariableName(":o")];
 
-            const int iterations = 50000;
+            const int iterations = 100000;
 
             var samples = new List<double>();
             var timer = new Stopwatch();

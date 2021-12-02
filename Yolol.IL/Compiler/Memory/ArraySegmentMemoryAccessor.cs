@@ -301,7 +301,7 @@ namespace Yolol.IL.Compiler.Memory
             EmitLoadIndex(name);
 
             // Get the value from the array segment
-            var get = typeof(ArraySegment<Value>).GetProperty("Item", BindingFlags.Instance | BindingFlags.Public)!.GetGetMethod(false);
+            var get = typeof(ArraySegment<Value>).GetProperty("Item", BindingFlags.Instance | BindingFlags.Public)!.GetGetMethod(false)!;
             _emitter.Call(get);
         }
         #endregion

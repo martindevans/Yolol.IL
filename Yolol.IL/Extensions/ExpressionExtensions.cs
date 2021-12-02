@@ -147,7 +147,7 @@ namespace Yolol.IL.Extensions
                     foreach (var arg in n.Arguments)
                         ConvertExpression(arg, emitter, parameters, errorLabel);
 
-                    emitter.NewObject(n.Constructor);
+                    emitter.NewObject(n.Constructor!);
 
                     return new ConvertResult(n.Type, null, null);
                 }
@@ -204,7 +204,7 @@ namespace Yolol.IL.Extensions
                 case ExpressionType.Convert: {
                     var unary = (UnaryExpression)expr;
                     ConvertExpression(unary.Operand, emitter, parameters, errorLabel);
-                    emitter.Call(unary.Method);
+                    emitter.Call(unary.Method!);
                     return new ConvertResult(unary.Method!.ReturnType, null, null);
                 }
 

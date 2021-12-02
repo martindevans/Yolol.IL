@@ -64,7 +64,7 @@ namespace Yolol.IL.Extensions
         public static void GetRuntimePropertyValue<TEmit, TType>(this OptimisingEmitter<TEmit> emitter, string propertyName)
         {
             // ReSharper disable once PossibleNullReferenceException
-            var method = typeof(TType).GetProperty(propertyName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static)!.GetMethod;
+            var method = typeof(TType).GetProperty(propertyName, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static)!.GetMethod!;
 
             using (var local = emitter.DeclareLocal(typeof(TType), "GetRuntimePropertyValue_Callee", false))
             {
