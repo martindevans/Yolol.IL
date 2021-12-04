@@ -14,8 +14,11 @@ namespace Yolol.IL.Compiler
         // A static error, break out now
         StaticError,
 
-        // A plain C# bool, representing a number 1 or 0 (true/false)
+        // A plain dotnet bool, representing a number 1 or 0 (true/false)
         Bool,
+
+        // A plain dotnet int32
+        Int32
     }
 
     internal static class StackTypeExtensions

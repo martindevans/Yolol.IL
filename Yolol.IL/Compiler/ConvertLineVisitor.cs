@@ -28,7 +28,9 @@ namespace Yolol.IL.Compiler
 
         private readonly TypeStack<TEmit> _typesStack;
         private readonly IStaticTypeTracker _staticTypes;
-        private readonly int? _maxStringLength;
+
+        private readonly int? _maybeMaxStringLength;
+        private readonly int _maxStringLength;
 
         public ConvertLineVisitor(
             OptimisingEmitter<TEmit> emitter,
@@ -46,7 +48,9 @@ namespace Yolol.IL.Compiler
             _unwinder = unwinder;
             _gotoLabel = gotoLabel;
             _staticTypes = staticTypes;
-            _maxStringLength = maxStringLength;
+
+            _maybeMaxStringLength = maxStringLength;
+            _maxStringLength = maxStringLength ?? int.MaxValue;
 
             _typesStack = new TypeStack<TEmit>(_emitter);
         }
@@ -225,26 +229,12 @@ namespace Yolol.IL.Compiler
         {
             // Ensure the constant is not over the max length
             var trimmed = str.Value;
-            if (_maxStringLength.HasValue)
-                trimmed = YString.Trim(trimmed, _maxStringLength.Value);
-
-            // Count the ones and zeros in the string
-            var count0 = trimmed.ToString().Count(a => a == '0');
-            var count1 = trimmed.ToString().Count(a => a == '1');
-
-            // Find the constructor which takes explicit counts
-            var cons = typeof(YString).GetConstructor(
-                BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static,
-                null,
-                new[] { typeof(string), typeof(int), typeof(int) },
-                null
-            )!;
+            if (_maybeMaxStringLength.HasValue)
+                trimmed = YString.Trim(trimmed, _maybeMaxStringLength.Value);
 
             // Put a string on the stack
             _emitter.LoadConstant(trimmed.ToString());
-            _emitter.LoadConstant(count0);
-            _emitter.LoadConstant(count1);
-            _emitter.NewObject(cons);
+            _emitter.NewObject<YString, string>();
             _typesStack.Push(StackType.YololString);
 
             return str;
@@ -387,40 +377,43 @@ namespace Yolol.IL.Compiler
 
         private void CheckStringLength()
         {
-            if (_maxStringLength.HasValue)
+            if (_maybeMaxStringLength.HasValue)
             {
                 if (_typesStack.Peek == StackType.YololString)
                 {
-                    _emitter.LoadConstant(_maxStringLength.Value);
+                    _emitter.LoadConstant(_maybeMaxStringLength.Value);
                     _emitter.CallRuntimeN<TEmit, YString>(nameof(YString.Trim), typeof(YString), typeof(int));
                 }
                 else if (_typesStack.Peek == StackType.YololValue)
                 {
-                    _emitter.LoadConstant(_maxStringLength.Value);
+                    _emitter.LoadConstant(_maybeMaxStringLength.Value);
                     _emitter.CallRuntimeN(nameof(Runtime.TrimValue), typeof(Value), typeof(int));
                 }
             }
         }
 
-        protected override BaseExpression Visit(Add add) => ConvertBinaryExpr(add,
-            (a, b) => Runtime.BoolAdd(a, b),
-            (a, b) => Runtime.BoolAdd(a, b),
-            (a, b) => Runtime.BoolAdd(a, b),
-            (a, b) => Runtime.BoolAdd(a, b),
-            (a, b) => a + b,
-            (a, b) => a + b,
-            (a, b) => a + b,
-            (a, b) => a + b,
-            (a, b) => a + b,
-            (a, b) => a + b,
-            (a, b) => a + b,
-            (a, b) => a + b,
-            (a, b) => a + b,
-            (a, b) => a + b,
-            (a, b) => a + b,
-            (a, b) => a + b,
-            trimString: true
-        );
+        protected override BaseExpression Visit(Add add)
+        {
+            return ConvertBinaryExpr(add,
+                (a, b) => Runtime.BoolAdd(a, b),
+                (a, b) => Runtime.BoolAdd(a, b),
+                (a, b) => Runtime.BoolAdd(a, b),
+                (a, b) => Runtime.BoolAdd(a, b),
+                (a, b) => a + b,
+                (a, b) => a + b,
+                (a, b) => YString.Add(a, b, new ConstantInt32(_maxStringLength)),
+                (a, b) => Value.Add(a, b, new ConstantInt32(_maxStringLength)),
+                (a, b) => YString.Add(a, b, new ConstantInt32(_maxStringLength)),
+                (a, b) => YString.Add(a, b, new ConstantInt32(_maxStringLength)),
+                (a, b) => YString.Add(a, b, new ConstantInt32(_maxStringLength)),
+                (a, b) => YString.Add(a, b, new ConstantInt32(_maxStringLength)),
+                (a, b) => Value.Add(a, b, new ConstantInt32(_maxStringLength)),
+                (a, b) => Value.Add(a, b, new ConstantInt32(_maxStringLength)),
+                (a, b) => Value.Add(a, b, new ConstantInt32(_maxStringLength)),
+                (a, b) => Value.Add(a, b, new ConstantInt32(_maxStringLength)),
+                trimString: true
+            );
+        }
 
         protected override BaseExpression Visit(Subtract sub)
         {
@@ -458,14 +451,19 @@ namespace Yolol.IL.Compiler
             // Value of variable is on stack, it's a number
             // Given: `a=11 b=a-a--`
             // Evaluate to:
-            //   a -= 1
-            //   b = 1
+            //   a--
+            //   result=1
             void EmitNum()
             {
                 _emitter.Pop();
+
+                // a--
                 Visit(new PostDecrement(variable.Name));
+                _typesStack.Pop(_typesStack.Peek);
+                _emitter.Pop();
+
+                // result=1 (left on stack)
                 Visit(new ConstantNumber(Number.One));
-                _typesStack.Push(StackType.Bool);
             }
 
             // Value of variable is on stack, it's a string

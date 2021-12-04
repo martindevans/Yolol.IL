@@ -17,7 +17,7 @@ namespace Fuzzer.Generators
             var l = new LineGenerator(_random);
 
             return new Yolol.Grammar.AST.Program(
-                Enumerable.Range(0, _random.Next(1, 21)).Select(_ => l.Generate())
+                Enumerable.Range(0, _random.Next(1, 5)).Select(_ => l.Generate())
             );
         }
     }

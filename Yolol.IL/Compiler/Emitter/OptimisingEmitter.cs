@@ -16,7 +16,7 @@ namespace Yolol.IL.Compiler.Emitter
     {
         private readonly Emit<TEmit> _emitter;
 
-        private readonly List<BaseInstruction> _ops = new List<BaseInstruction>();
+        private readonly List<BaseInstruction> _ops = new();
 
         public int InstructionCount => _ops.Count;
 
@@ -53,7 +53,9 @@ namespace Yolol.IL.Compiler.Emitter
             }
         }
 
+#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
         public void Dispose()
+#pragma warning restore CA1816 // Dispose methods should call SuppressFinalize
         {
             foreach (var op in _ops)
                 op.Emit(_emitter);

@@ -11,6 +11,9 @@ namespace Yolol.IL.Extensions
         {
             if (type == typeof(bool))
                 return StackType.Bool;
+            if (type == typeof(int))
+                return StackType.Int32;
+
             if (type == typeof(Number))
                 return StackType.YololNumber;
             if (type == typeof(YString))

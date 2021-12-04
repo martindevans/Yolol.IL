@@ -9,10 +9,7 @@ namespace Fuzzer
 {
     public class Options
     {
-        [Option('t', "threads", Required = false, HelpText = "Set number of fuzzer threads to use.", Default = 1)]
-        public int ThreadCount { get; set; }
-
-        [Option('i', "iters", Required = false, HelpText = "Numbers of iterations to run each generated program for.", Default = 4096)]
+        [Option('i', "iters", Required = false, HelpText = "Numbers of iterations to run each generated program for.", Default = 128)]
         public int Iters { get; set; }
     }
 
@@ -34,20 +31,17 @@ namespace Fuzzer
             });
 
             // Start of all the fuzzing tasks (don't await this, we just want to task to run)
-            #pragma warning disable 4014
-            Task.Run(() => {
-            #pragma warning restore 4014
-                Task.WaitAll(Enumerable
-                     .Range(0, options.ThreadCount)
-                     .Select(_ => Task.Run(async () => await FuzzForever(options.Iters, channel.Writer)))
-                     .ToArray()
-                );
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            Task.Run(async () =>
+            {
+                await FuzzForever(options.Iters, channel.Writer);
                 channel.Writer.Complete();
             });
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 
             // Read all reports from the channel
             while (await channel.Reader.WaitToReadAsync()) 
-                ProcessReport(await channel.Reader.ReadAsync());
+            ProcessReport(await channel.Reader.ReadAsync());
         }
 
         private static long _totalPrograms = 0;
@@ -70,19 +64,14 @@ namespace Fuzzer
 
             var fuzz = new Fuzz();
             var iters = 0;
-            var thrd = Thread.CurrentThread.ManagedThreadId;
+            var thrd = Environment.CurrentManagedThreadId;
             while (true)
             {
                 iters++;
                 try
                 {
                     fuzz.Run(itersPerRun);
-
-                    if (iters >= 5)
-                    {
-                        output.TryWrite(new StatusReport(thrd, iters, null));
-                        iters = 0;
-                    }
+                    output.TryWrite(new StatusReport(thrd, 1, null));
                 }
                 catch (Exception e)
                 {

@@ -79,7 +79,7 @@ namespace Benchmark
         {
             var oidx = _externalsMap[new VariableName(":o")];
 
-            const int iterations = 100000;
+            const int iterations = 5000;
 
             var samples = new List<double>();
             var timer = new Stopwatch();

@@ -10,6 +10,26 @@ namespace Yolol.IL.Tests
     public class Reproduction
     {
         [TestMethod]
+        public void FuzzPlayground()
+        {
+            var ast = TestHelpers.Parse(
+                "a=10 b=a-a--"
+            );
+
+            var lines = Math.Max(20, ast.Lines.Count);
+            var externalsMap = new ExternalsMap();
+            var compiled = ast.Compile(externalsMap, lines, 1024, null, false);
+
+            var externals = new Value[externalsMap.Count];
+            Array.Fill(externals, Number.Zero);
+            var internals = new Value[compiled.InternalsMap.Count];
+            Array.Fill(internals, Number.Zero);
+
+            for (var i = 0; i < 1; i++)
+                compiled.Tick(internals, externals);
+        }
+
+        [TestMethod]
         public void NumberPop()
         {
             var result = TestHelpers.Test(":a=11 :b=:a-:a--");

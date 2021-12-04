@@ -12,33 +12,35 @@ namespace Fuzzer
 {
     public class Fuzz
     {
-        private readonly AstGenerator _generator;
+        private Random _random;
 
         public Fuzz()
         {
-            _generator = new AstGenerator(new Random());
+            _random = new Random();
         }
 
         public void Run(int iterations)
         {
-            var ast = _generator.Generate();
+            var seed = _random.Next();
+
+            Console.Write($"Seed: {seed}");
+            var ast = new AstGenerator(new Random(seed)).Generate();
             var max = Math.Max(20, ast.Lines.Count);
 
             // Execute program in interpreter and compiled code
-            //var interpretedTask = Task.Run(() => RunInterpreted(ast, max, iterations));
-            var compiled = RunCompiled(ast, max, iterations);
+            var interpretedTask = Task.Run(() => RunAndReduce(ast, (ast) => RunInterpreted(ast, max, iterations)));
+            var compiled = RunAndReduce(ast, (ast) => RunCompiled(ast, max, iterations));
 
             //// Wait for interpreter to finish
-            //interpretedTask.Wait();
-            //var interpreted = interpretedTask.Result;
+            interpretedTask.Wait();
+            var interpreted = interpretedTask.Result;
 
             Console.WriteLine($"Compile: {compiled.Prepare.TotalMilliseconds}ms");
             Console.WriteLine($"Execute: {compiled.Execute.TotalMilliseconds}ms");
-            //Console.WriteLine($"Interpret: {interpreted.Execute.TotalMilliseconds}ms");
+            Console.WriteLine($"Interpret: {interpreted.Execute.TotalMilliseconds}ms");
 
             // Compare results
-            //todo: interpreter does not implement string length limit, so results frequently differ
-            //Compare(interpreted, compiled);
+            Compare(interpreted, compiled);
         }
 
         private static void Compare(IExecutionResult expected, IExecutionResult actual)
@@ -56,6 +58,20 @@ namespace Fuzzer
         }
 
         #region execution
+        private static IExecutionResult RunAndReduce(Yolol.Grammar.AST.Program ast, Func<Yolol.Grammar.AST.Program, IExecutionResult> execute)
+        {
+            try
+            {
+                return execute(ast);
+            }
+            catch (Exception ex)
+            {
+                //todo: autoreduce program here
+                Console.WriteLine($"Exception! {ex}");
+                throw;
+            }
+        }
+
         private static InterpretResult RunInterpreted(Yolol.Grammar.AST.Program ast, int max, int iters)
         {
             int CheckPc(int pc)
@@ -69,7 +85,7 @@ namespace Fuzzer
 
             var pc = 0;
             var nt = new DeviceNetwork();
-            var st = new MachineState(nt, (ushort)max);
+            var st = new MachineState(nt, (ushort)max, 1024);
 
             var timer = new Stopwatch();
             timer.Start();

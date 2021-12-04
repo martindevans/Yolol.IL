@@ -38,6 +38,21 @@ namespace Yolol.IL.Extensions
         }
     }
 
+    internal readonly struct ConstantInt32
+    {
+        public readonly int Value;
+
+        public ConstantInt32(int value)
+        {
+            Value = value;
+        }
+
+        public static implicit operator int(ConstantInt32 value)
+        {
+            return value.Value;
+        }
+    }
+
     internal static class ExpressionExtensions
     {
         private readonly struct Parameter
@@ -203,6 +218,16 @@ namespace Yolol.IL.Extensions
 
                 case ExpressionType.Convert: {
                     var unary = (UnaryExpression)expr;
+
+                    // Check if a constant value is being loaded, if so evaluate it now
+                    var from = unary.Operand;
+                    if (from.NodeType == ExpressionType.New && from.Type == typeof(ConstantInt32))
+                    {
+                        var e = (int)Expression.Lambda(unary).Compile().DynamicInvoke()!;
+                        emitter.LoadConstant(e);
+                        return new ConvertResult(typeof(int), (Number)e, null);
+                    }
+
                     ConvertExpression(unary.Operand, emitter, parameters, errorLabel);
                     emitter.Call(unary.Method!);
                     return new ConvertResult(unary.Method!.ReturnType, null, null);
