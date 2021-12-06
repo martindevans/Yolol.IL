@@ -59,9 +59,16 @@ namespace Fuzzer.Generators
                 30 => new NotEqualTo(Generate(), Generate()),
                 31 => new Or(Generate(), Generate()),
                 32 => new Subtract(Generate(), Generate()),
+                33 => Pop(),
 
                 _ => new Yolol.Grammar.AST.Expressions.Variable(_variable.Generate()),
             };
+        }
+
+        private BaseExpression Pop()
+        {
+            var v = _variable.Generate();
+            return new Subtract(new Yolol.Grammar.AST.Expressions.Variable(v), new PostDecrement(v));
         }
 
         private Number RandomNumber()

@@ -317,18 +317,22 @@ namespace Yolol.IL.Compiler
             if (TryStaticEvaluate(expr, out var runtimeError))
                 return runtimeError ? new ErrorExpression() : (BaseExpression)expr;
 
+            var initialDepth = _typesStack.Count;
+
             // Convert the two sides of the expression
             if (Visit(expr.Left) is ErrorExpression)
                 return new ErrorExpression();
             var leftType = _typesStack.Peek;
             var leftDepth = _typesStack.Count;
 
+            ThrowHelper.Check(leftDepth == initialDepth + 1, $"ConvertBinaryExpr left expression (`{expr.Left}`) pushed too many types");
+
             if (Visit(expr.Right) is ErrorExpression)
                 return new ErrorExpression();
             var rightType = _typesStack.Peek;
             var rightDepth = _typesStack.Count;
 
-            ThrowHelper.Check(rightDepth == leftDepth + 1, "Unbalanced type stack");
+            ThrowHelper.Check(rightDepth == leftDepth + 1, $"ConvertBinaryExpr right expression (`{expr.Right}`) pushed too many types");
 
             // Try to calculate static values for the two sides
             var constLeft = expr.Left.IsConstant ? Execution.Extensions.BaseExpressionExtensions.TryStaticEvaluate(expr.Left, out _) : null;
@@ -463,9 +467,7 @@ namespace Yolol.IL.Compiler
                 _emitter.Pop();
 
                 // a--
-                Visit(new PostDecrement(variable.Name));
-                _typesStack.Pop(_typesStack.Peek);
-                _emitter.Pop();
+                Visit(new ExpressionWrapper(new PostDecrement(variable.Name)));
 
                 // result=1 (left on stack)
                 Visit(new ConstantNumber(Number.One));
@@ -474,16 +476,15 @@ namespace Yolol.IL.Compiler
             // Value of variable is on stack, it's a string
             // Given: `a="abc" b=a-a--`
             // Evaluate to:
-            //   a = "ab"
-            //   b = "c"
+            //   b = a.LastCharacter()
+            //   a--
             void EmitStr()
             {
                 Expression<Func<YString, YString>> expr = str => str.LastCharacter();
                 var result = expr.ConvertUnary(_emitter, errorLabel);
                 _typesStack.Push(result.OnStack.ToStackType());
 
-                Visit(new PostDecrement(variable.Name));
-                _emitter.Pop();
+                Visit(new ExpressionWrapper(new PostDecrement(variable.Name)));
             }
 
             void EmitVal()
