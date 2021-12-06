@@ -9,7 +9,7 @@ namespace Fuzzer
 {
     public class Options
     {
-        [Option('i', "iters", Required = false, HelpText = "Numbers of iterations to run each generated program for.", Default = 128)]
+        [Option('i', "iters", Required = false, HelpText = "Numbers of iterations to run each generated program for.", Default = 1)]
         public int Iters { get; set; }
     }
 

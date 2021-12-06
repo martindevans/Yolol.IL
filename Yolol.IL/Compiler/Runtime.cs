@@ -97,7 +97,8 @@ namespace Yolol.IL.Compiler
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GotoNumber(Number value, int maxLineNumber)
         {
-            return Math.Clamp((int)value, 1, maxLineNumber);
+            var raw = value.RawValue / 1000;
+            return (int)Math.Clamp(raw, 1, maxLineNumber);
         }
         #endregion
 

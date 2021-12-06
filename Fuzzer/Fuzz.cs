@@ -22,19 +22,17 @@ namespace Fuzzer
         public void Run(int iterations)
         {
             var seed = _random.Next();
+            seed = 1065383908;
 
             Console.Write($"Seed: {seed}");
             var ast = new AstGenerator(new Random(seed)).Generate();
             var max = Math.Max(20, ast.Lines.Count);
 
             // Execute program in interpreter and compiled code
-            var interpretedTask = Task.Run(() => RunAndReduce(ast, (ast) => RunInterpreted(ast, max, iterations)));
-            var compiled = RunAndReduce(ast, (ast) => RunCompiled(ast, max, iterations));
+            var interpreted = RunInterpreted(ast, max, iterations);
+            var compiled = RunCompiled(ast, max, iterations);
 
             //// Wait for interpreter to finish
-            interpretedTask.Wait();
-            var interpreted = interpretedTask.Result;
-
             Console.WriteLine($"Compile: {compiled.Prepare.TotalMilliseconds}ms");
             Console.WriteLine($"Execute: {compiled.Execute.TotalMilliseconds}ms");
             Console.WriteLine($"Interpret: {interpreted.Execute.TotalMilliseconds}ms");
@@ -53,25 +51,13 @@ namespace Fuzzer
             {
                 var expectedVal = expectedValues.GetValueOrDefault(k, Number.Zero);
                 if (expectedVal != v)
-                    throw new Exception("Different values!");
+                {
+                    throw new Exception($"Different values! Expected {k}={expectedVal}, actual {k}={v}");
+                }
             }
         }
 
         #region execution
-        private static IExecutionResult RunAndReduce(Yolol.Grammar.AST.Program ast, Func<Yolol.Grammar.AST.Program, IExecutionResult> execute)
-        {
-            try
-            {
-                return execute(ast);
-            }
-            catch (Exception ex)
-            {
-                //todo: autoreduce program here
-                Console.WriteLine($"Exception! {ex}");
-                throw;
-            }
-        }
-
         private static InterpretResult RunInterpreted(Yolol.Grammar.AST.Program ast, int max, int iters)
         {
             int CheckPc(int pc)

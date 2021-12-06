@@ -78,11 +78,21 @@ namespace Fuzzer.Generators
 
         private string RandomString()
         {
-            const string characters = "abcdefghijklmnopqrstuvwxyz";
+            const string characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890!£$%^&*()_+{}[]@~'#,./<?>|";
+
+            string RandomChar()
+            {
+                var c = characters[_random.Next(characters.Length)];
+                if (_random.NextDouble() > 0.01)
+                    return c.ToString();
+
+                // Convert character to unicode escape sequence
+                return "\\u" + ((int)c).ToString("X4");
+            }
 
             var str = new StringBuilder();
             Enumerable.Range(0, _random.Next(20))
-                      .Select(i => characters[_random.Next(characters.Length)])
+                      .Select(i => RandomChar())
                       .ForEach(c => str.Append(c));
 
             return str.ToString();
