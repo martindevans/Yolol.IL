@@ -57,8 +57,6 @@ namespace Benchmark
             
             _externals = new Value[_externalsMap.Count];
             Array.Fill(_externals, Number.Zero);
-            _externals[_externalsMap[new VariableName(":i")]] = (Number)126;
-
             _internals = new Value[_compiled.InternalsMap.Count];
             Array.Fill(_internals, Number.Zero);
 
@@ -79,7 +77,7 @@ namespace Benchmark
         {
             var oidx = _externalsMap[new VariableName(":o")];
 
-            const int iterations = 5000;
+            const int iterations = 100000;
 
             var samples = new List<double>();
             var timer = new Stopwatch();
