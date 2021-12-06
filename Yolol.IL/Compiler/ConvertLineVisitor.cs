@@ -321,9 +321,14 @@ namespace Yolol.IL.Compiler
             if (Visit(expr.Left) is ErrorExpression)
                 return new ErrorExpression();
             var leftType = _typesStack.Peek;
+            var leftDepth = _typesStack.Count;
+
             if (Visit(expr.Right) is ErrorExpression)
                 return new ErrorExpression();
             var rightType = _typesStack.Peek;
+            var rightDepth = _typesStack.Count;
+
+            ThrowHelper.Check(rightDepth == leftDepth + 1, "Unbalanced type stack");
 
             // Try to calculate static values for the two sides
             var constLeft = expr.Left.IsConstant ? Execution.Extensions.BaseExpressionExtensions.TryStaticEvaluate(expr.Left, out _) : null;
@@ -483,8 +488,6 @@ namespace Yolol.IL.Compiler
 
             void EmitVal()
             {
-                _typesStack.Push(StackType.YololValue);
-
                 // Set up locals to store results
                 // we're calculating:
                 //   a=value_on_stack

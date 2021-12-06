@@ -8,6 +8,7 @@ namespace Yolol.IL.Compiler
     {
         private readonly OptimisingEmitter<TEmit> _emitter;
         private readonly Stack<StackType> _types = new();
+        public int Count => _types.Count;
 
         public StackType Peek => _types.Peek();
 
