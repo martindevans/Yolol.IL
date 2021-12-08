@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Threading.Tasks;
 using Yolol.Execution;
 using Yolol.Grammar;
 using Yolol.IL.Compiler;
@@ -12,7 +11,7 @@ namespace Fuzzer
 {
     public class Fuzz
     {
-        private Random _random;
+        private readonly Random _random;
 
         public Fuzz()
         {
@@ -22,7 +21,6 @@ namespace Fuzzer
         public void Run(int iterations)
         {
             var seed = _random.Next();
-            seed = 1065383908;
 
             Console.Write($"Seed: {seed}");
             var ast = new AstGenerator(new Random(seed)).Generate();

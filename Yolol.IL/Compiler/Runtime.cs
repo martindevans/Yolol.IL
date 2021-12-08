@@ -142,7 +142,7 @@ namespace Yolol.IL.Compiler
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Number BoolMul(bool a, Number b)
         {
-            return a ? b : Number.Zero;
+            return (Number)a * b;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

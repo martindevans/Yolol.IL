@@ -30,6 +30,15 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
+        public void BoolMultiplyHuge()
+        {
+            var result = TestHelpers.Test($"x=asin 1992768.34 c=1*x");
+
+            Assert.AreEqual(-9223372036854775.808, (double)result.GetVariable("x").Number);
+            Assert.AreEqual(0, (double)result.GetVariable("c").Number);
+        }
+
+        [TestMethod]
         public void NumberPop()
         {
             var result = TestHelpers.Test(":a=11 :b=:a-:a--");

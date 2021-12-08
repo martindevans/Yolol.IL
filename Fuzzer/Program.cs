@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Linq;
-using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using CommandLine;
@@ -9,7 +7,7 @@ namespace Fuzzer
 {
     public class Options
     {
-        [Option('i', "iters", Required = false, HelpText = "Numbers of iterations to run each generated program for.", Default = 1)]
+        [Option('i', "iters", Required = false, HelpText = "Numbers of iterations to run each generated program for.", Default = 128)]
         public int Iters { get; set; }
     }
 
@@ -75,7 +73,7 @@ namespace Fuzzer
                 }
                 catch (Exception e)
                 {
-                    var r = new StatusReport(Thread.CurrentThread.ManagedThreadId, iters, new FailureReport(e));
+                    var r = new StatusReport(Environment.CurrentManagedThreadId, iters, new FailureReport(e));
                     await output.WriteAsync(r);
                     break;
                 }
