@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <Version>17.0.8</Version>
+    <Version>18.0.0</Version>
     <Platforms>AnyCPU;x64</Platforms>
     <Nullable>enable</Nullable>
     <Authors>Martin Evans</Authors>
@@ -38,7 +38,7 @@
     <PackageReference Include="JetBrains.Annotations" Version="2021.3.0" />
     <PackageReference Include="Lokad.ILPack" Version="0.1.7" />
     <PackageReference Include="Sigil.NetStandard" Version="4.8.0" />
-    <PackageReference Include="Yolol" Version="14.8.8" />
+    <PackageReference Include="Yolol" Version="14.8.12" />
     <PackageReference Include="Yolol.Analysis" Version="8.0.0" />
   </ItemGroup>
 

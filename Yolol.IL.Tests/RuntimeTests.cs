@@ -23,8 +23,8 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void BoolAddString()
         {
-            Assert.AreEqual("0Hello", Runtime.BoolAdd(false, new YString("Hello")).ToString());
-            Assert.AreEqual("1World", Runtime.BoolAdd(true, new YString("World")).ToString());
+            Assert.AreEqual("0Hello", Runtime.BoolAdd(false, new YString("Hello"), 1024).ToString());
+            Assert.AreEqual("1World", Runtime.BoolAdd(true, new YString("World"), 1024).ToString());
         }
 
         [TestMethod]
@@ -37,15 +37,15 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void BoolAddValueNumber()
         {
-            Assert.AreEqual((Value)8, (Value)Runtime.BoolAdd(false, (Value)(Number)8));
-            Assert.AreEqual((Value)9, (Value)Runtime.BoolAdd(true, (Value)(Number)8));
+            Assert.AreEqual((Value)8, (Value)Runtime.BoolAdd(false, (Value)(Number)8, 1024));
+            Assert.AreEqual((Value)9, (Value)Runtime.BoolAdd(true, (Value)(Number)8, 1024));
         }
 
         [TestMethod]
         public void BoolAddValueString()
         {
-            Assert.AreEqual("0Hello", Runtime.BoolAdd(false, new Value(new YString("Hello"))).ToString());
-            Assert.AreEqual("1World", Runtime.BoolAdd(true, new Value(new YString("World"))).ToString());
+            Assert.AreEqual("0Hello", Runtime.BoolAdd(false, new Value(new YString("Hello")), 1024).ToString());
+            Assert.AreEqual("1World", Runtime.BoolAdd(true, new Value(new YString("World")), 1024).ToString());
         }
         
         [TestMethod]

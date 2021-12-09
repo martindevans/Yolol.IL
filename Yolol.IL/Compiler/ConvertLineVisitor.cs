@@ -29,7 +29,6 @@ namespace Yolol.IL.Compiler
         private readonly TypeStack<TEmit> _typesStack;
         private readonly IStaticTypeTracker _staticTypes;
 
-        private readonly int? _maybeMaxStringLength;
         private readonly int _maxStringLength;
 
         public ConvertLineVisitor(
@@ -39,7 +38,7 @@ namespace Yolol.IL.Compiler
             ExceptionBlock unwinder,
             Label2<TEmit> gotoLabel,
             IStaticTypeTracker staticTypes,
-            int? maxStringLength
+            int maxStringLength
         )
         {
             _emitter = emitter;
@@ -49,8 +48,7 @@ namespace Yolol.IL.Compiler
             _gotoLabel = gotoLabel;
             _staticTypes = staticTypes;
 
-            _maybeMaxStringLength = maxStringLength;
-            _maxStringLength = maxStringLength ?? int.MaxValue;
+            _maxStringLength = maxStringLength;
 
             _typesStack = new TypeStack<TEmit>(_emitter);
         }
@@ -229,8 +227,7 @@ namespace Yolol.IL.Compiler
         {
             // Ensure the constant is not over the max length
             var trimmed = str.Value;
-            if (_maybeMaxStringLength.HasValue)
-                trimmed = YString.Trim(trimmed, _maybeMaxStringLength.Value);
+            trimmed = YString.Trim(trimmed, _maxStringLength);
 
             // Put a string on the stack
             _emitter.LoadConstant(trimmed.ToString());
@@ -386,18 +383,15 @@ namespace Yolol.IL.Compiler
 
         private void CheckStringLength()
         {
-            if (_maybeMaxStringLength.HasValue)
+            if (_typesStack.Peek == StackType.YololString)
             {
-                if (_typesStack.Peek == StackType.YololString)
-                {
-                    _emitter.LoadConstant(_maybeMaxStringLength.Value);
-                    _emitter.CallRuntimeN<TEmit, YString>(nameof(YString.Trim), typeof(YString), typeof(int));
-                }
-                else if (_typesStack.Peek == StackType.YololValue)
-                {
-                    _emitter.LoadConstant(_maybeMaxStringLength.Value);
-                    _emitter.CallRuntimeN(nameof(Runtime.TrimValue), typeof(Value), typeof(int));
-                }
+                _emitter.LoadConstant(_maxStringLength);
+                _emitter.CallRuntimeN<TEmit, YString>(nameof(YString.Trim), typeof(YString), typeof(int));
+            }
+            else if (_typesStack.Peek == StackType.YololValue)
+            {
+                _emitter.LoadConstant(_maxStringLength);
+                _emitter.CallRuntimeN(nameof(Runtime.TrimValue), typeof(Value), typeof(int));
             }
         }
 
@@ -406,8 +400,8 @@ namespace Yolol.IL.Compiler
             return ConvertBinaryExpr(add,
                 (a, b) => Runtime.BoolAdd(a, b),
                 (a, b) => Runtime.BoolAdd(a, b),
-                (a, b) => Runtime.BoolAdd(a, b),
-                (a, b) => Runtime.BoolAdd(a, b),
+                (a, b) => Runtime.BoolAdd(a, b, new ConstantInt32(_maxStringLength)),
+                (a, b) => Runtime.BoolAdd(a, b, new ConstantInt32(_maxStringLength)),
                 (a, b) => a + b,
                 (a, b) => a + b,
                 (a, b) => YString.Add(a, b, new ConstantInt32(_maxStringLength)),
@@ -426,10 +420,6 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(Subtract sub)
         {
-            // Special case for `a-a--`
-            if (sub.Left is Grammar.AST.Expressions.Variable var && sub.Right is PostDecrement pd && pd.Name.Equals(var.Name))
-                return PopCharacter(var);
-
             return ConvertBinaryExpr(sub,
                 (a, b) => (Number)a - b,
                 (a, b) => (Number)a - b,
@@ -449,102 +439,6 @@ namespace Yolol.IL.Compiler
                 (a, b) => a - b
             );
         }
-
-        /// <summary>
-        /// Special case handling for `a-a--` as popping a character from a string
-        /// </summary>
-        /// <param name="variable"></param>
-        /// <returns></returns>
-        private BaseExpression PopCharacter(Grammar.AST.Expressions.Variable variable) => EmitUnaryExpr(new Bracketed(variable), errorLabel =>
-        {
-            // Value of variable is on stack, it's a number
-            // Given: `a=11 b=a-a--`
-            // Evaluate to:
-            //   a--
-            //   result=1
-            void EmitNum()
-            {
-                _emitter.Pop();
-
-                // a--
-                Visit(new ExpressionWrapper(new PostDecrement(variable.Name)));
-
-                // result=1 (left on stack)
-                Visit(new ConstantNumber(Number.One));
-            }
-
-            // Value of variable is on stack, it's a string
-            // Given: `a="abc" b=a-a--`
-            // Evaluate to:
-            //   b = a.LastCharacter()
-            //   a--
-            void EmitStr()
-            {
-                Expression<Func<YString, YString>> expr = str => str.LastCharacter();
-                var result = expr.ConvertUnary(_emitter, errorLabel);
-                _typesStack.Push(result.OnStack.ToStackType());
-
-                Visit(new ExpressionWrapper(new PostDecrement(variable.Name)));
-            }
-
-            void EmitVal()
-            {
-                // Set up locals to store results
-                // we're calculating:
-                //   a=value_on_stack
-                //   b=last_char(a)
-                //   a--
-                using (var valueA = _emitter.DeclareLocal<Value>(initializeReused: false))
-                using (var valueB = _emitter.DeclareLocal<Value>(initializeReused: false))
-                {
-                    // Store current value in A
-                    _emitter.StoreLocal(valueA);
-
-                    // Do the calculation
-                    _emitter.LoadLocalAddress(valueA, false);
-                    _emitter.LoadLocalAddress(valueB, false);
-                    _emitter.CallRuntimeN(nameof(Runtime.TryPopValue), new[] { typeof(Value).MakeByRefType(), typeof(Value).MakeByRefType() });
-
-                    // Exit line if error
-                    _emitter.LeaveIfTrue(errorLabel);
-
-                    // Store the modified value
-                    _emitter.LoadLocal(valueA);
-                    _typesStack.Push(StackType.YololValue);
-                    _memory.Store(variable.Name, _typesStack);
-
-                    // Leave the result on the stack
-                    _emitter.LoadLocal(valueB);
-                    _typesStack.Push(StackType.YololValue);
-                }
-            }
-
-            // Discover what type we're working with
-            var p = _typesStack.Peek;
-            _typesStack.Pop(p);
-            switch (p)
-            {
-                case StackType.Bool:
-                    _emitter.EmitCoerce(StackType.Bool, StackType.YololNumber);
-                    EmitNum();
-                    break;
-
-                case StackType.YololNumber:
-                    EmitNum();
-                    break;
-
-                case StackType.YololString:
-                    EmitStr();
-                    break;
-
-                case StackType.YololValue:
-                    EmitVal();
-                    break;
-
-                default:
-                    throw new InvalidProgramException($"Cannot triple subtract `StackType.{p}`");
-            }
-        });
 
         protected override BaseExpression Visit(Multiply mul) => ConvertBinaryExpr(mul,
             (a, b) => Runtime.And(a, b),

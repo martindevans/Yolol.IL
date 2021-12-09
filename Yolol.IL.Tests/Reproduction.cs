@@ -30,6 +30,20 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
+        public void ZijkhalBlackFriday()
+        {
+            var result = TestHelpers.Test(new[] {
+                ":i=\"8591433801\" a=\"*********\"i=a+9p+=a goto++k/57",
+                "h=a--+8 g=a--+7 f=a--+6 e=a--+5 d=a--+4 c=a--+3 b=a--+2 a=\"*1\"",
+                "t=:i+:i q=p-0+t-a-b-c-d-e-f-g-h-i-0 s=q+t l=s-s--",
+                "q=q+l-a-b-c-d-e-f-g-h-i-0 s=q+t m=s-s-- q=q+m-a-b-c-d-e-f-g-h-i-0 s=q+t+t",
+                "n=s-s-- q=q+n-a-b-c-d-e-f-g-h-i-0 :done=1 s=q+t+t :o=l+m+n+(s-s--)"
+            }, 200); // run for 200 ticks or once :done is true
+
+            Assert.AreEqual("0000", result.GetVariable(":o").ToString());
+        }
+
+        [TestMethod]
         public void BoolMultiplyHuge()
         {
             var result = TestHelpers.Test($"x=asin 1992768.34 c=1*x");

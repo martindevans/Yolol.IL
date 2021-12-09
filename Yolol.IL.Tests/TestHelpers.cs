@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -22,7 +23,7 @@ namespace Yolol.IL.Tests
             return result.Ok;
         }
 
-        public static IMachineState Test(string line, int lineNumber = 1, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null, bool changeDetection = false)
+        public static IMachineState Test(string line, int lineNumber = 1, int maxStringLength = 1024, IReadOnlyDictionary<VariableName, Type>? staticTypes = null, bool changeDetection = false)
         {
             var internals = new InternalsMap();
             var externals = new ExternalsMap();
@@ -40,13 +41,13 @@ namespace Yolol.IL.Tests
             return new EasyMachineState(i, e, internals, externals, r.ProgramCounter, r.ChangeSet);
         }
 
-        public static IMachineState Test(string[] lines, int iterations, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null, bool changeDetection = false)
+        public static IMachineState Test(string[] lines, int iterations, int maxStringLength = 1024, IReadOnlyDictionary<VariableName, Type>? staticTypes = null, bool changeDetection = false)
         {
             var prog = Parse(lines);
             return Test(prog, iterations, maxStringLength, staticTypes, changeDetection);
         }
 
-        public static IMachineState Test(Program program, int iterations, int? maxStringLength = null, IReadOnlyDictionary<VariableName, Type>? staticTypes = null, bool changeDetection = false)
+        public static IMachineState Test(Program program, int iterations, int maxStringLength = 1024, IReadOnlyDictionary<VariableName, Type>? staticTypes = null, bool changeDetection = false)
         {
             var ext = new ExternalsMap();
             var lines = Math.Max(20, program.Lines.Count);
@@ -71,10 +72,15 @@ namespace Yolol.IL.Tests
             return new CompiledMachineState(compiled, ext, i, e);
         }
 
+        public static IMachineState Interpret(string[] lines, int ticks)
+        {
+            var prog = Parse(lines);
+            return Interpret(prog, ticks);
+        }
+
         public static IMachineState Interpret(Program ast, int ticks)
         {
             var maxLines = Math.Max(20, ast.Lines.Count);
-
             int CheckPc(int pc)
             {
                 if (pc >= maxLines)
@@ -109,7 +115,73 @@ namespace Yolol.IL.Tests
                 pc = CheckPc(pc);
             }
 
-            return new InterpretMachineState(pc + 1, nt, st);
+            return new InterpretMachineState(pc + 1, st);
+        }
+
+        public static void Compare(string[] lines, int ticks)
+        {
+            var prog = Parse(lines);
+            Compare(prog, ticks);
+        }
+
+        public static void Compare(Program ast, int ticks)
+        {
+            // Compile setup
+            var ext = new ExternalsMap();
+            var lines = Math.Max(20, ast.Lines.Count);
+            var compiled = ast.Compile(ext, lines);
+            var internals = new Value[compiled.InternalsMap.Count];
+            Array.Fill(internals, new Value((Number)0));
+            var externals = new Value[ext.Count];
+            Array.Fill(externals, new Value((Number)0));
+
+            // Interpret setup
+            var maxLines = Math.Max(20, ast.Lines.Count);
+            int CheckPc(int pc)
+            {
+                if (pc >= maxLines)
+                    return 0;
+                if (pc < 0)
+                    return 0;
+                return pc;
+            }
+            var pc = 0;
+            var nt = new DeviceNetwork();
+            var st = new MachineState(nt, (ushort)maxLines);
+
+            for (var i = 0; i < ticks; i++)
+            {
+                if (pc >= ast.Lines.Count)
+                    pc++;
+                else
+                {
+                    try
+                    {
+                        pc = ast.Lines[pc].Evaluate(pc, st);
+                    }
+                    catch (ExecutionException)
+                    {
+                        pc++;
+                    }
+                }
+                pc = CheckPc(pc);
+
+                compiled.Tick(internals, externals);
+
+                foreach (var item in compiled.InternalsMap)
+                {
+                    var interpretedVal = st.GetVariable(item.Key.Name).Value;
+                    var compiledVal = internals[item.Value];
+                    Assert.AreEqual(interpretedVal, compiledVal, $"varname:{item.Key} ticks:{i}");
+                }
+
+                foreach (var item in ext)
+                {
+                    var interpretedVal = st.GetVariable(item.Key.Name).Value;
+                    var compiledVal = externals[item.Value];
+                    Assert.AreEqual(interpretedVal, compiledVal, $"varname:{item.Key} ticks:{i}");
+                }
+            }
         }
 
         private class DeviceNetwork
@@ -152,7 +224,7 @@ namespace Yolol.IL.Tests
 
         public int ProgramCounter { get; }
 
-        public InterpretMachineState(int pc, IDeviceNetwork deviceNetwork, MachineState machineState)
+        public InterpretMachineState(int pc, MachineState machineState)
         {
             _machineState = machineState;
             ProgramCounter = pc;

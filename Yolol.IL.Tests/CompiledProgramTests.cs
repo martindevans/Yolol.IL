@@ -21,7 +21,7 @@ namespace Yolol.IL.Tests
         {
             var ast = TestHelpers.Parse(":a=1", ":b=2", ":c=3", ":d=1");
             var ext = new ExternalsMap();
-            var prog = ast.Compile(ext, 4, null, null, true);
+            var prog = ast.Compile(ext, 4, 1024, null, true);
 
             var i = new Value[prog.InternalsMap.Count];
             Array.Fill(i, new Value((Number)0));

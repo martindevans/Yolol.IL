@@ -38,38 +38,6 @@ namespace Yolol.IL.Compiler
         }
         #endregion
 
-        #region pop
-        /// <summary>
-        /// Calculate `b=a-a--`
-        /// </summary>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
-        /// <returns>True, if this operation is invalid given the current values</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool TryPopValue(ref Value a, ref Value b)
-        {
-            if (a.Type == Execution.Type.Number)
-            {
-                a = a.Number - Number.One;
-                b = Number.One;
-                return false;
-            }
-            else
-            {
-                var str = a.String;
-                if (str.Length == 0)
-                    return true;
-
-                b = new Value(a.String.LastCharacter());
-
-                str--;
-                a = new Value(str);
-
-                return false;
-            }
-        }
-        #endregion
-
         #region number
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Number Abs(Number value)
@@ -122,9 +90,9 @@ namespace Yolol.IL.Compiler
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static YString BoolAdd(bool a, YString b)
+        public static YString BoolAdd(bool a, YString b, int maxStringLength)
         {
-            return (Number)a + b;
+            return YString.Add((Number)a, b, maxStringLength);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -134,9 +102,9 @@ namespace Yolol.IL.Compiler
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Value BoolAdd(bool a, Value b)
+        public static Value BoolAdd(bool a, Value b, int maxStringLength)
         {
-            return (Number)a + b;
+            return Value.Add((Number)a, b, maxStringLength);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
