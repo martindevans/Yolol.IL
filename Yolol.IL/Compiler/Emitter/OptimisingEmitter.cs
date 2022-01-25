@@ -40,6 +40,7 @@ namespace Yolol.IL.Compiler.Emitter
                 new StoreLoadChain(),
                 new LoadStoreChain(),
                 new DupStorePopChain(),
+                new LoadLoadChain(),
             };
 
             for (var i = 0; i < 128; i++)
