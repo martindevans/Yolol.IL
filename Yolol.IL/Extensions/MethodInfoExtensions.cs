@@ -8,6 +8,7 @@ using Yolol.Execution;
 using Yolol.Execution.Attributes;
 using Yolol.IL.Compiler;
 using Yolol.IL.Compiler.Emitter;
+
 using Type = System.Type;
 
 namespace Yolol.IL.Extensions
@@ -132,7 +133,6 @@ namespace Yolol.IL.Extensions
         /// Get a set of "type implications" for the given method - these types are correct if the method does not throw a runtime error
         /// </summary>
         /// <param name="method"></param>
-        /// <param name="parameters"></param>
         /// <returns></returns>
         public static IReadOnlyList<StackType> GetTypeImplications(this MethodInfo method)
         {
@@ -141,6 +141,16 @@ namespace Yolol.IL.Extensions
             return (from parameter in method.GetParameters()
                     let impl = parameter.GetCustomAttribute<TypeImplicationAttribute>()
                     select impl?.Type.ToStackType() ?? parameter.ParameterType.ToStackType()).ToList();
+        }
+
+        /// <summary>
+        /// Check if this method has the `TrimSafe` Attribute
+        /// </summary>
+        /// <param name="method"></param>
+        /// <returns></returns>
+        public static bool IsTrimSafe(this MethodInfo method)
+        {
+            return method.GetCustomAttribute<TrimSafeAttribute>() != null;
         }
 
         private static MethodInfo GetMethod(Type declaringType, string name, Type? requiredReturnType, Type[] parameters)

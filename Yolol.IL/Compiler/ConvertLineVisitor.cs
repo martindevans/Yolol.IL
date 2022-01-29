@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Yolol.Analysis.ControlFlowGraph.AST;
@@ -229,6 +228,9 @@ namespace Yolol.IL.Compiler
             var trimmed = str.Value;
             trimmed = YString.Trim(trimmed, _maxStringLength);
 
+            //todo: constructing a YString from a string does extra work to count the ones/zeroes in the string
+            //      There's no reason this can't be done at compile time, making constructing const strings cheaper.
+
             // Put a string on the stack
             _emitter.LoadConstant(trimmed.ToString());
             _emitter.NewObject<YString, string>();
@@ -312,7 +314,7 @@ namespace Yolol.IL.Compiler
             where T : BaseBinaryExpression
         {
             if (TryStaticEvaluate(expr, out var runtimeError))
-                return runtimeError ? new ErrorExpression() : (BaseExpression)expr;
+                return runtimeError ? new ErrorExpression() : expr;
 
             var initialDepth = _typesStack.Count;
 
@@ -375,7 +377,7 @@ namespace Yolol.IL.Compiler
             }
 
             // Ensure max string length is not exceeded
-            if (trimString)
+            if (trimString && !convert.Trimmed)
                 CheckStringLength();
 
             return expr;
@@ -644,7 +646,7 @@ namespace Yolol.IL.Compiler
             where T : BaseUnaryExpression
         {
              if (TryStaticEvaluate(expr, out var runtimeError))
-                return runtimeError ? new ErrorExpression() : (BaseExpression)expr;
+                return runtimeError ? new ErrorExpression() : expr;
 
              // Visit the inner expression of the unary
              if (Visit(expr.Parameter) is ErrorExpression)

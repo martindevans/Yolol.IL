@@ -30,11 +30,17 @@ namespace Yolol.IL.Extensions
         /// </summary>
         public readonly IReadOnlyList<StackType>? Implications;
 
-        public ConvertResult(Type onStack, Value? staticValue, IReadOnlyList<StackType>? implications)
+        /// <summary>
+        /// Indicates if the output of this expression is guaranteed to be trimmed.
+        /// </summary>
+        public readonly bool Trimmed;
+
+        public ConvertResult(Type onStack, Value? staticValue, IReadOnlyList<StackType>? implications, bool trimmed)
         {
             OnStack = onStack;
             StaticValue = staticValue;
             Implications = implications;
+            Trimmed = trimmed;
         }
     }
 
@@ -97,7 +103,7 @@ namespace Yolol.IL.Extensions
         )
         {
             if (expr.ReturnType == typeof(StaticError))
-                return new ConvertResult(typeof(StaticError), null, null);
+                return new ConvertResult(typeof(StaticError), null, null, true);
 
             // Try to convert expression without putting things into locals. Only works with certain expressions.
             var fast = TryConvertBinaryFastPath(expr, emitter, errorLabel, leftConst, rightConst);
@@ -130,7 +136,7 @@ namespace Yolol.IL.Extensions
         public static ConvertResult ConvertUnary<TIn, TOut, TEmit>(this Expression<Func<TIn, TOut>> expr, OptimisingEmitter<TEmit> emitter, ExceptionBlock errorLabel)
         {
             if (expr.ReturnType == typeof(StaticError))
-                return new ConvertResult(typeof(StaticError), null, null);
+                return new ConvertResult(typeof(StaticError), null, null, true);
 
             // Try to convert expression without putting things into locals. Only works with certain expressions.
             var fast = TryConvertUnaryFastPath(expr, emitter, errorLabel);
@@ -164,7 +170,7 @@ namespace Yolol.IL.Extensions
 
                     emitter.NewObject(n.Constructor!);
 
-                    return new ConvertResult(n.Type, null, null);
+                    return new ConvertResult(n.Type, null, null, false);
                 }
 
                 case ExpressionType.Constant: {
@@ -172,19 +178,19 @@ namespace Yolol.IL.Extensions
                     if (constant.Type == typeof(string))
                     {
                         emitter.LoadConstant((string)constant.Value!);
-                        return new ConvertResult(typeof(string), (string)constant.Value!, null);
+                        return new ConvertResult(typeof(string), (string)constant.Value!, null, false);
                     }
 
                     if (constant.Type == typeof(bool))
                     {
                         emitter.LoadConstant((bool)constant.Value!);
-                        return new ConvertResult(typeof(bool), (Number)(bool)constant.Value!, null);
+                        return new ConvertResult(typeof(bool), (Number)(bool)constant.Value!, null, true);
                     }
 
                     if (constant.Type == typeof(int))
                     {
                         emitter.LoadConstant((int)constant.Value!);
-                        return new ConvertResult(typeof(int), (Number)(int)constant.Value!, null);
+                        return new ConvertResult(typeof(int), (Number)(int)constant.Value!, null, true);
                     }
 
                     throw ThrowHelper.NotImplemented($"Constant type: `{constant.Type.Name}`");
@@ -194,7 +200,7 @@ namespace Yolol.IL.Extensions
                     var paramExpr = (ParameterExpression)expr;
                     var param = parameters[paramExpr.Name!];
                     emitter.LoadLocal(param.Local);
-                    return new ConvertResult(expr.Type, param.Constant, null);
+                    return new ConvertResult(expr.Type, param.Constant, null, false);
                 }
 
                 case ExpressionType.Not: {
@@ -204,7 +210,7 @@ namespace Yolol.IL.Extensions
                         ? typeof(Runtime).GetMethod(nameof(Runtime.LogicalNot))
                         : unary.Operand.Type.GetMethod("op_LogicalNot");
                     emitter.Call(m!);
-                    return new ConvertResult(m!.ReturnType, null, null);
+                    return new ConvertResult(m!.ReturnType, null, null, true);
                 }
 
                 case ExpressionType.Negate: {
@@ -225,12 +231,12 @@ namespace Yolol.IL.Extensions
                     {
                         var e = (int)Expression.Lambda(unary).Compile().DynamicInvoke()!;
                         emitter.LoadConstant(e);
-                        return new ConvertResult(typeof(int), (Number)e, null);
+                        return new ConvertResult(typeof(int), (Number)e, null, true);
                     }
 
                     ConvertExpression(unary.Operand, emitter, parameters, errorLabel);
                     emitter.Call(unary.Method!);
-                    return new ConvertResult(unary.Method!.ReturnType, null, null);
+                    return new ConvertResult(unary.Method!.ReturnType, null, null, true);
                 }
 
                 case ExpressionType.Call: {
@@ -263,7 +269,7 @@ namespace Yolol.IL.Extensions
                                 ConvertExpression(arg, emitter, parameters, errorLabel);
 
                             emitter.Call(c.Method);
-                            return new ConvertResult(c.Method.ReturnType, null, null);
+                            return new ConvertResult(c.Method.ReturnType, null, null, false);
                         }
                     }
                 }
@@ -293,7 +299,7 @@ namespace Yolol.IL.Extensions
                         errorLabel
                     );
 
-                    return new ConvertResult(finalResult.OnStack, finalResult.StaticValue, null);
+                    return new ConvertResult(finalResult.OnStack, finalResult.StaticValue, null, true);
                 }
 
                 case ExpressionType.And: {
@@ -309,7 +315,7 @@ namespace Yolol.IL.Extensions
 
                     emitter.And();
 
-                    return new ConvertResult(typeof(bool), staticVal, null);
+                    return new ConvertResult(typeof(bool), staticVal, null, true);
                 }
 
                 default:
@@ -339,12 +345,16 @@ namespace Yolol.IL.Extensions
             if (errorData != null && errorData.Value.UnsafeAlternative != null)
             {
                 emitter.Call(errorData.Value.UnsafeAlternative);
-                return new ConvertResult(errorData.Value.UnsafeAlternative!.ReturnType, null, implications);
+
+                var ts = errorData.Value.UnsafeAlternative.IsTrimSafe();
+                return new ConvertResult(errorData.Value.UnsafeAlternative!.ReturnType, null, implications, ts);
             }
             else
             {
                 emitter.Call(method);
-                return new ConvertResult(method.ReturnType, null, implications);
+
+                var ts = method.IsTrimSafe();
+                return new ConvertResult(method.ReturnType, null, implications, ts);
             }
         }
 
@@ -438,7 +448,7 @@ namespace Yolol.IL.Extensions
 
                     return ConvertCallWithErrorHandling(
                         new[] { expr.Parameters[0].Type, expr.Parameters[1].Type },
-                        new Value?[] {leftConst, rightConst},
+                        new[] { leftConst, rightConst },
                         method,
                         emitter,
                         errorLabel
@@ -460,7 +470,7 @@ namespace Yolol.IL.Extensions
             {
                 case ExpressionType.Parameter:
                     var p = (ParameterExpression)expr.Body;
-                    return new ConvertResult(p.Type, null, null);
+                    return new ConvertResult(p.Type, null, null, true);
 
                 case ExpressionType.Constant:
                     emitter.Pop();

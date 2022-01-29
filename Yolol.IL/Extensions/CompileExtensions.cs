@@ -17,6 +17,29 @@ namespace Yolol.IL.Extensions
     public static class ILExtension
     {
         /// <summary>
+        /// Pre populate maps with variables.
+        /// </summary>
+        /// <param name="line"></param>
+        /// <param name="internalVariableMap"></param>
+        /// <param name="externalVariableMap"></param>
+        public static void Prepare(this Line line, InternalsMap internalVariableMap, ExternalsMap externalVariableMap)
+        {
+            // Locate all accessed variables
+            var stored = new FindAssignedVariables();
+            stored.Visit(line);
+            var loaded = new FindReadVariables();
+            loaded.Visit(line);
+
+            // Populate maps
+            foreach (var name in stored.Names.Concat(loaded.Names).Distinct())
+            {
+                var dict = name.IsExternal ? (Dictionary<VariableName, int>)externalVariableMap : internalVariableMap;
+                if (!dict.TryGetValue(name, out _))
+                    dict[name] = dict.Count;
+            }
+        }
+
+        /// <summary>
         /// Compile a line of Yolol into a runnable C# function
         /// </summary>
         /// <param name="line">The line of code to convert</param>
@@ -39,18 +62,7 @@ namespace Yolol.IL.Extensions
             bool changeDetection = false
         )
         {
-            // Locate all accessed variables and load them into the maps
-            var stored = new FindAssignedVariables();
-            stored.Visit(line);
-            var loaded = new FindReadVariables();
-            loaded.Visit(line);
-            foreach (var name in stored.Names.Concat(loaded.Names).Distinct())
-            {
-                var dict = name.IsExternal ? (Dictionary<VariableName, int>)externalVariableMap : internalVariableMap;
-                if (!dict.TryGetValue(name, out _))
-                    dict[name] = dict.Count;
-            }
-
+            line.Prepare(internalVariableMap, externalVariableMap);
             return line.Compile(lineNumber, maxLines, maxStringLength, (IReadonlyInternalsMap)internalVariableMap, externalVariableMap, staticTypes, changeDetection);
         }
 
