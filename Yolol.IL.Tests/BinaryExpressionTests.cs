@@ -59,11 +59,27 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
+        public void AddMixedBoolVal()
+        {
+            var st = Test("a = 1 + :c");
+
+            Assert.AreEqual(Number.One, st.GetVariable("a"));
+        }
+
+        [TestMethod]
         public void AddMixedNumStr()
         {
-            var st = Test("a = 1 + \"2\"");
+            var st = Test("a = 7 + (:c+\"2\")");
 
-            Assert.AreEqual("12", st.GetVariable("a"));
+            Assert.AreEqual("702", st.GetVariable("a"));
+        }
+
+        [TestMethod]
+        public void AddMixedBoolStr()
+        {
+            var st = Test("a = 1 + (:c+\"2\")");
+
+            Assert.AreEqual("102", st.GetVariable("a"));
         }
 
         [TestMethod]

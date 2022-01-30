@@ -36,20 +36,20 @@ namespace Benchmark
         //    ":done++goto4"
         //};
 
-        //private readonly string[] _program = {
-        //    @"j=""a=""b=""c=""",
-        //    "j+=:i-:i--j+=:i-:i--j+=:i-:i--j+=:i-:i--j+=:i-:i--j+=:i-:i--goto2",
-        //    "a+=j-j--b+=j-j--c+=j-j--b+=j-j--a+=j-j--b+=j-j--c+=j-j--b+=j-j--goto3",
-        //    ":o=a+b+c:done++j=\"\"a=\"\"b=\"\"c=\"\"goto2"
-        //};
-
-        //calculates if Number `:i` is palindromic(7117 => 1, 1234 => 0)
         private readonly string[] _program = {
-            "i=:i l=1+i>9+i>99+i>999+i>9999+i>99999 a=0",
-            "x/=i/10^(a+3)*10^3%10==i/10^(l+2)*10^3%10 a++l--goto2+2*(l<a)",
-            ":o=0goto:done++",
-            ":o=1goto:done++"
+            "j=\"\"a=\"\"b=\"\"c=\"\"",
+            "j+=:i-:i--j+=:i-:i--j+=:i-:i--j+=:i-:i--j+=:i-:i--j+=:i-:i--goto2",
+            "a+=j-j--b+=j-j--c+=j-j--b+=j-j--a+=j-j--b+=j-j--c+=j-j--b+=j-j--goto3",
+            ":o=a+b+c:done++j=\"\"a=\"\"b=\"\"c=\"\"goto2"
         };
+
+        ////calculates if Number `:i` is palindromic(7117 => 1, 1234 => 0)
+        //private readonly string[] _program = {
+        //    "i=:i l=1+i>9+i>99+i>999+i>9999+i>99999 a=0",
+        //    "x/=i/10^(a+3)*10^3%10==i/10^(l+2)*10^3%10 a++l--goto2+2*(l<a)",
+        //    ":o=0goto:done++",
+        //    ":o=1goto:done++"
+        //};
 
         //private readonly string[] _program = new[] {
         //    "a=\"*a\" :i=0 :s=0 :o=0",

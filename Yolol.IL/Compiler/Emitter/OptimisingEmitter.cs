@@ -222,6 +222,20 @@ namespace Yolol.IL.Compiler.Emitter
         }
         #endregion
 
+        #region block
+        /// <summary>
+        /// Pops a size from the stack, allocates size bytes on the local dynamic memory pool, and pushes a pointer to the allocated block.
+        /// 
+        /// LocalAllocate can only be called if the stack is empty aside from the size value.
+        /// 
+        /// Memory allocated with LocalAllocate is released when the current method ends execution.
+        /// </summary>
+        public void LocalAlloc()
+        {
+            _ops.Add(new LocalAlloc());
+        }
+        #endregion
+
         #region stack
         public void Duplicate()
         {
@@ -270,6 +284,11 @@ namespace Yolol.IL.Compiler.Emitter
         public void NewObject<TConstruct, TParameter>()
         {
             _ops.Add(new NewObject<TConstruct, TParameter>());
+        }
+
+        public void NewObject<TConstruct, TParameter1, TParameter2>()
+        {
+            _ops.Add(new NewObject<TConstruct, TParameter1, TParameter2>());
         }
         #endregion
 

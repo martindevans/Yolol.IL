@@ -9,9 +9,9 @@ using Yolol.Grammar.AST.Expressions.Binary;
 using Yolol.Grammar.AST.Expressions.Unary;
 using Yolol.Grammar.AST.Statements;
 using Yolol.IL.Compiler.Emitter;
-using Yolol.IL.Compiler.Emitter.Instructions;
 using Yolol.IL.Compiler.Memory;
 using Yolol.IL.Extensions;
+using ExceptionBlock = Yolol.IL.Compiler.Emitter.Instructions.ExceptionBlock;
 
 namespace Yolol.IL.Compiler
 {
@@ -225,15 +225,19 @@ namespace Yolol.IL.Compiler
         protected override BaseExpression Visit(ConstantString str)
         {
             // Ensure the constant is not over the max length
-            var trimmed = str.Value;
-            trimmed = YString.Trim(trimmed, _maxStringLength);
+            var trimmed = YString.Trim(str.Value, _maxStringLength).ToString();
 
-            //todo: constructing a YString from a string does extra work to count the ones/zeroes in the string
-            //      There's no reason this can't be done at compile time, making constructing const strings cheaper.
+            // Put the string on the stack
+            _emitter.LoadConstant(trimmed);
 
-            // Put a string on the stack
-            _emitter.LoadConstant(trimmed.ToString());
-            _emitter.NewObject<YString, string>();
+            // Calculate counts for this string
+            var counts = SaturatingCounters.FromString(trimmed);
+            _emitter.LoadConstant(counts.Zero);
+            _emitter.LoadConstant(counts.One);
+            _emitter.NewObject<SaturatingCounters, byte, byte>();
+
+            // Construct YString
+            _emitter.NewObject<YString, string, SaturatingCounters>();
             _typesStack.Push(StackType.YololString);
 
             return str;
@@ -790,12 +794,11 @@ namespace Yolol.IL.Compiler
             // Emit code to check if the decrement will throw
             if (errorMetadata != null)
             {
-                if (errorMetadata.Value.WillThrow == null)
-                    throw new InvalidOperationException("null `WillThrow` method for decrement op");
+                var willThrow = ThrowHelper.CheckNotNull(errorMetadata.Value.WillThrow, "null `WillThrow` method for decrement op");
 
                 // Call the "will throw" method (consuming the duplicated value)
                 _emitter.Duplicate();
-                _emitter.Call(errorMetadata.Value.WillThrow);
+                _emitter.Call(willThrow);
 
                 // Jump away to unwinder if this would throw
                 _emitter.LeaveIfTrue(_unwinder);
