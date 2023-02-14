@@ -673,7 +673,7 @@ namespace Yolol.IL.Compiler
                     StackType.YololNumber => emitNum.ConvertUnary(_emitter, errorLabel),
                     StackType.YololString => emitStr.ConvertUnary(_emitter, errorLabel),
                     StackType.YololValue => emitVal.ConvertUnary(_emitter, errorLabel),
-                    _ => throw new InvalidOperationException($"{expr.GetType().Name}({p})")
+                    _ => throw ThrowHelper.NotImplemented($"{expr.GetType().Name}({p})")
                 };
                 _typesStack.Push(convert.OnStack.ToStackType());
 

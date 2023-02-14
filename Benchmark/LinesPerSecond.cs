@@ -20,28 +20,28 @@ namespace Benchmark
         //    "k=k-q-f+e-r-e+d-s-d+c-t-c+b-u-b+a-l-a v=k+:s v-=k :o=v-v-- :done++ goto3"
         //};
 
-        //private readonly string[] _program = new[] {
-        //    ":done++ b=97 c=89",
-        //    ":o++ :done++ :i=0",
-        //    ":done++ x-- x=\"abc\" x=atan x",
-        //    "i=(127-1) _=(i/3%1==0)*i/3>1+(i/5%1==0)*i/5>1+(i/7%1==0)*i/7>1 a=i/11%1==0 x=atan x",
-        //    "_+=a*i/11>1+(i/13%1==0)*i/13>1+(i/17%1==0)*i/17>1+(i/19%1==0)*i/19>1 x=atan x",
-        //    "_+=(i/23%1==0)*i/23>1+(i/29%1==0)*i/29>1+(i/31%1==0)*i/31>1a=i/37%1==0 x=atan x",
-        //    "_+=a*i/37>1+(i/41%1==0)*i/41>1+(i/43%1==0)*i/43>1+(i/47%1==0)*i/47>1 x=atan x",
-        //    "_+=(i/53%1==0)*i/53>1+(i/59%1==0)*i/59>1+(i/61%1==0)*i/61>1a=i/67%1==0 x=atan x",
-        //    "_+=a*i/67>1+(i/71%1==0)*i/71>1+(i/73%1==0)*i/73>1+(i/79%1==0)*i/79>1 x=atan x",
-        //    "_+=(i/83%1==0)*i/83>1+(i/c%1==0)*i/c>1+(i/b%1==0)*i/b>1:o+=_<1:done++ x=atan x",
-        //    "a=1 if _ then a=2 else a=\"2\" end _/=a",
-        //    "if :o then :s=\"ok\" else :s=\"failed\" end",
-        //    ":done++goto4"
-        //};
-
         private readonly string[] _program = {
-            "j=\"\"a=\"\"b=\"\"c=\"\"",
-            "j+=:i-:i--j+=:i-:i--j+=:i-:i--j+=:i-:i--j+=:i-:i--j+=:i-:i--goto2",
-            "a+=j-j--b+=j-j--c+=j-j--b+=j-j--a+=j-j--b+=j-j--c+=j-j--b+=j-j--goto3",
-            ":o=a+b+c:done++j=\"\"a=\"\"b=\"\"c=\"\"goto2"
+            ":done++ b=97 c=89",
+            ":o++ :done++ :i=0",
+            ":done++ x-- x=\"abc\" x=atan x",
+            "i=(127-1) _=(i/3%1==0)*i/3>1+(i/5%1==0)*i/5>1+(i/7%1==0)*i/7>1 a=i/11%1==0 x=atan x",
+            "_+=a*i/11>1+(i/13%1==0)*i/13>1+(i/17%1==0)*i/17>1+(i/19%1==0)*i/19>1 x=atan x",
+            "_+=(i/23%1==0)*i/23>1+(i/29%1==0)*i/29>1+(i/31%1==0)*i/31>1a=i/37%1==0 x=atan x",
+            "_+=a*i/37>1+(i/41%1==0)*i/41>1+(i/43%1==0)*i/43>1+(i/47%1==0)*i/47>1 x=atan x",
+            "_+=(i/53%1==0)*i/53>1+(i/59%1==0)*i/59>1+(i/61%1==0)*i/61>1a=i/67%1==0 x=atan x",
+            "_+=a*i/67>1+(i/71%1==0)*i/71>1+(i/73%1==0)*i/73>1+(i/79%1==0)*i/79>1 x=atan x",
+            "_+=(i/83%1==0)*i/83>1+(i/c%1==0)*i/c>1+(i/b%1==0)*i/b>1:o+=_<1:done++ x=atan x",
+            "a=1 if _ then a=2 else a=\"2\" end _/=a",
+            "if :o then :s=\"ok\" else :s=\"failed\" end",
+            ":done++goto4"
         };
+
+        //private readonly string[] _program = {
+        //    "j=\"\"a=\"\"b=\"\"c=\"\"",
+        //    "j+=:i-:i--j+=:i-:i--j+=:i-:i--j+=:i-:i--j+=:i-:i--j+=:i-:i--goto2",
+        //    "a+=j-j--b+=j-j--c+=j-j--b+=j-j--a+=j-j--b+=j-j--c+=j-j--b+=j-j--goto3",
+        //    ":o=a+b+c:done++j=\"\"a=\"\"b=\"\"c=\"\"goto2"
+        //};
 
         ////calculates if Number `:i` is palindromic(7117 => 1, 1234 => 0)
         //private readonly string[] _program = {
@@ -126,13 +126,13 @@ namespace Benchmark
                 var lps = iterations / timer.Elapsed.TotalSeconds;
                 samples.Add(lps);
 
-                const int c = 10;
+                const int c = 250;
                 var s = samples.AsEnumerable().Reverse().Take(c).ToList();
                 var avg = s.Average();
                 var sum = s.Sum(d => Math.Pow(d - avg, 2));
                 var stdDev = Math.Sqrt(sum / (c - 1));
 
-                Console.WriteLine($"{lps:#,##0.00} l/s | {avg:#,##0.00} avg | {stdDev:#,##0.00} dev | o: {_externals[oidx]}");
+                Console.WriteLine($"{lps:#,##0.00} l/s | {avg:#,##0.00} avg | {stdDev:#,##0.00} dev | o: {_externals[oidx]} | s:{Math.Min(samples.Count, c)}");
             }
 
             //Console.WriteLine("## Externals");

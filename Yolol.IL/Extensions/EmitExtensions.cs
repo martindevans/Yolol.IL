@@ -1,5 +1,4 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Reflection;
 using Sigil;
 using Yolol.Execution;
 using Yolol.IL.Compiler;

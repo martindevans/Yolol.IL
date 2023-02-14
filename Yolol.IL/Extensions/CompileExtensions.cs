@@ -259,9 +259,10 @@ namespace Yolol.IL.Extensions
                 emitter.Optimise();
 
 #if DEBUG
+                //Console.WriteLine($"Static Types Discovered: {types.DiscoveredTypes}/{types.TotalTypeQueries}");
                 Console.WriteLine($"// {line}");
                 Console.WriteLine(emitter.ToString());
-                Console.WriteLine($"------------------------------");
+                Console.WriteLine("------------------------------");
 #endif
             }
         }

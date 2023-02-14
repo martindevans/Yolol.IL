@@ -198,27 +198,7 @@ namespace Yolol.IL.Compiler.Emitter
         #region fields
         public void LoadField(FieldInfo field, bool? isVolatile = null, int? unaligned = null)
         {
-            _ops.Add(new LoadFieldOp(field, isVolatile, unaligned));
-        }
-
-        private class LoadFieldOp
-            : BaseInstruction
-        {
-            private readonly FieldInfo _field;
-            private readonly bool? _isVolatile;
-            private readonly int? _unaligned;
-
-            public LoadFieldOp(FieldInfo field, bool? isVolatile, int? unaligned)
-            {
-                _field = field;
-                _isVolatile = isVolatile;
-                _unaligned = unaligned;
-            }
-
-            public override void Emit<T>(Emit<T> emitter)
-            {
-                emitter.LoadField(_field, _isVolatile, _unaligned);
-            }
+            _ops.Add(new LoadField(field, isVolatile, unaligned));
         }
         #endregion
 
@@ -295,31 +275,12 @@ namespace Yolol.IL.Compiler.Emitter
         #region logical
         public void And()
         {
-            _ops.Add(new AndOp());
+            _ops.Add(new And());
         }
-
-        private class AndOp
-            : BaseInstruction
-        {
-            public override void Emit<T>(Emit<T> emitter)
-            {
-                emitter.And();
-            }
-        }
-
 
         public void Or()
         {
-            _ops.Add(new OrOp());
-        }
-
-        private class OrOp
-            : BaseInstruction
-        {
-            public override void Emit<T>(Emit<T> emitter)
-            {
-                emitter.Or();
-            }
+            _ops.Add(new Or());
         }
         #endregion
 

@@ -30,7 +30,6 @@ namespace Fuzzer
             var interpreted = RunInterpreted(ast, max, iterations);
             var compiled = RunCompiled(ast, max, iterations);
 
-            //// Wait for interpreter to finish
             Console.WriteLine($"Compile: {compiled.Prepare.TotalMilliseconds}ms");
             Console.WriteLine($"Execute: {compiled.Execute.TotalMilliseconds}ms");
             Console.WriteLine($"Interpret: {interpreted.Execute.TotalMilliseconds}ms");

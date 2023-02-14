@@ -263,10 +263,7 @@ namespace Yolol.IL.Compiler.Memory
         private void EmitLoadArraySegmentAddr(VariableName name)
         {
             // Load the correct array segment for whichever type of variable we're accessing
-            if (name.IsExternal)
-                _emitter.LoadArgumentAddress(_externalArraySegmentArg);
-            else
-                _emitter.LoadArgumentAddress(_internalArraySegmentArg);
+            _emitter.LoadArgumentAddress(name.IsExternal ? _externalArraySegmentArg : _internalArraySegmentArg);
         }
 
         /// <summary>

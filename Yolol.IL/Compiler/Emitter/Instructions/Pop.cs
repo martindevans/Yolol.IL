@@ -14,7 +14,7 @@ namespace Yolol.IL.Compiler.Emitter.Instructions
         [ExcludeFromCodeCoverage]
         public override string ToString()
         {
-            return $"Pop()";
+            return "Pop()";
         }
     }
 }

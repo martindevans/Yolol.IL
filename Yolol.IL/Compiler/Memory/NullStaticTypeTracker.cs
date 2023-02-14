@@ -1,8 +1,10 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Yolol.Grammar;
 
 namespace Yolol.IL.Compiler.Memory
 {
+    [ExcludeFromCodeCoverage]
     internal class NullStaticTypeTracker
         : IStaticTypeTracker
     {

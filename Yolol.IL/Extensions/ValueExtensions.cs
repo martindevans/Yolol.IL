@@ -13,8 +13,8 @@ namespace Yolol.IL.Extensions
         /// <param name="output"></param>
         public static object Coerce(this Value input, StackType output)
         {
-            ThrowHelper.Check(input.Type != Execution.Type.Error, "Cannot coerce from Error type");
-            ThrowHelper.Check(input.Type != Execution.Type.Unassigned, "Cannot coerce from Unassigned type");
+            ThrowHelper.Check(input.Type != Type.Error, "Cannot coerce from Error type");
+            ThrowHelper.Check(input.Type != Type.Unassigned, "Cannot coerce from Unassigned type");
             ThrowHelper.Check(output != StackType.StaticError, "Cannot coerce to StaticError type");
 
             var inputType = input.Type;
@@ -22,15 +22,15 @@ namespace Yolol.IL.Extensions
             switch (inputType, output)
             {
                 #region identity conversions
-                case (Execution.Type.String, StackType.YololString):
+                case (Type.String, StackType.YololString):
                     return input.String;
 
-                case (Execution.Type.Number, StackType.YololNumber):
+                case (Type.Number, StackType.YololNumber):
                     return input.Number;
                 #endregion
 
                 #region number conversion
-                case (Execution.Type.Number, StackType.Bool):
+                case (Type.Number, StackType.Bool):
                     if (input.Number == Number.Zero || input.Number == Number.One)
                         return input.Number == Number.One;
                     throw new InternalCompilerException("Cannot coerce number -> bool");

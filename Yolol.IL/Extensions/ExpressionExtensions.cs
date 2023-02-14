@@ -487,6 +487,7 @@ namespace Yolol.IL.Extensions
 
         private static ConvertResult? TryConvertCallFastPath<TExpr, TEmit>(this Expression<TExpr> expr, OptimisingEmitter<TEmit> emitter, ExceptionBlock errorLabel)
         {
+            // This shouldn't ever happen, fail gracefully.
             if (expr.Body.NodeType != ExpressionType.Call)
                 return null;
 

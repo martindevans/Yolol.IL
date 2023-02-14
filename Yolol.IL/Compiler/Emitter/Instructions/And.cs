@@ -3,18 +3,18 @@ using Sigil;
 
 namespace Yolol.IL.Compiler.Emitter.Instructions
 {
-    internal class Return
+    internal class And
         : BaseInstruction
     {
         public override void Emit<T>(Emit<T> emitter)
         {
-            emitter.Return();
+            emitter.And();
         }
 
         [ExcludeFromCodeCoverage]
         public override string ToString()
         {
-            return "Return()";
+            return "And()";
         }
     }
 }

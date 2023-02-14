@@ -23,9 +23,9 @@ namespace Yolol.IL.Compiler.Emitter.Optimisations
         {
             ThrowHelper.Check(instructions.Count == 3, "incorrect instruction count");
 
-            var dup = (Duplicate)instructions[0];
+            ThrowHelper.Check(instructions[0] is Duplicate, "Expected Duplicate");
             var store = (StoreLocal)instructions[1];
-            var pop = (Pop)instructions[2];
+            ThrowHelper.Check(instructions[2] is Pop, "Expected Pop");
 
             instructions.Clear();
             instructions.Add(store);

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Yolol.Grammar;
 using System.Linq;
 using Yolol.IL.Extensions;
@@ -15,6 +16,9 @@ namespace Yolol.IL.Compiler.Memory
         private readonly ITypeContext _root;
         private ITypeContext _current;
 
+        public int UsefulTypeQueriesCount { get; private set; }
+        public int TotalTypeQueriesCount { get; private set; }
+
         public StaticTypeTracker(IReadOnlyDictionary<VariableName, Type>? staticTypes)
         {
             _root = new RootContext(staticTypes ?? new Dictionary<VariableName, Type>());
@@ -23,7 +27,13 @@ namespace Yolol.IL.Compiler.Memory
 
         public StackType? TypeOf(VariableName name)
         {
-            return _current.TypeOf(name);
+            var type = _current.TypeOf(name);
+
+            TotalTypeQueriesCount++;
+            if (type.HasValue && type.Value != StackType.YololValue)
+                UsefulTypeQueriesCount++;
+
+            return type;
         }
 
         public ITypeContext EnterContext()
@@ -86,6 +96,7 @@ namespace Yolol.IL.Compiler.Memory
         {
             private readonly IDictionary<VariableName, StackType> _types;
 
+            [ExcludeFromCodeCoverage]
             public ITypeContext Parent => throw ThrowHelper.Invalid("Root type context has no parent");
 
             public IReadOnlyDictionary<VariableName, StackType> Types => (IReadOnlyDictionary<VariableName, StackType>)_types;
@@ -110,6 +121,7 @@ namespace Yolol.IL.Compiler.Memory
                 return null;
             }
 
+            [ExcludeFromCodeCoverage]
             public void Dispose()
             {
                 throw ThrowHelper.Invalid("Cannot dispose root type context");

@@ -1,9 +1,12 @@
-﻿namespace Yolol.IL.Compiler
+﻿using JetBrains.Annotations;
+
+namespace Yolol.IL.Compiler
 {
     public readonly struct ChangeSet
     {
         private readonly ulong _bits;
 
+        [UsedImplicitly]
         internal ChangeSet(ulong bits)
         {
             _bits = bits;
