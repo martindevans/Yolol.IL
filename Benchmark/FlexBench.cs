@@ -29,7 +29,7 @@ namespace Benchmark
             if (OperatingSystem.IsLinux() || OperatingSystem.IsWindows())
             {
                 const int affinity = 1 << 5;
-                proc.ProcessorAffinity = (IntPtr)affinity;
+                proc.ProcessorAffinity = affinity;
             }
 
             // Make it high priority to reduce benchmarking noise.
@@ -66,7 +66,7 @@ namespace Benchmark
             // Set up the compiler
             var externalsMap = new ExternalsMap();
 
-            // Compile - program has 20 line, or however many are in the file. Whichever is more.
+            // Compile - program has 20 lines, or however many are in the file. Whichever is more.
             outerTimer.Start();
             var compiled = ast.Compile(externalsMap, Math.Max(20, ast.Lines.Count));
             outerTimer.Stop();
