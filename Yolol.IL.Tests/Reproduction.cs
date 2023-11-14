@@ -30,6 +30,21 @@ namespace Yolol.IL.Tests
         }
 
         [TestMethod]
+        public void RadStrings()
+        {
+            var ms = TestHelpers.Test(new [] {
+                "a=\"\" b=a-- y=2 goto0",
+                "x=1"
+            }, 3);
+
+            Assert.AreEqual("", ms.GetVariable("a").ToString());
+            Assert.AreEqual(0, (int)ms.GetVariable("b").Number);
+            Assert.AreEqual(1, (int)ms.GetVariable("x").Number);
+            Assert.AreEqual(0, (int)ms.GetVariable("y").Number);
+        }
+
+
+        [TestMethod]
         public void ZijkhalBlackFriday()
         {
             var result = TestHelpers.Test(new[] {

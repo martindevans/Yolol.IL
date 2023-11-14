@@ -1,0 +1,119 @@
+# 2023-03-12
+
+## empty.yolol
+ - Parsed:      16.8563 ms
+ - Compiled:    102.086 ms
+ - Total:       513,567,604 lines
+ - Average:     92,949,876 l/s
+ - StdDev:      8,026,928
+
+## incremental.yolol
+ - Parsed:      1.8797 ms
+ - Compiled:    41.3295 ms
+ - Total:       42,507,844 lines
+ - Average:     7,574,988 l/s
+ - StdDev:      1,295,561
+
+## prime_test.yolol
+ - Parsed:      2.0432 ms
+ - Compiled:    55.0993 ms
+ - Total:       162,905,424 lines
+ - Average:     29,278,342 l/s
+ - StdDev:      4,808,739
+
+## string_counting.yolol
+ - Parsed:      0.3737 ms
+ - Compiled:    5.8671 ms
+ - Total:       90,023,439 lines
+ - Average:     16,160,957 l/s
+ - StdDev:      2,926,372
+ 
+# after
+
+## empty.yolol
+ - Parsed:      19.2833 ms
+ - Compiled:    106.4535 ms
+ - Total:       531,564,914 lines
+ - Average:     96,180,686 l/s
+ - StdDev:      8,676,224
+
+## incremental.yolol
+ - Parsed:      1.9174 ms
+ - Compiled:    43.0674 ms
+ - Total:       55,962,400 lines
+ - Average:     9,993,952 l/s
+ - StdDev:      1,502,497
+
+## prime_test.yolol
+ - Parsed:      6.9713 ms
+ - Compiled:    60.6383 ms
+ - Total:       153,771,261 lines
+ - Average:     27,523,379 l/s
+ - StdDev:      4,774,494
+
+## string_counting.yolol
+ - Parsed:      0.3612 ms
+ - Compiled:    5.7745 ms
+ - Total:       98,119,502 lines
+ - Average:     17,606,835 l/s
+ - StdDev:      3,465,530
+ 
+# 2023-11-14 (dotnet 7.0)
+
+## empty.yolol
+ - Parsed:      1396.4654 ms
+ - Compiled:    5403.4957 ms
+ - Total:       505,148,384 lines
+ - Average:     91,762,735 l/s
+ - StdDev:      8,789,254
+
+## incremental.yolol
+ - Parsed:      1.817 ms
+ - Compiled:    69.4381 ms
+ - Total:       54,341,702 lines
+ - Average:     9,726,822 l/s
+ - StdDev:      1,276,447
+
+## prime_test.yolol
+ - Parsed:      6.9372 ms
+ - Compiled:    59.6314 ms
+ - Total:       155,126,943 lines
+ - Average:     27,804,327 l/s
+ - StdDev:      4,566,184
+
+## string_counting.yolol
+ - Parsed:      0.3899 ms
+ - Compiled:    6.6269 ms
+ - Total:       97,969,846 lines
+ - Average:     17,562,969 l/s
+ - StdDev:      3,530,841
+ 
+# 2023-11-14 (dotnet 8.0)
+
+## empty.yolol
+ - Parsed:      20.0262 ms
+ - Compiled:    106.1335 ms
+ - Total:       608,770,911 lines
+ - Average:     110,067,677 l/s
+ - StdDev:      10,320,899
+
+## incremental.yolol
+ - Parsed:      1.6191 ms
+ - Compiled:    38.7083 ms
+ - Total:       59,730,891 lines
+ - Average:     10,672,792 l/s
+ - StdDev:      1,875,925
+
+## prime_test.yolol
+ - Parsed:      7.9256 ms
+ - Compiled:    85.4754 ms
+ - Total:       241,001,601 lines
+ - Average:     43,178,609 l/s
+ - StdDev:      9,677,146
+
+## string_counting.yolol
+ - Parsed:      0.4165 ms
+ - Compiled:    6.6662 ms
+ - Total:       102,336,290 lines
+ - Average:     18,320,450 l/s
+ - StdDev:      4,357,704
