@@ -39,7 +39,7 @@ namespace Fuzzer
 
             // Read all reports from the channel
             while (await channel.Reader.WaitToReadAsync()) 
-            ProcessReport(await channel.Reader.ReadAsync());
+                ProcessReport(await channel.Reader.ReadAsync());
         }
 
         private static long _totalPrograms = 0;

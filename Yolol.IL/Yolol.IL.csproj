@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <Version>19.0.0</Version>
+    <TargetFramework>net10.0</TargetFramework>
+    <Version>20.0.0</Version>
     <Platforms>AnyCPU;x64</Platforms>
     <Nullable>enable</Nullable>
     <Authors>Martin Evans</Authors>
@@ -35,10 +35,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="JetBrains.Annotations" Version="2024.3.0" />
+    <PackageReference Include="JetBrains.Annotations" Version="2025.2.2" />
     <PackageReference Include="Sigil.NetStandard" Version="4.8.0" />
-    <PackageReference Include="Yolol" Version="16.0.0" />
-    <PackageReference Include="Yolol.Analysis" Version="10.0.0" />
+    <PackageReference Include="Yolol" Version="17.0.0" />
+    <PackageReference Include="Yolol.Analysis" Version="11.0.0" />
   </ItemGroup>
 
 </Project>

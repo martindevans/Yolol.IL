@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Linq;
 using Yolol.Grammar;
 using Yolol.Grammar.AST.Statements;
-using MoreLinq;
 using Yolol.Grammar.AST.Expressions.Unary;
 
 namespace Fuzzer.Generators

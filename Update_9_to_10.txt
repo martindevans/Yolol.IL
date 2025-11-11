@@ -1,0 +1,63 @@
+# .NET 9
+
+## empty.yolol
+ - Parsed:      52.3691 ms
+ - Compiled:    267.8517 ms
+ - Total:       2,559,396,425 lines
+ - Average:     463,304,552 l/s
+ - StdDev:      96,596,650
+
+## incremental.yolol
+ - Parsed:      1.7932 ms
+ - Compiled:    49.7219 ms
+ - Total:       64,275,122 lines
+ - Average:     11,522,383 l/s
+ - StdDev:      1,756,497
+
+## prime_test.yolol
+ - Parsed:      8.2874 ms
+ - Compiled:    78.2676 ms
+ - Total:       238,486,238 lines
+ - Average:     42,640,609 l/s
+ - StdDev:      10,430,216
+
+## string_counting.yolol
+ - Parsed:      0.428 ms
+ - Compiled:    5.8471 ms
+ - Total:       108,561,357 lines
+ - Average:     19,409,495 l/s
+ - StdDev:      4,373,607
+ 
+## Lines Per Second Bench
+
+57,756,728.66 l/s | 55,461,577.21 avg | 4,111,172.47 dev | o: 1 | s:104
+
+# .NET 10
+
+- Average:     469,794,919 l/s
+ - StdDev:      100,339,225
+
+## incremental.yolol
+ - Parsed:      1.7869 ms
+ - Compiled:    36.393 ms
+ - Total:       76,611,080 lines
+ - Average:     13,710,074 l/s
+ - StdDev:      2,740,124
+
+## prime_test.yolol
+ - Parsed:      8.5886 ms
+ - Compiled:    80.7297 ms
+ - Total:       273,730,640 lines
+ - Average:     48,645,912 l/s
+ - StdDev:      14,113,539
+
+## string_counting.yolol
+ - Parsed:      0.557 ms
+ - Compiled:    6.3471 ms
+ - Total:       151,973,282 lines
+ - Average:     27,185,180 l/s
+ - StdDev:      7,791,488
+
+## Lines Per Second Bench
+
+60,483,261.26 l/s | 57,972,752.98 avg | 3,891,773.64 dev | o: 1 | s:104

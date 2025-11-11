@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Running;
 
 namespace Benchmark
 {

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Linq;
 using System.Text;
-using MoreLinq.Extensions;
 using Yolol.Execution;
 using Yolol.Grammar.AST.Expressions;
 using Yolol.Grammar.AST.Expressions.Binary;
@@ -91,10 +90,8 @@ namespace Fuzzer.Generators
             }
 
             var str = new StringBuilder();
-            Enumerable.Range(0, _random.Next(20))
-                      .Select(i => RandomChar())
-                      .ForEach(c => str.Append(c));
-
+            foreach (var item in Enumerable.Range(0, _random.Next(20)).Select(_ => RandomChar()))
+                str.Append(item);
             return str.ToString();
         }
     }
