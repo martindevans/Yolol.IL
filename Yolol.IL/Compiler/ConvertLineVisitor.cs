@@ -201,9 +201,8 @@ namespace Yolol.IL.Compiler
 
         protected override BaseExpression Visit(ConstantNumber con)
         {
-            // Reflect out the raw int64 value
-            var rawValueField = typeof(Number).GetField("_value", BindingFlags.NonPublic | BindingFlags.Instance);
-            var rawValue = (long)rawValueField!.GetValue(con.Value)!;
+            // Get the raw int64 value
+            var rawValue = con.Value.RawValue;
 
             // if the raw value represents one of the two boolean values, emit a bool
             if (rawValue == 0 || rawValue == 1000)

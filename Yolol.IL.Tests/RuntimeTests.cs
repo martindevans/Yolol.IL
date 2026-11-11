@@ -10,7 +10,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void ErrorToValueThrows()
         {
-            Assert.ThrowsException<ExecutionException>(() => Runtime.ErrorToValue(new Execution.StaticError("Hello")));
+            Assert.Throws<ExecutionException>(() => Runtime.ErrorToValue(new Execution.StaticError("Hello")));
         }
 
         [TestMethod]
@@ -58,7 +58,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void GotoValueString()
         {
-            Assert.ThrowsException<ExecutionException>(() => Runtime.GotoValue(new Value(new YString("Hello")), 20));
+            Assert.Throws<ExecutionException>(() => Runtime.GotoValue(new Value(new YString("Hello")), 20));
         }
 
         [TestMethod]

@@ -1,0 +1,43 @@
+# .NET 10
+
+## empty.yolol
+ - Average:     478,481,903 l/s
+ - StdDev:      99,147,815
+
+## incremental.yolol
+ - Average:     14,869,078 l/s
+ - StdDev:      1,474,443
+
+## prime_test.yolol
+ - Average:     48,813,796 l/s
+ - StdDev:      9,278,285
+
+## string_counting.yolol
+ - Average:     23,390,632 l/s
+ - StdDev:      3,393,912  
+ 
+## Lines Per Second Bench (Sample1)
+
+6,171,974.67 l/s | 5,381,708.24 avg | 397,131.63 dev | o: 0 | s:39
+
+# .NET 11
+
+## empty.yolol
+ - Average:     476,898,196 l/s
+ - StdDev:      99,492,840
+
+## incremental.yolol
+ - Average:     15,688,468 l/s
+ - StdDev:      1,482,589
+
+## prime_test.yolol
+ - Average:     54,632,549 l/s
+ - StdDev:      12,651,580
+
+## string_counting.yolol
+ - Average:     27,001,738 l/s
+ - StdDev:      1,898,854
+
+## Lines Per Second Bench (Sample1)
+
+6,139,930.24 l/s | 5,640,613.35 avg | 250,631.42 dev | o: 0 | s:70

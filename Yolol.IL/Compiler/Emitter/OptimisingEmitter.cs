@@ -11,7 +11,7 @@ using FinallyBlock = Yolol.IL.Compiler.Emitter.Instructions.FinallyBlock;
 
 namespace Yolol.IL.Compiler.Emitter
 {
-    public class OptimisingEmitter<TEmit>
+    public sealed class OptimisingEmitter<TEmit>
         : IDisposable
     {
         private readonly Emit<TEmit> _emitter;
@@ -54,9 +54,7 @@ namespace Yolol.IL.Compiler.Emitter
             }
         }
 
-#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
         public void Dispose()
-#pragma warning restore CA1816 // Dispose methods should call SuppressFinalize
         {
             foreach (var op in _ops)
                 op.Emit(_emitter);

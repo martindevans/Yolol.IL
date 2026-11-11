@@ -20,7 +20,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void FromYololTypeThrows()
         {
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => Execution.Type.Unassigned.ToStackType());
+            Assert.Throws<ArgumentOutOfRangeException>(() => Execution.Type.Unassigned.ToStackType());
         }
 
         [TestMethod]
@@ -36,7 +36,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void FromRealTypeThrows()
         {
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => typeof(TypeExtensionsTests).ToStackType());
+            Assert.Throws<ArgumentOutOfRangeException>(() => typeof(TypeExtensionsTests).ToStackType());
         }
     }
 }

@@ -13,11 +13,14 @@ namespace Benchmark
             //var config = DefaultConfig.Instance;
             //var summary = BenchmarkRunner.Run<CompareInterpreter>(config);
 
-            //var lps = new LinesPerSecond();
-            //lps.Run();
+            var lps = new LinesPerSecond();
+            lps.Run();
 
-            var flex = new FlexBench(new DirectoryInfo(Path.Combine(args)));
-            flex.Run();
+            //var flex1 = new FlexBench(new DirectoryInfo(Path.Combine(args)));
+            //flex1.Run();
+            //Console.Clear();
+            //var flex = new FlexBench(new DirectoryInfo(Path.Combine(args)));
+            //flex.Run();
         }
     }
 }

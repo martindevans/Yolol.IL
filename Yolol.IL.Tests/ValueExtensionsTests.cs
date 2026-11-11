@@ -54,7 +54,7 @@ namespace Yolol.IL.Tests
         public void NumberToBoolInvalid()
         {
             var v = (Value)7;
-            Assert.ThrowsException<InternalCompilerException>(() => {
+            Assert.Throws<InternalCompilerException>(() => {
                 v.Coerce(StackType.Bool);
             });
         }
@@ -84,7 +84,7 @@ namespace Yolol.IL.Tests
         {
             var v = (Value)7;
 
-            Assert.ThrowsException<InternalCompilerException>(() => {
+            Assert.Throws<InternalCompilerException>(() => {
                 v.Coerce(StackType.YololString);
             });
         }

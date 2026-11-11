@@ -61,7 +61,7 @@ namespace Benchmark
             outerTimer.Start();
             var ast = Parse(txt);
             outerTimer.Stop();
-            Console.WriteLine($" - Parsed:\t{outerTimer.Elapsed.TotalMilliseconds} ms");
+            Console.WriteLine($" - Parse:\t{outerTimer.Elapsed.TotalMilliseconds} ms");
 
             // Set up the compiler
             var externalsMap = new ExternalsMap();
@@ -72,7 +72,7 @@ namespace Benchmark
             outerTimer.Stop();
 
             // Write out time to compile program
-            Console.WriteLine($" - Compiled:\t{outerTimer.Elapsed.TotalMilliseconds} ms");
+            Console.WriteLine($" - Compile:\t{outerTimer.Elapsed.TotalMilliseconds} ms");
 
             // Set up runtime
             var externals = new Value[externalsMap.Count];

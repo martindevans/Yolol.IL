@@ -13,7 +13,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void CreateEmptyProgramThrows()
         {
-            Assert.ThrowsException<ArgumentException>(() => new CompiledProgram(new InternalsMap(), Array.Empty<JitLine>()));
+            Assert.Throws<ArgumentException>(() => new CompiledProgram(new InternalsMap(), Array.Empty<JitLine>()));
         }
 
         [TestMethod]

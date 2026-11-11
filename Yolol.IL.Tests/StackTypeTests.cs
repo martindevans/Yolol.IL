@@ -20,8 +20,8 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void InvalidConversions()
         {
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => StackType.StaticError.ToType());
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => ((StackType)(-10)).ToType());
+            Assert.Throws<ArgumentOutOfRangeException>(() => StackType.StaticError.ToType());
+            Assert.Throws<ArgumentOutOfRangeException>(() => ((StackType)(-10)).ToType());
         }
     }
 }

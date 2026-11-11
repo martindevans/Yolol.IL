@@ -1,8 +1,6 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using Yolol.Execution;
 using Yolol.Grammar;
 using Yolol.Grammar.AST;

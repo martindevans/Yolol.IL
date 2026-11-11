@@ -52,7 +52,7 @@ namespace Yolol.IL.Tests
                 optim.EmitCoerce(StackType.StaticError, StackType.YololValue);
             });
 
-            Assert.ThrowsException<ExecutionException>(() => func(new StaticError("Hello")));
+            Assert.Throws<ExecutionException>(() => func(new StaticError("Hello")));
         }
 
         [TestMethod]
@@ -68,7 +68,7 @@ namespace Yolol.IL.Tests
         [TestMethod]
         public void StringToNumber()
         {
-            Assert.ThrowsException<InvalidOperationException>(() => {
+            Assert.Throws<InvalidOperationException>(() => {
                 CreateFunc<YString, Number>(optim =>{
                     optim.EmitCoerce(StackType.YololString, StackType.YololNumber);
                 });

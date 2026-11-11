@@ -20,7 +20,7 @@ namespace Yolol.IL.Tests
                 new Line(new Grammar.AST.Statements.StatementList()),
             });
 
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => p.Compile(new ExternalsMap(), 4));
+            Assert.Throws<ArgumentOutOfRangeException>(() => p.Compile(new ExternalsMap(), 4));
         }
     }
 }

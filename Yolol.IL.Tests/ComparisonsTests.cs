@@ -91,9 +91,9 @@ namespace Yolol.IL.Tests
         {
             var st = Test($"L=1 R=7 a=1==L b=1==R c=7==L");
 
-            Assert.AreEqual(true, st.GetVariable("a").ToBool());
-            Assert.AreEqual(false, st.GetVariable("b").ToBool());
-            Assert.AreEqual(false, st.GetVariable("c").ToBool());
+            Assert.IsTrue(st.GetVariable("a").ToBool());
+            Assert.IsFalse(st.GetVariable("b").ToBool());
+            Assert.IsFalse(st.GetVariable("c").ToBool());
         }
 
         [TestMethod]
